@@ -10,18 +10,18 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/common/metrics"
-	"github.com/wangliang139/llt-trade/server/pkg/entity"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/chsdk"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/service/accountsvc"
-	"github.com/wangliang139/llt-trade/server/pkg/service/llmsvc"
-	"github.com/wangliang139/llt-trade/server/pkg/service/ordersvc"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging/store"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/signalflow"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/validator"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/common/metrics"
+	"github.com/wangliang139/NovaForge/server/pkg/entity"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/service/accountsvc"
+	"github.com/wangliang139/NovaForge/server/pkg/service/llmsvc"
+	"github.com/wangliang139/NovaForge/server/pkg/service/ordersvc"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging/store"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/signalflow"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/validator"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/snowflake"
 )
@@ -67,7 +67,7 @@ func (s *Service) getBotAccountID(ctx context.Context, botID int32) (string, err
 	return bot.AccountID, nil
 }
 
-// ---- Bot scoped data proxy (forward to llt-data-api) ----
+// ---- Bot scoped data proxy ----
 
 func (s *Service) GetBotBalance(ctx context.Context, req *stypes.GetBotBalanceRequest) (*stypes.GetBotBalanceResponse, error) {
 	if req == nil {

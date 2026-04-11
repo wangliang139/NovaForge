@@ -14,9 +14,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/market/connector/cache"
-	mdtypes "github.com/wangliang139/llt-trade/server/pkg/market/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/market/connector/cache"
+	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 	"github.com/wangliang139/mow/number"
 	okx "github.com/wangliang139/okx-connector-go"
@@ -223,7 +223,7 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 		Side(side).
 		OrdType(ordType).
 		Sz(sz).
-		Tag("llt")
+		Tag("novaforge")
 
 	if input.ClientOrderID != nil && strings.TrimSpace(input.ClientOrderID.String()) != "" {
 		svc = svc.ClOrdId(strings.TrimSpace(input.ClientOrderID.String()))

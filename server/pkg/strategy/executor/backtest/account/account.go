@@ -9,12 +9,12 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy"
-	mb "github.com/wangliang139/llt-trade/server/pkg/strategy/infra/bus"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/clock"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/proxy"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy"
+	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 const defaultAssetPrecision = 18

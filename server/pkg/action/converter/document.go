@@ -5,11 +5,11 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/extractor"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/calendar"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/document"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/extractor"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/calendar"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/document"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func DocumentCatalogGql2Repo(c *model.DocumentCatalog) document.DocumentCatalog {

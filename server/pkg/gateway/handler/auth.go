@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/auth"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/gql"
-	"github.com/wangliang139/llt-trade/server/pkg/service/usersvc"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/auth"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/gql"
+	"github.com/wangliang139/NovaForge/server/pkg/service/usersvc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

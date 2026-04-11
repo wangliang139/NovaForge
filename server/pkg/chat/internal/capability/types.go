@@ -3,7 +3,7 @@ package capability
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 )
 
 type Handler func(context.Context, map[string]any, domain.Env) (any, error)

@@ -7,9 +7,9 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/entity"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/document"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/entity"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/document"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
 )

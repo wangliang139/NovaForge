@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 func TestSorterConfig_Compare_TotalOrder(t *testing.T) {

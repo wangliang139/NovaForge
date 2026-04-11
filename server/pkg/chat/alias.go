@@ -1,6 +1,6 @@
 package chat
 
-import "github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+import "github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 
 type (
 	CreateDialogRequest     = domain.CreateDialogRequest

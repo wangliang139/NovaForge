@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/internal/push"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/bot"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/push"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/logger"
 )
 

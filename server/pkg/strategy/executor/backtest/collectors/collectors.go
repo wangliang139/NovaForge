@@ -3,10 +3,10 @@ package collectors
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy"
-	mb "github.com/wangliang139/llt-trade/server/pkg/strategy/infra/bus"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging/store"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy"
+	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging/store"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // Collectors 收集器集合

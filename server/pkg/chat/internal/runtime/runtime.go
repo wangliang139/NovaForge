@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/capability"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/tools"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/capability"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/tools"
 )
 
 // FormatToolError 将错误序列化为发给 LLM 的 JSON 文本（统一 code/message）。

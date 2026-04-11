@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging"
 )
 
 // BufferStorage is a logger that also keeps an in-memory cache of recent log entries.

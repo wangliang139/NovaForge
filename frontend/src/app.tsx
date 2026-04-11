@@ -17,7 +17,7 @@ import { errorConfig } from './requestErrorConfig';
 import { currentUser as queryCurrentUser } from './services/ant-design-pro/api';
 
 const isDev = process.env.NODE_ENV === 'development';
-const THEME_MODE_STORAGE_KEY = 'llt-theme-mode';
+const THEME_MODE_STORAGE_KEY = 'novaforge-theme-mode';
 
 type ThemeMode = 'system' | 'light' | 'dark';
 

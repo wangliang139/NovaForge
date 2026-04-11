@@ -8,9 +8,9 @@ package resolver
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/auth"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/restart"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/auth"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/restart"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	mowerror "github.com/wangliang139/mow/errors"
 )
 

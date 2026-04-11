@@ -1,8 +1,8 @@
 package converter
 
 import (
-	userrepo "github.com/wangliang139/llt-trade/server/pkg/repos/user"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	userrepo "github.com/wangliang139/NovaForge/server/pkg/repos/user"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // UserRepo2Types 将数据库 User 转为业务 User

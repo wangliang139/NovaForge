@@ -1,9 +1,9 @@
 package convert
 
 import (
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	repo_dialog "github.com/wangliang139/llt-trade/server/pkg/repos/llm_dialog"
-	repo_session "github.com/wangliang139/llt-trade/server/pkg/repos/llm_session"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	repo_dialog "github.com/wangliang139/NovaForge/server/pkg/repos/llm_dialog"
+	repo_session "github.com/wangliang139/NovaForge/server/pkg/repos/llm_session"
 )
 
 func SessionDTOFromRepo(row *repo_session.LlmSession) domain.SessionDTO {

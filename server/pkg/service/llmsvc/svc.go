@@ -8,9 +8,9 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/entity"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/llm"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/entity"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/llm"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
 )

@@ -2,16 +2,16 @@ package entity
 
 import (
 	"github.com/redis/go-redis/v9"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/account"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/document"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/llm"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/market"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/order"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/risk"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/strategy"
-	"github.com/wangliang139/llt-trade/server/pkg/entity/user"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/account"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/document"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/llm"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/market"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/order"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/risk"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/strategy"
+	"github.com/wangliang139/NovaForge/server/pkg/entity/user"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	"github.com/wangliang139/mow/executors"
 )
 

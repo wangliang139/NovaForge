@@ -7,8 +7,8 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 func ConvertKlineSignal(base stypes.BaseSignal, k *ctypes.Kline) *stypes.KlineSignal {

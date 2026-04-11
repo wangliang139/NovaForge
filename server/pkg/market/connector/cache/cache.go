@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
-const TracerName = "github.com/wangliang139/llt-trade/server/pkg/market/connector/cache"
+const TracerName = "github.com/wangliang139/NovaForge/server/pkg/market/connector/cache"
 
 var tracer = otel.Tracer(TracerName)
 

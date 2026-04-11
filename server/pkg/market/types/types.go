@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/wangliang139/llt-trade/server/pkg/internal/encrypt"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/encrypt"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type ConnectMode int

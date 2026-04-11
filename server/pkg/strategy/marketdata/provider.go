@@ -12,10 +12,10 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
-	mb "github.com/wangliang139/llt-trade/server/pkg/strategy/infra/bus"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/proxy"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 const (

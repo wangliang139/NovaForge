@@ -10,11 +10,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/stumble/wpgx"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	converter "github.com/wangliang139/llt-trade/server/pkg/converter"
-	"github.com/wangliang139/llt-trade/server/pkg/market/connector"
-	"github.com/wangliang139/llt-trade/server/pkg/market/types"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
+	converter "github.com/wangliang139/NovaForge/server/pkg/converter"
+	"github.com/wangliang139/NovaForge/server/pkg/market/connector"
+	"github.com/wangliang139/NovaForge/server/pkg/market/types"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func Test_connector(t *testing.T) {
@@ -61,7 +61,7 @@ func Test_connector(t *testing.T) {
 
 func Test_engine(t *testing.T) {
 	os.Setenv("POSTGRES_PASSWORD", "postgres")
-	os.Setenv("POSTGRES_APPNAME", "llt-data")
+	os.Setenv("POSTGRES_APPNAME", "novaforge")
 	os.Setenv("POSTGRES_DBNAME", "llt_data_db")
 	os.Setenv("POSTGRES_PASSWORD", "my-secret")
 

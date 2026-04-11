@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/gql"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/gql"
 )
 
 const (

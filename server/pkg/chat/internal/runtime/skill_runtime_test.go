@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 )
 
 func TestWhitelistRuntime_CallSkill_missingKV(t *testing.T) {

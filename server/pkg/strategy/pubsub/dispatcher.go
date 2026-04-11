@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type Handler interface {

@@ -14,21 +14,21 @@ func TestParseAPIKeyRaw(t *testing.T) {
 	}{
 		{
 			name:      "accepts current 32-char lookup",
-			raw:       "llt_0123456789abcdef0123456789abcdef_abcdefghijklmnopqrstuvwxyz123456",
+			raw:       "nf_0123456789abcdef0123456789abcdef_abcdefghijklmnopqrstuvwxyz123456",
 			wantOK:    true,
 			wantLen:   currentAPIKeyLookupLength,
 			wantStart: "01234567",
 		},
 		{
 			name:      "accepts legacy 16-char lookup",
-			raw:       "llt_0123456789abcdef_abcdefghijklmnopqrstuvwxyz123456",
+			raw:       "nf_0123456789abcdef_abcdefghijklmnopqrstuvwxyz123456",
 			wantOK:    true,
 			wantLen:   legacyAPIKeyLookupLength,
 			wantStart: "01234567",
 		},
 		{
 			name:   "rejects unexpected lookup length",
-			raw:    "llt_0123456789abcde_abcdefghijklmnopqrstuvwxyz123456",
+			raw:    "nf_0123456789abcde_abcdefghijklmnopqrstuvwxyz123456",
 			wantOK: false,
 		},
 	}

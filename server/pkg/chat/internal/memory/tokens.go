@@ -3,7 +3,7 @@ package memory
 import (
 	"unicode/utf8"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 )
 
 func EstimateInputTokens(messages []domain.ChatMessage) int {

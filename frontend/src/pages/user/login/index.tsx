@@ -50,7 +50,7 @@ const Login: React.FC = () => {
               return <Button type="primary" size={'large'} htmlType="submit" style={{ width: '100%' }}>进入</Button>;
             },
           }}
-          title="LLT Trade"
+          title="NovaForge"
           subTitle="会当凌绝顶，一览众山小！"
           onFinish={async (values) => {
             setErrorMsg('');

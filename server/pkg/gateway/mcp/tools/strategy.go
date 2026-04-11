@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/action/resolver"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/action/resolver"
 )
 
 type strategyIDIn struct {
@@ -15,7 +15,7 @@ type strategyIDIn struct {
 func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 	// --- Strategy / Datasource queries ---
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_strategies", Description: "Query Strategies：策略列表（GraphQL Strategies）"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_strategies", Description: "Query Strategies：策略列表（GraphQL Strategies）"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryStrategiesInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "Strategies", false); err != nil {
 				return nil, nil, err
@@ -24,7 +24,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_strategy", Description: "Query Strategy：按 id 查策略（GraphQL Strategy）"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_strategy", Description: "Query Strategy：按 id 查策略（GraphQL Strategy）"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in strategyIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "Strategy", false); err != nil {
 				return nil, nil, err
@@ -35,7 +35,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 
 	// --- Strategy / Bot mutations ---
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_create_strategy", Description: "Mutation CreateStrategy"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_create_strategy", Description: "Mutation CreateStrategy"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.CreateStrategyInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "CreateStrategy", true); err != nil {
 				return nil, nil, err
@@ -44,7 +44,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_update_strategy", Description: "Mutation UpdateStrategy"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_update_strategy", Description: "Mutation UpdateStrategy"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.UpdateStrategyInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "UpdateStrategy", true); err != nil {
 				return nil, nil, err
@@ -53,7 +53,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_generate_strategy", Description: "Mutation GenerateStrategy：AI 生成策略草稿"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_generate_strategy", Description: "Mutation GenerateStrategy：AI 生成策略草稿"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.GenerateStrategyInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "GenerateStrategy", true); err != nil {
 				return nil, nil, err
@@ -62,7 +62,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_active_strategy", Description: "Mutation ActiveStrategy"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_active_strategy", Description: "Mutation ActiveStrategy"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in strategyIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "ActiveStrategy", true); err != nil {
 				return nil, nil, err
@@ -74,7 +74,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, map[string]any{"success": ok}, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_inactive_strategy", Description: "Mutation InactiveStrategy"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_inactive_strategy", Description: "Mutation InactiveStrategy"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in strategyIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "InactiveStrategy", true); err != nil {
 				return nil, nil, err
@@ -86,7 +86,7 @@ func RegisterStrategyTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, map[string]any{"success": ok}, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_run_backtest", Description: "Mutation RunBacktest"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_run_backtest", Description: "Mutation RunBacktest"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.RunBacktestInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "RunBacktest", true); err != nil {
 				return nil, nil, err

@@ -7,9 +7,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stumble/wpgx"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	llmentity "github.com/wangliang139/llt-trade/server/pkg/entity/llm"
-	repo_session "github.com/wangliang139/llt-trade/server/pkg/repos/llm_session"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	llmentity "github.com/wangliang139/NovaForge/server/pkg/entity/llm"
+	repo_session "github.com/wangliang139/NovaForge/server/pkg/repos/llm_session"
 	"github.com/wangliang139/mow/logger"
 )
 

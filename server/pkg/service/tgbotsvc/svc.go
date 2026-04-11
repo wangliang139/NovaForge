@@ -13,17 +13,17 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/entity"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/settings"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/entity"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/settings"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
-const TracerName = "github.com/wangliang139/llt-trade/server/pkg/service/tgbot"
+const TracerName = "github.com/wangliang139/NovaForge/server/pkg/service/tgbot"
 
 // configPollInterval KV 中资讯采集配置轮询间隔；变更后至多延迟该时间重新订阅。
 const configPollInterval = 30 * time.Second

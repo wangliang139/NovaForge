@@ -3,9 +3,9 @@ package converter
 import (
 	"strconv"
 
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/service/usersvc"
-	userapikey "github.com/wangliang139/llt-trade/server/pkg/repos/user_api_key"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/service/usersvc"
+	userapikey "github.com/wangliang139/NovaForge/server/pkg/repos/user_api_key"
 )
 
 func UserAPIKeyToGql(row *userapikey.UserApiKey) *model.UserAPIKey {

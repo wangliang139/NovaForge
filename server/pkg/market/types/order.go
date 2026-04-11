@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // PlaceOrderInput 统一的下单入参（屏蔽交易所差异）。

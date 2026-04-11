@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	types "github.com/wangliang139/llt-trade/server/pkg/types"
+	types "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type Cursor struct {

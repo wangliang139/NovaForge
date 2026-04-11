@@ -10,8 +10,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/market/provider"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/market/provider"
 )
 
 type Publisher interface {

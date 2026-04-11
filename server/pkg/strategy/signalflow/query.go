@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/internal/chsdk"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
 )
 
 type QueryFilter struct {

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
 )
 
 const (

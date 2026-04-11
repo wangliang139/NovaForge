@@ -2,10 +2,10 @@ package converter
 
 import (
 	"github.com/bytedance/sonic"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/datasource"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/datasource"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // DataSourceDb2Types 转换 DataSource 数据库模型到类型

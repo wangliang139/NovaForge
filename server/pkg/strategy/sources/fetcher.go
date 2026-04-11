@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	types "github.com/wangliang139/llt-trade/server/pkg/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	types "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // CursorFetchSource 将现有的 types.Source（cursor + batch Fetch）适配为 ExternalSource。

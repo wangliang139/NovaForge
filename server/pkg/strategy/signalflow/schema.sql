@@ -1,6 +1,6 @@
 -- Bot Signal Flow Table
 -- Purpose: Record bot-scoped signals for debugging and auditing
--- Note: Schema is aligned with llt-data-api eventflow fields.
+-- Note: Schema is aligned with novaforge eventflow fields.
 
 CREATE TABLE IF NOT EXISTS trade.bot_signal_flow (
     id Int64,

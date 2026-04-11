@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // orderEntry 订单簿条目（只保存撮合必需的最小信息）

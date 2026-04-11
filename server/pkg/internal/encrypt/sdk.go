@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/wangliang139/llt-trade/server/pkg/utils/encdec"
+	"github.com/wangliang139/NovaForge/server/pkg/utils/encdec"
 	"github.com/wangliang139/mow/errors"
 )
 

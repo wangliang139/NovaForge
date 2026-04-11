@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/openai/openai-go/v3"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/consts"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/document"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/document"
 	"github.com/wangliang139/mow/logger"
 )
 

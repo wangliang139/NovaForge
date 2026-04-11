@@ -3,7 +3,7 @@ package types
 import (
 	"time"
 
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // BotMode Bot运行模式

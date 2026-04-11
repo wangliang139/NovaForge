@@ -1,6 +1,6 @@
 package sse
 
-import "github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+import "github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 
 func PhaseForPart(partType string) string {
 	switch partType {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/repos/document"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/document"
 )
 
 // DocumentStatsResult 文档处理统计

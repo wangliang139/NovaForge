@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/chsdk"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging"
 	"github.com/wangliang139/mow/snowflake"
 )
 

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/sources"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/sources"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 func TestTimelineScheduler_OrderAndFlushBarrier(t *testing.T) {

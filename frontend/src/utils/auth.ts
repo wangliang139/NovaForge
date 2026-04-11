@@ -3,7 +3,7 @@
  * 用于前端 JWT token 的存储、读取和清除
  */
 
-const TOKEN_KEY = 'llt_access_token';
+const TOKEN_KEY = 'nf_access_token';
 
 /**
  * 获取存储的 access token

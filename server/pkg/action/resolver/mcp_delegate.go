@@ -3,7 +3,7 @@ package resolver
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
 )
 
 // MCP* 方法供 MCP 网关复用与 GraphQL 相同的 resolver 逻辑（鉴权、参数校验、Service 调用）。

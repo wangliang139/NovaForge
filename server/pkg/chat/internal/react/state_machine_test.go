@@ -3,7 +3,7 @@ package react
 import (
 	"testing"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 )
 
 func TestExecutionStateConstants(t *testing.T) {

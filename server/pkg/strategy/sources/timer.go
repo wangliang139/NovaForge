@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
-	ss "github.com/wangliang139/llt-trade/server/pkg/strategy/signal"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	types "github.com/wangliang139/llt-trade/server/pkg/types"
+	ss "github.com/wangliang139/NovaForge/server/pkg/strategy/signal"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	types "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // TimerSource 生成模拟时间轴上的 timer 事件（不使用系统时间）。

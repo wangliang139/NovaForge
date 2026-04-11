@@ -3,9 +3,9 @@ package converter
 import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // FillTypes2Gql 将运行时成交事件转为 GraphQL model.Fill。

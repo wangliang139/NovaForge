@@ -2,9 +2,9 @@ package converter
 
 import (
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func MarketTypes2Gql(m *ctypes.Market) *model.Market {

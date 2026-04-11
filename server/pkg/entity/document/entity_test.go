@@ -10,9 +10,9 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
 	"github.com/stumble/wpgx"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/extractor"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/extractor"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func Test_parseTimeFormat(t *testing.T) {
@@ -106,7 +106,7 @@ BlockBeats 消息，11 月 11 日，据 HTX 行情数据，UNI 24 小时涨幅�
 
 func Test_extractByDbConfig(t *testing.T) {
 	os.Setenv("POSTGRES_PASSWORD", "postgres")
-	os.Setenv("POSTGRES_APPNAME", "llt-data")
+	os.Setenv("POSTGRES_APPNAME", "novaforge")
 	os.Setenv("POSTGRES_DBNAME", "llt_data_db")
 	os.Setenv("POSTGRES_PASSWORD", "my-secret")
 	var wpgxConfig wpgx.Config

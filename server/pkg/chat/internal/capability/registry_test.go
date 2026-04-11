@@ -3,9 +3,9 @@ package capability_test
 import (
 	"testing"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/capability"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/capability"
 	// 触发 tools.init()，将内置能力注册到 capability 注册表。
-	_ "github.com/wangliang139/llt-trade/server/pkg/chat/internal/tools"
+	_ "github.com/wangliang139/NovaForge/server/pkg/chat/internal/tools"
 )
 
 func TestRegistryBasics(t *testing.T) {

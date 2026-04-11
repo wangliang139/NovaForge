@@ -8,11 +8,11 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/samber/lo"
 	"github.com/stumble/wpgx"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_prompt"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_scene"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_prompt"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_scene"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 )
 

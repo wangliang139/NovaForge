@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // RunMode 表示一次策略执行“运行模式”。

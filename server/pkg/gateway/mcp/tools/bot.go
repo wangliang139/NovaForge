@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/action/resolver"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/action/resolver"
 )
 
 type botIDIn struct {
@@ -21,7 +21,7 @@ type botEquityIn struct {
 func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 	// --- Bot queries ---
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bots", Description: "Query Bots：Bot 列表（GraphQL Bots）"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bots", Description: "Query Bots：Bot 列表（GraphQL Bots）"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotsInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "Bots", false); err != nil {
 				return nil, nil, err
@@ -30,7 +30,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot", Description: "Query Bot：单个 Bot（GraphQL Bot）"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot", Description: "Query Bot：单个 Bot（GraphQL Bot）"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in botIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "Bot", false); err != nil {
 				return nil, nil, err
@@ -39,7 +39,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_balance", Description: "Query BotBalance：查询Bot关联账户的资产信息"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_balance", Description: "Query BotBalance：查询Bot关联账户的资产信息"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotBalanceInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotBalance", false); err != nil {
 				return nil, nil, err
@@ -48,7 +48,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_positions", Description: "Query BotPositions：查询Bot关联账户的仓位信息"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_positions", Description: "Query BotPositions：查询Bot关联账户的仓位信息"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotPositionsInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotPositions", false); err != nil {
 				return nil, nil, err
@@ -57,7 +57,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_state", Description: "Query BotState：查询Bot运行状态"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_state", Description: "Query BotState：查询Bot运行状态"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotStateInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotState", false); err != nil {
 				return nil, nil, err
@@ -66,7 +66,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_orders", Description: "Query BotOrders：查询Bot所属的订单列表"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_orders", Description: "Query BotOrders：查询Bot所属的订单列表"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotOrdersInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotOrders", false); err != nil {
 				return nil, nil, err
@@ -75,7 +75,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_ledger", Description: "Query BotLedger：查询Bot的资金流水"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_ledger", Description: "Query BotLedger：查询Bot的资金流水"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotLedgersInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotLedger", false); err != nil {
 				return nil, nil, err
@@ -84,7 +84,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_equity", Description: "Query BotEquity：查询Bot的净值曲线"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_equity", Description: "Query BotEquity：查询Bot的净值曲线"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in botEquityIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotEquity", false); err != nil {
 				return nil, nil, err
@@ -93,7 +93,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_bot_metrics", Description: "Query BotMetrics：查询Bot的指标"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_bot_metrics", Description: "Query BotMetrics：查询Bot的指标"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.QueryBotMetricsInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "BotMetrics", false); err != nil {
 				return nil, nil, err
@@ -104,7 +104,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 
 	// --- Strategy / Bot mutations ---
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_create_bot", Description: "Mutation CreateBot"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_create_bot", Description: "Mutation CreateBot"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.CreateBotInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "CreateBot", true); err != nil {
 				return nil, nil, err
@@ -113,7 +113,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_update_bot", Description: "Mutation UpdateBot"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_update_bot", Description: "Mutation UpdateBot"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in model.UpdateBotInput) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "UpdateBot", true); err != nil {
 				return nil, nil, err
@@ -122,7 +122,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_start_bot", Description: "Mutation StartBot"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_start_bot", Description: "Mutation StartBot"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in botIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "StartBot", true); err != nil {
 				return nil, nil, err
@@ -134,7 +134,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, map[string]any{"success": ok}, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_stop_bot", Description: "Mutation StopBot"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_stop_bot", Description: "Mutation StopBot"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in botIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "StopBot", true); err != nil {
 				return nil, nil, err
@@ -146,7 +146,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, map[string]any{"success": ok}, nil
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_upgrade_bot", Description: "Mutation UpgradeBot"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_upgrade_bot", Description: "Mutation UpgradeBot"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in botIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "UpgradeBot", true); err != nil {
 				return nil, nil, err
@@ -155,7 +155,7 @@ func RegisterBotTools(s *mcp.Server, rsv *resolver.Resolver) {
 			return nil, out, err
 		})
 
-	mcp.AddTool(s, &mcp.Tool{Name: "llt_delete_bot", Description: "Mutation DeleteBot"},
+	mcp.AddTool(s, &mcp.Tool{Name: "nf_delete_bot", Description: "Mutation DeleteBot"},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in botIDIn) (*mcp.CallToolResult, any, error) {
 			if err := CheckGQLAccess(ctx, "DeleteBot", true); err != nil {
 				return nil, nil, err

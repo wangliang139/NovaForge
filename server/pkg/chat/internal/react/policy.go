@@ -3,8 +3,8 @@ package react
 import (
 	"strings"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/capability"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/tools"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/capability"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/tools"
 )
 
 func shouldInvokeBuiltinTool(question string) bool {

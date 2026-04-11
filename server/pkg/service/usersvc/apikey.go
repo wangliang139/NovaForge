@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/auth"
-	userapikey "github.com/wangliang139/llt-trade/server/pkg/repos/user_api_key"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/auth"
+	userapikey "github.com/wangliang139/NovaForge/server/pkg/repos/user_api_key"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -139,13 +139,13 @@ func (s *Service) CreateUserApiKey(ctx context.Context, userID int64, name strin
 		return "", nil, err
 	}
 	secret := base64.RawURLEncoding.EncodeToString(secretBytes)
-	plainKey = "llt_" + lookup + "_" + secret
+	plainKey = "nf_" + lookup + "_" + secret
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(secret), bcrypt.DefaultCost)
 	if err != nil {
 		return "", nil, err
 	}
-	prefix := "llt_" + lookup[:minLookupPrefix(8, len(lookup))] + "…"
+	prefix := "nf_" + lookup[:minLookupPrefix(8, len(lookup))] + "…"
 
 	created, err := s.db.UserApiKeyRepo.CreateUserApiKey(ctx, userapikey.CreateUserApiKeyParams{
 		UserID:      userID,
@@ -237,10 +237,10 @@ func (s *Service) DeleteUserApiKey(ctx context.Context, userID, keyID int64) (bo
 }
 
 func parseAPIKeyRaw(raw string) (lookup, secret string, ok bool) {
-	if !strings.HasPrefix(raw, "llt_") {
+	if !strings.HasPrefix(raw, "nf_") {
 		return "", "", false
 	}
-	rest := strings.TrimPrefix(raw, "llt_")
+	rest := strings.TrimPrefix(raw, "nf_")
 	idx := strings.IndexByte(rest, '_')
 	if idx <= 0 || idx >= len(rest)-1 {
 		return "", "", false

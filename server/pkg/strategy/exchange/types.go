@@ -1,6 +1,6 @@
 package exchange
 
-import bridge "github.com/wangliang139/llt-trade/server/pkg/strategy/exchange/bridge"
+import bridge "github.com/wangliang139/NovaForge/server/pkg/strategy/exchange/bridge"
 
 // 兼容层：对外保留 exchange 包下的事件类型名；实际实现下沉到 exchange/bridge，
 // 避免 exchange(依赖 matching) <-> matching(依赖事件类型) 的 import cycle。

@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging"
 	"rogchap.com/v8go"
 )
 

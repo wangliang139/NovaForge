@@ -122,12 +122,8 @@ async function runGraphql(flags) {
     fail('global fetch is unavailable; use Node.js 18+');
   }
 
-  const baseUrl = readOptionalEnv(
-    'NOVAFORGE_BASE_URL',
-    readOptionalEnv('LLT_BASE_URL', 'https://localhost:3000'),
-  );
-  const apiKey =
-    readOptionalEnv('NOVAFORGE_API_KEY', '') || readOptionalEnv('LLT_API_KEY', '');
+  const baseUrl = readOptionalEnv('NOVAFORGE_BASE_URL', 'https://localhost:3000');
+  const apiKey = readOptionalEnv('NOVAFORGE_API_KEY', '');
   if (!apiKey) {
     fail('missing required environment variable: NOVAFORGE_API_KEY');
   }
@@ -141,7 +137,7 @@ async function runGraphql(flags) {
     fail('timeout must be a positive integer in milliseconds');
   }
   const timeoutMs = timeoutMsRaw;
-  const url = buildUrl(baseUrl, ['NOVAFORGE_GRAPHQL_URL', 'LLT_QUERY_URL'], '/query');
+  const url = buildUrl(baseUrl, 'NOVAFORGE_GRAPHQL_URL', '/query');
 
   const payload = {
     query,

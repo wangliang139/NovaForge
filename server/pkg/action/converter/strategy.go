@@ -5,9 +5,9 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 )
 

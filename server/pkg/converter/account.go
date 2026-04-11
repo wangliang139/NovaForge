@@ -2,9 +2,9 @@ package converter
 
 import (
 	"github.com/rs/zerolog/log"
-	accountrepo "github.com/wangliang139/llt-trade/server/pkg/repos/account"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func AccountRepo2Types(a *accountrepo.Account) *types.Account {

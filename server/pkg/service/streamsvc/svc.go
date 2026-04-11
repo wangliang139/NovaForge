@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/entity"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/entity"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 )
 

@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/proxy"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-// LiveAccountEngine 实盘账户引擎：请求透传到 llt-data-api
+// LiveAccountEngine 实盘账户引擎
 type LiveAccountEngine struct{}
 
 var _ strategy.AccountEngine = (*LiveAccountEngine)(nil)

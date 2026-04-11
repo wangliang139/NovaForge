@@ -1,8 +1,8 @@
 package bus
 
 import (
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // Filter 事件过滤器

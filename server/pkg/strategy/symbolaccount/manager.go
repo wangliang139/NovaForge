@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	mb "github.com/wangliang139/llt-trade/server/pkg/strategy/infra/bus"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // BalanceView 资产余额视图（策略级，按 symbol 隔离）

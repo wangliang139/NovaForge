@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 )
 
 func TestIsRecoverableToolError_runtimeError(t *testing.T) {

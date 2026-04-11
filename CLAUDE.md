@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 NovaForge is a **desktop-oriented monolith** for multi-exchange Web3 trading: a single Go backend and a React SPA.
 
-- `server/` — Go application (GraphQL via gqlgen, strategy runtime, market connectors, sqlc repos, scheduled jobs). Entry: `cmd/app`.
+- `server/` — Go application (GraphQL via gqlgen, strategy runtime, market connectors, sqlc repos, scheduled jobs). Entry: `cmd/app`. Go module: `github.com/wangliang139/NovaForge/server`.
 - `frontend/` — React / TypeScript SPA (Ant Design Pro, UmiJS, Apollo Client for GraphQL).
 
 The UI talks to the backend over **GraphQL** (same repo; local dev typically runs both processes). Persistence and domain logic live under `server/pkg/repos`, `server/pkg/entity`, resolvers, and strategy `pkg/strategy/`.

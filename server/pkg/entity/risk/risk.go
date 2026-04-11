@@ -8,9 +8,9 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/market"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/market"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
 

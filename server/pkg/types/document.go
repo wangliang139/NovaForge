@@ -3,9 +3,9 @@ package types
 import (
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/internal/extractor"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/calendar"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/document"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/extractor"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/calendar"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/document"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

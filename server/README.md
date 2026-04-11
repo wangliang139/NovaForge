@@ -2831,8 +2831,7 @@ err := botManager.StopBot(ctx, bot.ID)
 ### 创建异步消息总线（生产环境）
 
 ```go
-// <module> 与 server/go.mod 中 module 行一致
-import "<module>/pkg/strategy/infra/bus"
+import "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 
 bus := bus.NewAsync()
 ctx := context.Background()
@@ -2848,8 +2847,7 @@ defer bus.Stop(ctx)
 ### 创建同步消息总线（回测场景）
 
 ```go
-// <module> 与 server/go.mod 中 module 行一致
-import "<module>/pkg/strategy/infra/bus"
+import "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 
 bus := bus.NewSync()
 ctx := context.Background()

@@ -2,8 +2,8 @@ package portfolio
 
 import (
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 type BalanceStore struct {

@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/bytedance/sonic"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/bot"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // BotPo2Types 将数据库模型转换为类型

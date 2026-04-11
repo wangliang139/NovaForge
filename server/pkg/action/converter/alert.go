@@ -2,8 +2,8 @@ package converter
 
 
 import (
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/service/alertsvc"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/service/alertsvc"
 )
 
 func ToGqlAlertItem(item alertsvc.AlertItem) *model.AlertItem {

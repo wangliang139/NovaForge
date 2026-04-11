@@ -10,7 +10,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/redis/go-redis/v9"
 	"github.com/wangliang139/mow/database/cache"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 var ErrCircuitOpen = errors.New("publisher circuit open")

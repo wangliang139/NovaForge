@@ -7,10 +7,10 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/openai/openai-go/v3"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type generatedStrategyResult struct {

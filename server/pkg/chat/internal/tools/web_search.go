@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/settings"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/settings"
 	"github.com/wangliang139/mow/logger"
 )
 

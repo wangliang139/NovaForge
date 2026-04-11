@@ -3,9 +3,9 @@ package sources
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/proxy"
-	ss "github.com/wangliang139/llt-trade/server/pkg/strategy/signal"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	ss "github.com/wangliang139/NovaForge/server/pkg/strategy/signal"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 type klineFetcher struct {

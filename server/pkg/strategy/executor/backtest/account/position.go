@@ -1,7 +1,7 @@
 package account
 
 import (
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type PositionKey struct {

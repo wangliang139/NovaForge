@@ -9,7 +9,7 @@ import (
 	portfolio "github.com/adshao/go-binance/v2/portfolio"
 	portfolio_pro "github.com/adshao/go-binance/v2/portfolio_pro"
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type Account struct {

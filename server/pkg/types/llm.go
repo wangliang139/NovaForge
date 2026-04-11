@@ -7,9 +7,9 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/openai/openai-go/v3"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_prompt"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_scene"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_prompt"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_scene"
 )
 
 type LlmMessage struct {

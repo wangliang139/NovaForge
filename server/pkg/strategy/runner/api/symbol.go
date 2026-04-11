@@ -7,8 +7,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/misc"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/misc"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"rogchap.com/v8go"
 )
 

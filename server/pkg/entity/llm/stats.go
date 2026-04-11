@@ -3,7 +3,7 @@ package llm
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_completion"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_completion"
 )
 
 // TaskStatsResult 聚合统计结果

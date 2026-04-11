@@ -13,11 +13,11 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/jackc/pgx/v5"
 	"github.com/stumble/wpgx"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/bot"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/snapshot"
-	repo "github.com/wangliang139/llt-trade/server/pkg/repos/strategy"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/snapshot"
+	repo "github.com/wangliang139/NovaForge/server/pkg/repos/strategy"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/snowflake"
 )
 

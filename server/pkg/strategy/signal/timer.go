@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/converter"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	types "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/converter"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	types "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/errors"
 )
 

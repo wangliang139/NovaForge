@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging/store"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging/store"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // LogCollector 日志收集器

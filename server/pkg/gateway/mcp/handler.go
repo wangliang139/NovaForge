@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/wangliang139/llt-trade/server/pkg/action/resolver"
+	"github.com/wangliang139/NovaForge/server/pkg/action/resolver"
 )
 
 // HTTPHandler Streamable HTTP MCP 端点；与 /query 相同应在 OptionalAuthMiddleware 之后挂载。

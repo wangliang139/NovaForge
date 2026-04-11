@@ -10,13 +10,13 @@ import (
 	futures "github.com/adshao/go-binance/v2/futures"
 	portfolio "github.com/adshao/go-binance/v2/portfolio"
 	"github.com/rs/zerolog/log"
-	mdtypes "github.com/wangliang139/llt-trade/server/pkg/market/types"
+	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 )
 
 func requireBinanceIntegration(t *testing.T) (apiKey, apiSecret string) {
 	t.Helper()
-	if os.Getenv("LLT_INTEGRATION_TEST") == "" {
-		t.Skip("skip integration test; set LLT_INTEGRATION_TEST=1 to enable")
+	if os.Getenv("NOVAFORGE_INTEGRATION_TEST") == "" {
+		t.Skip("skip integration test; set NOVAFORGE_INTEGRATION_TEST=1 to enable")
 	}
 	apiKey = os.Getenv("BINANCE_API_KEY")
 	apiSecret = os.Getenv("BINANCE_API_SECRET")

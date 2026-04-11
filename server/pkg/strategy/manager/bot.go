@@ -10,12 +10,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/samber/lo"
 	"github.com/stumble/wpgx"
-	"github.com/wangliang139/llt-trade/server/pkg/converter"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/bot"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/registry"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/converter"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/registry"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/logger"
 )
 

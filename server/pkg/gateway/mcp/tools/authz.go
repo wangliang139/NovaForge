@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/auth"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/auth"
 )
 
 // CheckGQLAccess 对齐 GraphQL API Key 规则：[auth.CheckApiKeyPermission] + allowlist。

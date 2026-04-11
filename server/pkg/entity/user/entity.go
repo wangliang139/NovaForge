@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/bytedance/sonic"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/tgbot"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/settings"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/tgbot"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/settings"
 )
 
 type Entity struct {

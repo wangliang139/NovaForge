@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/bytedance/sonic"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/document"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/tg_channel"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/document"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/tg_channel"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func ChannelRepo2Types(po *tg_channel.TgChannel) (*types.Channel, error) {

@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-const meterName = "llt-trade/server/pkg/chat/react"
+const meterName = "NovaForge/server/pkg/chat/react"
 
 var (
 	metricsOnce      sync.Once

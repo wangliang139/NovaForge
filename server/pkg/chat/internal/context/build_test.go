@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	chatcfg "github.com/wangliang139/llt-trade/server/pkg/chat/internal/config"
-	repo_session "github.com/wangliang139/llt-trade/server/pkg/repos/llm_session"
+	chatcfg "github.com/wangliang139/NovaForge/server/pkg/chat/internal/config"
+	repo_session "github.com/wangliang139/NovaForge/server/pkg/repos/llm_session"
 	// 触发 tools.init()，将内置能力注册到 capability 注册表。
-	_ "github.com/wangliang139/llt-trade/server/pkg/chat/internal/tools"
+	_ "github.com/wangliang139/NovaForge/server/pkg/chat/internal/tools"
 )
 
 func TestBuild_toolsPromptBudgetUsesCompactLayer(t *testing.T) {

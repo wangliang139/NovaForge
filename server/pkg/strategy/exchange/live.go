@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/proxy"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // LiveGateway 实盘交易所网关
@@ -34,7 +34,7 @@ func (g *LiveGateway) PlaceOrder(ctx context.Context, intent stypes.OrderPlaceIn
 		return "", fmt.Errorf("symbol is required")
 	}
 
-	// 调用 market 代理下单（核心业务逻辑在 llt-data-api）
+	// 调用 market 代理下单
 	orderID, clientOrderID, err := proxy.PlaceOrder(ctx, intent)
 	if err != nil {
 		return "", err

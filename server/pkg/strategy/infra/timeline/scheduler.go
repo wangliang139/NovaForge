@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/timeline/internal"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/timeline/internal"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // TimelineScheduler 将 external frame 推进与 internal 事件仲裁合并到同一输出序列。

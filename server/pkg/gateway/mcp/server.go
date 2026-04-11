@@ -2,12 +2,12 @@ package mcp
 
 import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/wangliang139/llt-trade/server/pkg/action/resolver"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/mcp/tools"
+	"github.com/wangliang139/NovaForge/server/pkg/action/resolver"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/mcp/tools"
 )
 
 const (
-	ServerName    = "llt-trade"
+	ServerName    = "novaforge"
 	ServerVersion = "1.0.0"
 )
 
@@ -16,7 +16,7 @@ func NewMCPServer(rsv *resolver.Resolver) *mcp.Server {
 		Name:    ServerName,
 		Version: ServerVersion,
 	}, &mcp.ServerOptions{
-		Instructions: "LLT Trade MCP：账户、市场只读（余额/持仓/订单）、策略与 Bot。",
+		Instructions: "NovaForge MCP：账户、市场只读（余额/持仓/订单）、策略与 Bot。",
 	})
 	tools.RegisterAccountTools(s, rsv)
 	tools.RegisterStrategyTools(s, rsv)

@@ -5,7 +5,7 @@
 
 CREATE DATABASE IF NOT EXISTS trade;
 
--- llt-data-api: eventflow (ClickHouse)
+-- eventflow
 CREATE TABLE IF NOT EXISTS trade.event_flow (
     id Int64,
     account_id String,
@@ -24,7 +24,7 @@ ORDER BY (account_id, stream, ts, id)
 TTL ts + INTERVAL 7 DAY
 SETTINGS index_granularity = 8192;
 
--- llt-strategy-api: signalflow (ClickHouse)
+-- signalflow
 CREATE TABLE IF NOT EXISTS trade.bot_signal_flow (
     id Int64,
     bot_id Int32,
@@ -45,7 +45,7 @@ ORDER BY (bot_id, stream, ts, id)
 TTL ts + INTERVAL 7 DAY
 SETTINGS index_granularity = 8192;
 
-
+-- bot_console_log
 CREATE TABLE IF NOT EXISTS trade.bot_console_log (
     id Int64,
     bot_id Int32,

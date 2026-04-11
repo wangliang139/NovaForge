@@ -3,7 +3,7 @@ package react
 import (
 	"testing"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/tools"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/tools"
 )
 
 func TestShouldInvokeBuiltinTool(t *testing.T) {

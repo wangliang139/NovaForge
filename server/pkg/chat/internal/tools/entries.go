@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/capability"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/capability"
 )
 
 const (

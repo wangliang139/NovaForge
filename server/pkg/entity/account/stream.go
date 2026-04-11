@@ -10,11 +10,11 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/rstream"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/ledgers"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/positions"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/utils"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/rstream"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 	"github.com/wangliang139/mow/snowflake"
 	"go.opentelemetry.io/otel"
@@ -22,7 +22,7 @@ import (
 	"go.opentelemetry.io/otel/codes"
 )
 
-const TracerName = "github.com/wangliang139/llt-trade/server/pkg/entity/account"
+const TracerName = "github.com/wangliang139/NovaForge/server/pkg/entity/account"
 
 var tracer = otel.Tracer(TracerName)
 

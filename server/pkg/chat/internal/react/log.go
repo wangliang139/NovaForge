@@ -3,7 +3,7 @@ package react
 import (
 	zlog "github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
 )
 
 // StreamLogFields 结构化日志关联字段（零值表示省略该维度）。

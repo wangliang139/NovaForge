@@ -6,7 +6,7 @@
 
 ### 组成部分
 
-- **server**：Go 单体服务（GraphQL、gqlgen、策略运行时、行情与交易对接、sqlc 数据访问、定时任务等）。进程入口见 `server/cmd/app`。
+- **server**：Go 单体服务（GraphQL、gqlgen、策略运行时、行情与交易对接、sqlc 数据访问、定时任务等）。进程入口见 `server/cmd/app`；Go 模块路径为 `github.com/wangliang139/NovaForge/server`（`server/go.mod`）。
 - **frontend**：桌面端管理界面（React、TypeScript、UmiJS、Ant Design Pro），经 Apollo Client 调用后端 GraphQL。
 
 ### 技术栈概览

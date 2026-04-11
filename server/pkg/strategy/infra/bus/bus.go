@@ -3,7 +3,7 @@ package bus
 import (
 	"context"
 
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // Bus 消息总线，负责在模块之间进行消息订阅和转发

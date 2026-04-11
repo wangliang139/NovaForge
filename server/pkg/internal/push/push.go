@@ -17,8 +17,8 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/mymmrac/telego"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/tgbot"
-	"github.com/wangliang139/llt-trade/server/pkg/settings"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/tgbot"
+	"github.com/wangliang139/NovaForge/server/pkg/settings"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -213,7 +213,7 @@ func buildFeishuText(cfg settings.PushConfig, text string) string {
 		parts = append(parts, strings.TrimSpace(text))
 	}
 	if len(parts) == 0 {
-		return "LLT 推送"
+		return "NovaForge 推送"
 	}
 	return strings.Join(parts, "\n")
 }

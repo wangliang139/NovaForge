@@ -3,8 +3,8 @@ package memory
 import (
 	"strings"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	repo_dialog "github.com/wangliang139/llt-trade/server/pkg/repos/llm_dialog"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	repo_dialog "github.com/wangliang139/NovaForge/server/pkg/repos/llm_dialog"
 )
 
 // AppendCompletedTurns 将目标回答之前的已完成问答轮次追加到 messages，并维护 IncludedDialogIDs。

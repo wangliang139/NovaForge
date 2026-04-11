@@ -1,11 +1,11 @@
 package timeline
 
 import (
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/timeline/external"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/timeline/internal"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/timeline/sorter"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/timeline/types"
-	mdtypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/timeline/external"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/timeline/internal"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/timeline/sorter"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/timeline/types"
+	mdtypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 type (

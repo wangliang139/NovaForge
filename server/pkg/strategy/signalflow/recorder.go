@@ -8,8 +8,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/chsdk"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/snowflake"
 )
 

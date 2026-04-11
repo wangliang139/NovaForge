@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // SorterConfig 定义严格全序（Total Order）的可配置语义。

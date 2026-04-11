@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/logging"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/misc"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/misc"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/logger"
 	"rogchap.com/v8go"
 )

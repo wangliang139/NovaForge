@@ -13,7 +13,7 @@ import (
 
 func Test_QueryDocument(t *testing.T) {
 	os.Setenv("POSTGRES_PASSWORD", "postgres")
-	os.Setenv("POSTGRES_APPNAME", "llt-data")
+	os.Setenv("POSTGRES_APPNAME", "novaforge")
 	os.Setenv("POSTGRES_DBNAME", "llt_data_db")
 	os.Setenv("POSTGRES_PASSWORD", "my-secret")
 	var wpgxConfig wpgx.Config

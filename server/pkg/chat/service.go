@@ -3,13 +3,13 @@ package chat
 import (
 	"context"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	chatcfg "github.com/wangliang139/llt-trade/server/pkg/chat/internal/config"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/coordinator"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/manager"
-	llmentity "github.com/wangliang139/llt-trade/server/pkg/entity/llm"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	chatcfg "github.com/wangliang139/NovaForge/server/pkg/chat/internal/config"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/coordinator"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/manager"
+	llmentity "github.com/wangliang139/NovaForge/server/pkg/entity/llm"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
 )
 
 type Service struct {

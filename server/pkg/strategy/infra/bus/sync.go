@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog/log"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/logger"
 )
 

@@ -50,14 +50,14 @@ func ValidateStrategyCode(code string) error {
 		// 注意：这里的 require 不做真实模块加载，仅用于让语法/入口函数校验通过。
 		prelude := `
 (function () {
-  const __lltEmpty = new Proxy(function () {}, {
-    get: function () { return __lltEmpty; },
-    apply: function () { return __lltEmpty; },
-    construct: function () { return __lltEmpty; },
+  const __nfEmpty = new Proxy(function () {}, {
+    get: function () { return __nfEmpty; },
+    apply: function () { return __nfEmpty; },
+    construct: function () { return __nfEmpty; },
   });
 
   if (typeof globalThis.require !== 'function') {
-    globalThis.require = function () { return __lltEmpty; };
+    globalThis.require = function () { return __nfEmpty; };
   }
 
   if (typeof globalThis.module === 'undefined' || !globalThis.module) {

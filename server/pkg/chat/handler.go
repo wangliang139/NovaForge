@@ -8,9 +8,9 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/auth"
-	"github.com/wangliang139/llt-trade/server/pkg/gateway/gql"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/auth"
+	"github.com/wangliang139/NovaForge/server/pkg/gateway/gql"
 )
 
 type Handler struct {

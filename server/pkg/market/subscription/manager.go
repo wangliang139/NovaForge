@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync"
 
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/utils"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 )
 
 type Manager struct {

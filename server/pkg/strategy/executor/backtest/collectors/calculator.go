@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/shopspring/decimal"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // CalculateMaxDrawdown 计算最大回撤

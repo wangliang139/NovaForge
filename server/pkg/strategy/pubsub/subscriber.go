@@ -9,8 +9,8 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog/log"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/signal"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/signal"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 const TopicPattern = `^md-(binance|okx)-.*$`
@@ -22,7 +22,7 @@ type Subscriber interface {
 }
 
 // RedisStreamSubscriberConfig configures the Redis Stream subscriber.
-// Stream keys are StreamKeyPrefix + topic (same as llt-data-api publisher).
+// Stream keys are StreamKeyPrefix + topic.
 // If StreamKeys is empty, stream keys are discovered via SCAN with StreamKeyPrefix+"*" and filtered by TopicPattern.
 type RedisStreamConfig struct {
 	Addr     string

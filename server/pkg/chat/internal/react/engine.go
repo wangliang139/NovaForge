@@ -10,9 +10,9 @@ import (
 	"github.com/openai/openai-go/v3/packages/ssestream"
 	"github.com/openai/openai-go/v3/shared"
 	zlog "github.com/rs/zerolog"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/capability"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/runtime"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/capability"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/runtime"
 	"github.com/wangliang139/mow/logger"
 )
 

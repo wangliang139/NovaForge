@@ -10,15 +10,15 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/rs/zerolog/log"
 	"github.com/stumble/wpgx"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/zai"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/utils"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 )
 
 func TestEntity_Completion(t *testing.T) {
 	os.Setenv("POSTGRES_PASSWORD", "postgres")
-	os.Setenv("POSTGRES_APPNAME", "llt-data")
+	os.Setenv("POSTGRES_APPNAME", "novaforge")
 	os.Setenv("POSTGRES_DBNAME", "llt_data_db")
 	os.Setenv("POSTGRES_PASSWORD", "my-secret")
 

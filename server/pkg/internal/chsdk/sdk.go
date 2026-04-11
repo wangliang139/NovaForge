@@ -51,7 +51,7 @@ func Connect(ctx context.Context) (*Client, error) {
 				Name    string
 				Version string
 			}{
-				{Name: "llt-data-api", Version: "0.1"},
+				{Name: "novaforge", Version: "0.1"},
 			},
 		},
 		Compression: &clickhouse.Compression{

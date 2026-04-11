@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/equity"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/symbol_equity"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/utils"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/equity"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/symbol_equity"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 )
 
 func (e *Entity) CreateEquity(ctx context.Context, accountID string, ts time.Time, notional, unrealized decimal.Decimal) (*equity.Equity, error) {

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func Test_GetConnector(t *testing.T) {
-	if os.Getenv("LLT_INTEGRATION_TEST") == "" {
-		t.Skip("skip integration test; set LLT_INTEGRATION_TEST=1 to enable")
+	if os.Getenv("NOVAFORGE_INTEGRATION_TEST") == "" {
+		t.Skip("skip integration test; set NOVAFORGE_INTEGRATION_TEST=1 to enable")
 	}
 
 	connector, err := GetConnector(ctypes.ExchangeOkx, nil)

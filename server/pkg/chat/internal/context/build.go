@@ -7,15 +7,15 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/wangliang139/llt-trade/server/pkg/chat/domain"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/capability"
-	chatcfg "github.com/wangliang139/llt-trade/server/pkg/chat/internal/config"
-	"github.com/wangliang139/llt-trade/server/pkg/chat/internal/memory"
-	repo_dialog "github.com/wangliang139/llt-trade/server/pkg/repos/llm_dialog"
-	repo_session "github.com/wangliang139/llt-trade/server/pkg/repos/llm_session"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/domain"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/capability"
+	chatcfg "github.com/wangliang139/NovaForge/server/pkg/chat/internal/config"
+	"github.com/wangliang139/NovaForge/server/pkg/chat/internal/memory"
+	repo_dialog "github.com/wangliang139/NovaForge/server/pkg/repos/llm_dialog"
+	repo_session "github.com/wangliang139/NovaForge/server/pkg/repos/llm_session"
 )
 
-const systemPrompt = `你是 LLT Trade 的智能助手。
+const systemPrompt = `你是 NovaForge 的智能助手。
 
 要求：
 1. 优先直接回答用户问题，内容清晰、准确、简洁。

@@ -8,10 +8,10 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/internal/gateio"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/calendar"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/utils"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/gateio"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/calendar"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 	"go.uber.org/ratelimit"
 )

@@ -6,9 +6,9 @@ package converter
 import (
 	"time"
 
-	calendar "github.com/wangliang139/llt-trade/server/pkg/repos/calendar"
-	document "github.com/wangliang139/llt-trade/server/pkg/repos/document"
-	types "github.com/wangliang139/llt-trade/server/pkg/types"
+	calendar "github.com/wangliang139/NovaForge/server/pkg/repos/calendar"
+	document "github.com/wangliang139/NovaForge/server/pkg/repos/document"
+	types "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func CalendarRepo2Types(source *calendar.Calendar) *types.Calendar {

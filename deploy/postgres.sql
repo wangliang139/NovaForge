@@ -1,5 +1,5 @@
 -- =============================================================================
--- LLT Trade - 统一数据库部署脚本 (PostgreSQL)
+-- NovaForge - 统一数据库部署脚本 (PostgreSQL)
 -- 合并自: server/pkg/repos/*/schema.sql
 -- 使用: psql -f deploy/postgres.sql
 -- 依赖: pgvector (document.embedding)；document 的 bm25 索引需 pg_bm25

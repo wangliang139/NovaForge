@@ -1,8 +1,8 @@
 {
-  "name": "llt-backoffice",
+  "name": "novaforge",
   "version": "1.0.0",
   "private": true,
-  "description": "Mow backoffice application",
+  "description": "NovaForge application",
   "scripts": {
     "analyze": "cross-env ANALYZE=1 max build",
     "build": "cross-env UMI_ENV=test max build",

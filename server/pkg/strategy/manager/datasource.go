@@ -11,13 +11,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/samber/lo"
 	"github.com/stumble/wpgx"
-	converter "github.com/wangliang139/llt-trade/server/pkg/converter"
-	"github.com/wangliang139/llt-trade/server/pkg/repos"
-	repo_datasource "github.com/wangliang139/llt-trade/server/pkg/repos/datasource"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/ds_items"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/proxy"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	ctypes "github.com/wangliang139/llt-trade/server/pkg/types"
+	converter "github.com/wangliang139/NovaForge/server/pkg/converter"
+	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	repo_datasource "github.com/wangliang139/NovaForge/server/pkg/repos/datasource"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/ds_items"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type DatasourceManager interface {

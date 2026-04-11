@@ -1,4 +1,4 @@
-module github.com/wangliang139/llt-trade/server
+module github.com/wangliang139/NovaForge/server
 
 go 1.25.8
 

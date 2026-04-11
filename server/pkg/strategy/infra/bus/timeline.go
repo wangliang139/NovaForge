@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/infra/timeline"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/timeline"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/mow/logger"
 )
 

@@ -10,8 +10,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/service/streamsvc"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/service/streamsvc"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 const (

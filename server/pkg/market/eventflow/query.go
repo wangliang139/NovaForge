@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/wangliang139/llt-trade/server/pkg/internal/chsdk"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
 )
 
 // QueryFilter 支持按账户、流类型、交易所、事件类型等筛选；所有字段均可选，至少建议指定时间或 ID 范围以控制扫描量。

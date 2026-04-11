@@ -2,8 +2,8 @@ package converter
 
 import (
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/action/model"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/calendar"
+	"github.com/wangliang139/NovaForge/server/pkg/action/model"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/calendar"
 )
 
 func CalendarSourceGql2Pb(source *model.CalendarSource) *calendar.CalendarSource {

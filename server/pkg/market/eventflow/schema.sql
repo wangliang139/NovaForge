@@ -1,6 +1,6 @@
 -- Event Flow Table (all streams: account, market, etc.)
 -- Purpose: Record all event streams for debugging and auditing
--- Used by: llt-data-api event flow recorder
+-- Used by: novaforge event flow recorder
 
 CREATE TABLE IF NOT EXISTS trade.event_flow (
     id Int64,

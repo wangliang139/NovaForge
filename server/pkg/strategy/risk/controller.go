@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/marketdata"
-	"github.com/wangliang139/llt-trade/server/pkg/strategy/portfolio"
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/portfolio"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 // Config 风险控制配置

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	stypes "github.com/wangliang139/llt-trade/server/pkg/strategy/types"
+	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 )
 
 type deterministicCursorSource struct {

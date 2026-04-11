@@ -15,10 +15,10 @@ import (
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/shared"
 	"github.com/samber/lo"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_completion"
-	"github.com/wangliang139/llt-trade/server/pkg/repos/llm_prompt"
-	"github.com/wangliang139/llt-trade/server/pkg/types"
-	"github.com/wangliang139/llt-trade/server/pkg/utils"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_completion"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/llm_prompt"
+	"github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 )
 
