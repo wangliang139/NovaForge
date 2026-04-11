@@ -1,0 +1,34 @@
+input MapEntryInput {
+    key: String!
+    value: String!
+}
+
+type MapEntry {
+    key: String!
+    value: String!
+}
+
+# 指标维度：账户级 / 标的级
+enum MetricsDimension {
+  unspecified
+  account
+  symbol
+}
+
+# 标的级指标（SYMBOL 维度时返回）
+type SymbolMetrics {
+  symbol: String!
+  exchange: String!
+  cagr: Float!
+  sharpe: Float!
+  sortino: Float!
+  maxDrawdown: Float!
+  timeUnderWaterSeconds: Int!
+  calmar: Float!
+  winRate: Float!
+  profitFactor: Float!
+  rollingSharpe: Float!
+  avgSlippageBps: Float!
+  feeRatio: Float!
+  maxConsecutiveLoss: Int!
+}

@@ -1,0 +1,690 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+enum Exchange {
+  binance
+  okx
+  binance_test
+  okx_test
+}
+
+type OrderPriceLevel {
+  price: String!
+  size: String!
+}
+
+type OrderBook {
+  bids: [OrderPriceLevel!]!
+  asks: [OrderPriceLevel!]!
+  ts: Int!
+  seqId: Int!
+  prevSeqId: Int!
+}
+
+type Ticker {
+  exchange: Exchange!
+  symbol: String!
+  lastPrice: String!
+  open24H: String!
+  high24H: String!
+  low24H: String!
+  avg24H: String!
+  volume24H: String!
+  quoteVolume24H: String!
+  ts: Int!
+}
+
+type Trade {
+  tradeId: String!
+  exchange: Exchange!
+  symbol: String!
+  price: String!
+  size: String!
+  isBuy: Boolean!
+  ts: Int!
+}
+
+type MarkPrice {
+  exchange: Exchange!
+  symbol: String!
+  markPrice: String!
+  ts: Int!
+}
+
+type IndexPrice {
+  exchange: Exchange!
+  symbol: String!
+  indexPrice: String!
+  ts: Int!
+}
+
+type IndexComponentItem {
+  exchange: String!
+  symbol: String!
+  price: String!
+  weight: String!
+}
+
+type IndexComponent {
+  exchange: Exchange!
+  symbol: String!
+  components: [IndexComponentItem!]!
+  price: String
+  ts: Int!
+}
+
+type FundingRate {
+  exchange: Exchange!
+  symbol: String!
+  fundingRate: String!
+  interestRate: String!
+  nextFundingTime: Int!
+  ts: Int!
+}
+
+type Bracket {
+  bracket: Int!
+  maxLeverage: Float!
+  minNotional: String!
+  maxNotional: String!
+  mmr: String!
+  cum: String!
+}
+
+type LeverageBracket {
+  symbol: String!
+  brackets: [Bracket!]!
+}
+
+type OpenInterest {
+  exchange: Exchange!
+  symbol: String!
+  openInterest: String! # base asset 数量
+  ts: Int!
+}
+
+type Kline {
+  interval: String!
+  open: String!
+  high: String!
+  low: String!
+  close: String!
+  volume: String!
+  quoteVolume: String!
+  trades: Int!
+  openTs: Int!
+  closeTs: Int!
+}
+
+input QueryKlineInput {
+  symbol: String!
+  exchange: Exchange!
+  interval: String!
+  startTime: Int
+  endTime: Int
+  limit: Int
+}
+
+input QueryFundingRateInput {
+  exchange: Exchange!
+  symbol: String!
+  accountId: ID
+}
+
+input QueryFundingRatesInput {
+  exchange: Exchange!
+  symbol: String!
+  startTime: Int
+  endTime: Int
+  limit: Int
+  accountId: ID
+}
+
+input QueryLeverageBracketInput {
+  exchange: Exchange!
+  symbol: String!
+  markPrice: String!
+  accountId: ID
+}
+
+input QueryOpenInterestInput {
+  exchange: Exchange!
+  symbol: String!
+  accountId: ID
+}
+
+input QueryIndexPriceInput {
+  exchange: Exchange!
+  symbol: String!
+  accountId: ID
+}
+
+input QueryIndexComponentInput {
+  exchange: Exchange!
+  symbol: String!
+  accountId: ID
+}
+
+# type FiatCurrency {
+#     from: String!
+#     to: String!
+#     currency: String!
+# }
+
+enum MarketType {
+  unspecified
+  spot
+  future
+}
+
+enum WalletType {
+  unspecified
+  fund
+  trade
+  spot
+  future
+  margin
+}
+
+enum MarketSource {
+  unspecified
+  db
+  remote
+}
+
+enum OrderSource {
+  user
+  strategy
+  liquidation
+  adl
+}
+
+enum OrderType {
+  market
+  limit
+  none
+}
+
+enum AlgoType {
+  none
+  conditional
+  trailing
+  oco
+  twap
+  iceberg
+  chase
+}
+
+enum OrderStatus {
+  new
+  pending
+  working
+  partial_done
+  done
+  canceled
+  rejected
+  expired
+}
+
+enum PositionSide {
+  long
+  short
+}
+
+type MarketRules {
+  maxOrderNum: Int
+  minPrice: String
+  maxPrice: String
+  tickSize: String
+  minQuantity: String
+  maxQuantity: String
+  lotSize: String
+  minNotional: String
+  maxNotional: String
+}
+
+type MarketOrderType {
+  orderType: String!
+  rules: MarketRules
+}
+
+type Market {
+  exchange: Exchange!
+  symbol: String!
+  status: String!
+  baseAssetPrecision: Int
+  quoteAssetPrecision: Int
+  pricePrecision: Int
+  rules: MarketRules
+  supportOrderTypes: [MarketOrderType!]
+}
+
+input GetMarketsInput {
+  exchange: Exchange!
+  marketTypes: [MarketType!]
+  accountId: ID
+}
+
+input GetMarketInput {
+  exchange: Exchange!
+  symbol: String!
+  accountId: ID
+}
+
+type Asset {
+  code: String!
+  balance: String!
+  locked: String!
+  notional: String!
+  unRealizedProfit: String!
+  walletType: WalletType!
+  updatedTs: Int!
+}
+
+type Balance {
+  notional: String!
+  unRealizedProfit: String!
+  notional24HChange: String!
+  assets: [Asset!]!
+}
+
+type MarketAccount {
+  exchange: Exchange!
+  uid: String!
+  isSpotEnabled: Boolean!
+  isFutureEnabled: Boolean!
+}
+
+type Position {
+  symbol: String!
+  side: PositionSide!
+  isolated: Boolean!
+  amount: String!
+  entryPrice: String!
+  markPrice: String!
+  liquidationPrice: String!
+  notional: String!
+  leverage: Int!
+  initialMargin: String!
+  maintMargin: String!
+  unRealizedProfit: String!
+  updatedTs: Int!
+}
+
+type OrderCondition {
+  triggerType: String!
+  orderPrice: String!
+  callbackDistance: String!
+  callbackRate: String!
+  activationPrice: String!
+  priceWorkingType: String!
+  priceMode: String!
+  isTrailing: Boolean!
+  activated: Boolean!
+  activatedTs: Int!
+}
+
+type Order {
+  accountId: ID!
+  botId: Int!
+  exchange: Exchange!
+  symbol: String!
+  clientOrderId: String!
+  orderId: String!
+  drivedOrderId: String!
+  side: PositionSide!
+  isBuy: Boolean!
+  orderType: OrderType!
+  algoType: AlgoType!
+  source: OrderSource!
+  price: String!
+  originalQty: String!
+  executedQty: String!
+  originalQuoteQty: String!
+  executedQuoteQty: String!
+  avgPrice: String!
+  priceWorkingType: String!
+  priceMode: String!
+  status: OrderStatus!
+  timeInForce: String!
+  reduceOnly: Boolean!
+  closePosition: Boolean!
+  postOnly: Boolean!
+  priceProtect: Boolean!
+  conditions: [OrderCondition!]!
+  isWorking: Boolean!
+  workingTs: Int!
+  rejectReason: String!
+  createdTs: Int!
+  updatedTs: Int!
+  finishedTs: Int!
+  locked: String
+  lockedAsset: String
+  fee: String
+  feeAsset: String
+  realizedPnl: String
+  pnlAsset: String  # 现货订单 realized_pnl 对应的资产；买入=quote，卖出=base
+}
+
+type Fill {
+  exchange: Exchange!
+  symbol: String!
+  orderId: String!
+  clientOrderId: String!
+  tradeId: String!
+  side: PositionSide!
+  isBuy: Boolean!
+  qty: String!
+  price: String!
+  fee: String!
+  feeAsset: String!
+  realizedPnl: String!
+  isMaker: Boolean!
+  ts: Int!
+}
+
+type OrdersConnection {
+  list: [Order!]!
+  totalCount: Int!
+}
+
+type LedgersConnection {
+  list: [Ledger!]!
+  totalCount: Int!
+}
+
+type Ledger {
+  id: Int!
+  accountId: ID!
+  exchange: Exchange!
+  asset: String!
+  walletType: WalletType!
+  total: String!
+  frozen: String!
+  totalDelta: String!
+  frozenDelta: String!
+  type: String!
+  detail: String!
+  isEffective: Boolean!
+  ts: Int!
+  createdAt: Int!
+}
+
+input QueryBalanceInput {
+  accountId: ID!
+  walletType: WalletType
+  asset: String
+  withNotional: Boolean
+  source: MarketSource
+}
+
+input QueryAccountInfoInput {
+  accountId: ID!
+}
+
+input QueryPositionsInput {
+  accountId: ID!
+  marketType: MarketType
+  symbol: String
+  source: MarketSource
+}
+
+input QueryOrdersInput {
+  accountId: ID!
+  symbol: String
+  orderType: OrderType
+  orderSource: OrderSource
+  includeFinished: Boolean!
+  """
+  与 includeFinished 配合：按订单完结时间过滤（Unix 毫秒，闭区间）。
+  必须同时传入；不传则保持原按创建时间分页的列表语义（不按完结时间过滤）。
+  """
+  finishedStartTsMs: Int
+  finishedEndTsMs: Int
+
+  page: Int!
+  size: Int!
+}
+
+"""
+下单预估输入：用于在真实下单前预估强平价格、手续费、盈亏等信息
+"""
+input EstimateOrderInput {
+  accountId: ID!
+  symbol: String!
+  side: PositionSide!
+  isBuy: Boolean!
+  orderType: OrderType!
+  """
+  预估用成交价格：
+  - 限价单：下单价格
+  - 市价单：当前最新价或标记价格
+  """
+  price: String!
+  """
+  名义价值（quote 资产方向，例如 USDT）
+  """
+  notional: String!
+  """
+  杠杆倍数（仅合约有意义）
+  """
+  leverage: Int
+}
+
+"""
+下单预估结果：前端用于展示给用户确认
+"""
+type EstimateOrderResult {
+  """
+  预估强平价格（仅合约开仓时有意义）
+  """
+  liquidationPrice: String
+  """
+  预估手续费（暂为占位，后续可接入真实费率）
+  """
+  fee: String
+  """
+  手续费计价资产（例如 USDT、BTC 等）
+  """
+  feeAsset: String
+  """
+  预估盈亏（占位字段，留待后续扩展）
+  """
+  expectedPnl: String
+}
+
+input QueryLedgersInput {
+  accountId: ID!
+  walletType: WalletType
+  asset: String
+  startTs: Int!
+  endTs: Int!
+  size: Int!
+  page: Int!
+  source: MarketSource
+}
+
+input QueryOrderBookInput {
+  exchange: Exchange!
+  symbol: String!
+  depth: Int
+}
+
+type StreamStatsItem {
+  exchange: String!
+  stream: String!
+  eventCount: Int!
+  avgLatencyMs: Float!
+  maxLatencyMs: Float!
+  reconnectCount: Int!
+}
+
+extend type Query {
+  Markets(input: GetMarketsInput!): [Market!]!
+  Market(input: GetMarketInput!): Market
+  StreamStats(windowHours: Int): [StreamStatsItem!]!
+  # 查询订单簿快照
+  OrderBook(input: QueryOrderBookInput!): OrderBook
+  # Exchanges: [Exchange!]!
+  # Price(symbol: String!, exchange: Exchange!): String!
+  Kline(input: QueryKlineInput!): [Kline!]!
+  FundingRate(input: QueryFundingRateInput!): FundingRate
+  FundingRates(input: QueryFundingRatesInput!): [FundingRate!]!
+  OpenInterest(input: QueryOpenInterestInput!): OpenInterest
+  LeverageBracket(input: QueryLeverageBracketInput!): LeverageBracket
+  IndexPrice(input: QueryIndexPriceInput!): IndexPrice
+  IndexComponent(input: QueryIndexComponentInput!): IndexComponent
+  # FiatCurrency(symbol: String!): FiatCurrency!
+  AccountInfo(input: QueryAccountInfoInput!): MarketAccount
+  Balance(input: QueryBalanceInput!): Balance
+  Positions(input: QueryPositionsInput!): [Position!]!
+  Orders(input: QueryOrdersInput!): OrdersConnection!
+  Ledgers(input: QueryLedgersInput!): LedgersConnection!
+  # 下单前预估订单核心风险/收益信息（强平价格/手续费/盈亏等）
+  EstimateOrder(input: EstimateOrderInput!): EstimateOrderResult!
+  ListAlerts(exchange: Exchange!, symbol: String!): [AlertItem!]!
+}
+
+enum StreamType {
+  ticker
+  trade
+  depth
+  kline
+  mark_price
+  social
+  account
+}
+
+enum AlertType {
+  price_reach
+  price_rise_to
+  price_fall_to
+  price_rise_pct_over
+  price_fall_pct_over
+}
+
+enum AlertFrequency {
+  repeat
+  once
+}
+
+enum AlertStatus {
+  active
+  error
+}
+
+type AlertItem {
+  id: ID!
+  exchange: Exchange!
+  symbol: String!
+  type: AlertType!
+  frequency: AlertFrequency!
+  price: String
+  window: String
+  percent: String
+  remark: String
+  cooldownSeconds: Int!
+  status: AlertStatus!
+  lastTriggeredAt: Int
+  triggerCount: Int!
+  createdAt: Int!
+  updatedAt: Int!
+}
+
+input AlertItemInput {
+  exchange: Exchange!
+  symbol: String!
+  type: AlertType!
+  frequency: AlertFrequency!
+  price: String
+  window: String
+  percent: String
+  remark: String
+  cooldownSeconds: Int
+}
+
+"""
+账户流中的资产条目（快照为全量；增量事件中 balance/locked 为 delta 字符串）
+"""
+type AccountStreamAsset {
+  walletType: WalletType!
+  code: String!
+  balance: String!
+  locked: String!
+  updatedTs: Int!
+}
+
+type AccountBalanceSnapshot {
+  scope: [WalletType!]!
+  assets: [AccountStreamAsset!]!
+}
+
+enum AccountStreamUpdateType {
+  snapshot
+  increment
+}
+
+type AccountBalanceUpdate {
+  eventId: String!
+  type: AccountStreamUpdateType!
+  reason: String!
+  assets: [AccountStreamAsset!]!
+}
+
+type AccountPositionSnapshot {
+  positions: [Position!]!
+}
+
+type AccountPositionsUpdate {
+  eventId: String!
+  type: AccountStreamUpdateType!
+  reason: String!
+  positions: [Position!]!
+}
+
+type SymbolLeverage {
+  exchange: Exchange!
+  symbol: String!
+  side: PositionSide!
+  leverage: Int!
+  updatedTs: Int!
+}
+
+type StreamEvent {
+  type: StreamType!
+  """
+  信封事件时间（Unix 毫秒），与全量接口返回的 updatedTs 等同源时钟下可比对
+  """
+  eventTs: Int!
+  ticker: Ticker
+  trade: Trade
+  depth: OrderBook
+  kline: Kline
+  markPrice: MarkPrice
+  social: Document
+  balanceSnapshot: AccountBalanceSnapshot
+  balanceUpdate: AccountBalanceUpdate
+  positionSnapshot: AccountPositionSnapshot
+  positionsUpdate: AccountPositionsUpdate
+  order: Order
+  fill: Fill
+  symbolLeverage: SymbolLeverage
+}
+
+input StreamInput {
+  type: StreamType!
+  account: String
+  exchange: Exchange
+  symbol: String
+  interval: String
+}
+
+type Subscription {
+  Stream(input: StreamInput!): StreamEvent!
+}
+
+extend type Mutation {
+  AddAlert(input: AlertItemInput!): AlertItem!
+  RemoveAlert(id: ID!): Boolean!
+}

@@ -1,0 +1,253 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+enum DocumentCatalog {
+  unspecified
+  airdrop
+  api
+  cryptocurrencyListing
+  cryptocurrencyDelisting
+  activity
+  news
+  flashNews
+  other
+}
+
+enum DocumentFormat {
+  unspecified
+  markdown
+  html
+  txt
+}
+
+enum DocumentStatus {
+  unspecified
+  draft
+  draftFailed
+  pending
+  pendingFailed
+  active
+  archived
+  deduped
+  timeout
+}
+
+type Document {
+  id: ID!
+  source: String!
+  provider: String!
+  catalog: DocumentCatalog!
+  title: String!
+  content: String!
+  aiTitle: String!
+  aiSummary: String!
+  aiTags: [String!]!
+  aiCoins: [String!]!
+  aiInfluence: String!
+  aiInfluenceScore: Int!
+  aiSentiment: Int!
+  url: String!
+  authors: [String!]
+  format: DocumentFormat!
+  lang: String!
+  md5: String!
+  status: DocumentStatus!
+  errMsg: String!
+  dedupedBy: ID!
+  publishedAt: Int!
+  createdAt: Int!
+  updatedAt: Int!
+}
+
+type DocumentsConnection {
+  totalCount: Int!
+  list: [Document!]!
+}
+
+type DocumentSimilarity {
+  leftId: ID!
+  rightId: ID!
+  similarity: Float!
+}
+
+input DocumentSimilarityInput {
+  leftId: ID!
+  rightId: ID!
+}
+
+input QueryDocumentsInput {
+  limit: Int!
+  offset: Int!
+  keyword: String
+  source: String
+  provider: String
+  catalog: DocumentCatalog
+  status: DocumentStatus
+  tag: String
+  coin: String
+  influenceScore: Int
+  sentiment: Int
+  publishedAtStart: Int
+  publishedAtEnd: Int
+  id: ID
+}
+
+input GetDocumentInput {
+  id: ID!
+}
+
+input ArchiveDocumentInput {
+  id: ID!
+}
+
+type Channel {
+  id: ID!
+  name: String!
+  title: String!
+  broadcast: Boolean!
+  source: String!
+  catalog: DocumentCatalog!
+  extractCfg: ExtractCfg!
+  enabled: Boolean!
+  createdAt: Int!
+  updatedAt: Int!
+}
+
+enum ExtractRuleType {
+  unspecified
+  xpath
+  regex
+}
+
+type ExtractCfg {
+  plans: [ExtractPlan!]!
+  filterRegexs: [String!]
+}
+
+type ExtractPlan {
+  seqNo: Int!
+  matchRegex: String
+  fields: [ExtractField!]!
+}
+
+type ExtractField {
+  key: String!
+  rule: ExtractRule!
+  timeFormat: String
+}
+
+type ExtractRule {
+  type: ExtractRuleType!
+  pattern: String!
+  group: Int!
+}
+
+type ChannelsConnection {
+  totalCount: Int!
+  list: [Channel!]!
+}
+
+input QueryChannelsInput {
+  limit: Int!
+  offset: Int!
+  id: ID
+  name: String
+  source: String
+  catalog: DocumentCatalog
+  enabled: Boolean
+}
+
+input CreateChannelInput {
+  id: ID!
+  name: String!
+  title: String!
+  broadcast: Boolean!
+  source: String!
+  catalog: DocumentCatalog!
+  extractCfg: ExtractCfgInput!
+  enabled: Boolean!
+}
+
+input UpdateChannelInput {
+  id: ID!
+  name: String
+  title: String
+  broadcast: Boolean
+  source: String
+  catalog: DocumentCatalog
+  extractCfg: ExtractCfgInput
+  enabled: Boolean
+}
+
+input ExtractCfgInput {
+  plans: [ExtractPlanInput!]!
+  filterRegexs: [String!]
+}
+
+input ExtractPlanInput {
+  matchRegex: String
+  fields: [ExtractFieldInput!]!
+  seqNo: Int!
+}
+
+input ExtractFieldInput {
+  key: String!
+  rule: ExtractRuleInput!
+  timeFormat: String
+}
+
+input ExtractRuleInput {
+  type: ExtractRuleType!
+  pattern: String!
+  group: Int!
+}
+
+input TestExtractInput {
+  extractCfg: ExtractCfgInput!
+  text: String!
+}
+
+type TestExtractResult {
+  filtered: Boolean!
+  hitPlan: Int
+  title: String
+  content: String
+  url: String
+  publishedAt: Int
+}
+
+type DocumentStatsSummary {
+  totalCount: Int!
+  successCount: Int!
+  successRate: Float!
+  avgPublishToIngestSec: Float!
+  avgIngestToSuccessSec: Float!
+}
+
+type ChannelDocumentCount {
+  source: String!
+  provider: String!
+  documentCount: Int!
+  successCount: Int!
+}
+
+type DocumentStats {
+  stats: DocumentStatsSummary!
+  channelCounts: [ChannelDocumentCount!]!
+}
+
+extend type Query {
+  Documents(input: QueryDocumentsInput!): DocumentsConnection!
+  Document(input: GetDocumentInput!): Document
+  DocumentSimilarity(input: DocumentSimilarityInput!): DocumentSimilarity!
+  DocumentStats(startTs: Int!, endTs: Int!): DocumentStats!
+  Channels(input: QueryChannelsInput!): ChannelsConnection!
+}
+
+extend type Mutation {
+  ArchiveDocument(input: ArchiveDocumentInput!): Boolean!
+  CreateChannel(input: CreateChannelInput!): Channel!
+  UpdateChannel(input: UpdateChannelInput!): Channel!
+  TestExtract(input: TestExtractInput!): TestExtractResult!
+}

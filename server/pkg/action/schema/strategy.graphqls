@@ -1,0 +1,566 @@
+# GraphQL schema for Strategy and Datasource management
+#
+# https://gqlgen.com/getting-started/
+
+enum StrategyStatus {
+    unspecified
+    draft
+    active
+    inactive
+}
+
+enum SignalType {
+    unspecified
+    kline
+    trade
+    depth
+    ticker
+    mark_price
+    social
+    timer
+    order
+    position
+    balance
+    risk
+    system
+}
+
+enum SignalScope {
+    unspecified
+    symbol
+    target
+    exchange
+    strategy
+}
+
+type StrategyParam {
+    name: String!
+    description: String
+    type: String!
+    required: Boolean!
+    default: String
+}
+
+type SignalDefinition {
+    id: String!
+    type: SignalType!
+    exchange: Exchange
+    symbol: String
+    props: String
+    scope: SignalScope
+}
+
+type Strategy {
+    id: ID!
+    name: String!
+    description: String!
+    code: String!
+    version: String!
+    params: [StrategyParam!]!
+    status: StrategyStatus!
+    signals: [SignalDefinition!]!
+    createdAt: Int!
+    updatedAt: Int!
+}
+
+type StrategiesConnection {
+    totalCount: Int!
+    list: [Strategy!]!
+}
+
+input QueryStrategiesInput {
+    id: ID
+    limit: Int!
+    offset: Int!
+    version: String
+    status: StrategyStatus
+    name: String
+    createdAtStart: Int
+    createdAtEnd: Int
+}
+
+input CreateStrategyInput {
+    name: String!
+    description: String!
+    code: String!
+    params: [StrategyParamInput!]!
+    signals: [SignalDefinitionInput!]!
+}
+
+input StrategyParamInput {
+    name: String!
+    description: String!
+    type: String!
+    required: Boolean!
+    default: String
+}
+
+input SignalDefinitionInput {
+    id: String!
+    type: SignalType!
+    exchange: Exchange
+    symbol: String
+    props: String
+    scope: SignalScope
+}
+
+input UpdateStrategyInput {
+    id: ID!
+    version: String!
+    name: String
+    description: String
+    code: String
+    params: [StrategyParamInput!]
+    signals: [SignalDefinitionInput!]
+}
+
+type DataSource {
+    id: Int!
+    type: SignalType!
+    name: String!
+    description: String!
+    exchange: Exchange
+    symbol: String
+    props: String
+    startTs: Int!
+    endTs: Int!
+    createdAt: Int!
+    updatedAt: Int!
+}
+
+type DatasourcesConnection {
+    totalCount: Int!
+    list: [DataSource!]!
+}
+
+input QueryDatasourcesInput {
+    limit: Int!
+    offset: Int!
+    type: SignalType
+    exchange: Exchange
+    symbol: String
+}
+
+input CreateDatasourceInput {
+    type: SignalType!
+    name: String!
+    description: String!
+    exchange: Exchange
+    symbol: String
+    props: String
+    startTs: Int!
+    endTs: Int!
+}
+
+input BacktestSymbolInput {
+    exchange: Exchange!
+    symbol: String!
+    baseAssetQty: String
+    quoteAssetQty: String
+}
+
+input BacktestExchangeInput {
+    exchange: Exchange!
+    symbols: [BacktestSymbolInput!]!
+    assets: [BacktestAssetInput!]
+}
+
+input BacktestAssetInput {
+    asset: String!
+    amount: String!
+}
+
+input BacktestSignalInput {
+    signalId: String!
+    datasourceId: Int!
+    exchange: Exchange
+    symbol: String
+}
+
+input RunBacktestInput {
+    strategy: StrategyInput
+    strategyId: String
+    version: String
+    runType: Int!
+    startTime: Int!
+    endTime: Int!
+    symbols: [BacktestSymbolInput!]!
+    params: String
+    signals: [BacktestSignalInput!]
+}
+
+input StrategyInput {
+    name: String!
+    code: String!
+    params: [StrategyParamInput!]!
+    signals: [SignalDefinitionInput!]!
+}
+
+type SymbolSummary {
+    exchange: Exchange!
+    symbol: String!
+    base: String!
+    quote: String!
+    initialBase: String!
+    initialQuote: String!
+    finalBase: String!
+    finalQuote: String!
+    positionQty: String!
+    avgPrice: String!
+    lastPrice: String!
+    initialNet: String!
+    finalNet: String!
+    realizedPnl: String!
+    unrealizedPnl: String!
+    netPnl: String!
+    longRealizedPnl: String!
+    shortRealizedPnl: String!
+    longUnrealizedPnl: String!
+    shortUnrealizedPnl: String!
+    longNetPnl: String!
+    shortNetPnl: String!
+    longTrades: Int!
+    shortTrades: Int!
+}
+
+type BacktestResultData {
+    symbols: [SymbolSummary!]!
+    equity: [Equity!]!
+    orders: [Order!]
+    fills: [Fill!]
+    metaJson: String
+}
+
+type ConsoleLog {
+    ts: Int!
+    level: String!
+    message: String!
+}
+
+type RunBacktestResponse {
+    id: String!
+    strategy: Strategy!
+    startTime: Int!
+    endTime: Int!
+    initialBalance: String!
+    finalBalance: String!
+    totalPnl: String!
+    totalTrades: Int!
+    winTrades: Int!
+    lossTrades: Int!
+    winRate: Float!
+    sharpeRatio: Float!
+    maxDrawdown: Float!
+    data: BacktestResultData!
+    createdAt: Int!
+    timeCost: Int!
+    consoleLogs: [ConsoleLog!]!
+}
+
+enum BotMode {
+    live
+    paper
+}
+
+enum BotStatus {
+    stopped
+    running
+    error
+}
+
+type Bot {
+    id: ID!
+    strategyId: String!
+    strategyVer: String!
+    strategyName: String! @goField(forceResolver: true)
+    upgradable: Boolean! @goField(forceResolver: true)
+    mode: BotMode!
+    name: String!
+    description: String!
+    accountId: String!
+    exchange: Exchange!
+    symbols: [String!]!
+    config: String!
+    status: BotStatus!
+    errorMessage: String!
+    createdAt: Int!
+    startedAt: Int
+    stoppedAt: Int
+}
+
+type BotsConnection {
+    totalCount: Int!
+    list: [Bot!]!
+}
+
+type UpgradeBotResult {
+    success: Boolean!
+    message: String
+    bot: Bot
+}
+
+input QueryBotsInput {
+    id: ID
+    limit: Int!
+    offset: Int!
+    strategyId: String
+    mode: BotMode
+    exchange: Exchange
+    status: BotStatus
+    accountId: String
+    name: String
+    createdAtStart: Int
+    createdAtEnd: Int
+}
+
+input CreateBotInput {
+    name: String!
+    description: String!
+    strategyId: String!
+    strategyVer: String!
+    mode: BotMode!
+    exchange: Exchange!
+    symbols: [String!]!
+    accountId: String!
+    config: String!
+}
+
+input UpdateBotInput {
+    id: Int!
+    name: String!
+    description: String!
+    symbols: [String!]!
+    config: String!
+}
+
+type BotOrdersConnection {
+    totalCount: Int!
+    list: [Order!]!
+}
+
+type BotLedgerConnection {
+    totalCount: Int!
+    list: [Ledger!]!
+}
+
+type BotEquityConnection {
+    totalCount: Int!
+    list: [Equity!]!
+}
+
+type BotLog {
+    id: ID!
+    botId: Int!
+    level: String!
+    message: String!
+    ts: Int!
+    createdAt: Int!
+}
+
+type BotLogsConnection {
+    list: [BotLog!]!
+    nextCursor: String
+}
+
+input QueryBotLogsInput {
+    botId: Int!
+    limit: Int
+    cursor: String
+    startTs: Int
+    endTs: Int
+    level: String
+}
+
+type BotSignalRecord {
+    id: ID!
+    botId: Int!
+    accountId: String!
+    exchange: String!
+    stream: String!
+    topic: String!
+    eventKind: String!
+    tsMs: Int!
+    inboundAtMs: Int!
+    outboundAtMs: Int!
+    receiveAtMs: Int!
+    ingestAtMs: Int!
+    payloadJson: String!
+}
+
+type BotSignalFlowConnection {
+    events: [BotSignalRecord!]!
+    nextId: String!
+}
+
+input QueryBotSignalFlowInput {
+    botId: Int!
+    signalType: SignalType
+    startTsMs: Int
+    startId: Int
+    limit: Int
+}
+
+input GenerateStrategyInput {
+    query: String!
+}
+
+type GenerateStrategyResponse {
+    sessionId: String!
+    content: String!
+}
+
+type BotPortfolioAsset {
+    exchange: Exchange!
+    walletType: WalletType!
+    asset: String!
+    free: String!
+    frozen: String!
+    updatedTs: Int!
+}
+
+type BotPortfolioPosition {
+    exchange: Exchange!
+    symbol: String!
+    marketType: MarketType!
+    side: PositionSide!
+    qty: String!
+    avgPrice: String!
+    updatedTs: Int!
+    leverage: Int!
+}
+
+type BotPortfolio {
+    assets: [BotPortfolioAsset!]!
+    positions: [BotPortfolioPosition!]!
+    ts: Int!
+}
+
+type BotState {
+    botStatus: BotStatus!
+    executorStatus: String!
+    jsRunnerStatus: String!
+    portfolio: BotPortfolio
+    runErr: String
+    signalAvgDurationMs: Int
+    signalAvgLatencyMs: Int
+    lastSignalTs: Int
+}
+
+input QueryBotStateInput {
+    botId: Int!
+}
+
+# Bot 指标：CAGR、Sharpe、Sortino 等 12 项
+type BotMetrics {
+    accountId: ID!
+    botId: Int!
+    dimension: MetricsDimension!
+    symbolsFilter: String!
+    cagr: Float!
+    sharpe: Float!
+    sortino: Float!
+    maxDrawdown: Float!
+    timeUnderWaterSeconds: Int!
+    calmar: Float!
+    winRate: Float!
+    profitFactor: Float!
+    rollingSharpe: Float!
+    avgSlippageBps: Float!
+    feeRatio: Float!
+    maxConsecutiveLoss: Int!
+    startTs: Int!
+    endTs: Int!
+    symbols: [SymbolMetrics!]!
+}
+
+input QueryBotMetricsInput {
+    botId: Int!
+    dimension: MetricsDimension!
+    symbol: String
+    startTs: Int
+    endTs: Int
+}
+
+input QueryBotBalanceInput {
+    botId: Int!
+    walletType: WalletType
+    asset: String
+    withNotional: Boolean
+}
+
+input QueryBotPositionsInput {
+    botId: Int!
+    marketType: MarketType
+    symbol: String
+}
+
+input QueryBotOrdersInput {
+    botId: Int!
+    symbol: String
+    orderType: OrderType
+    orderSource: OrderSource
+    includeFinished: Boolean!
+
+    page: Int!
+    size: Int!
+}
+
+input QueryBotLedgersInput {
+    botId: Int!
+    walletType: WalletType
+    asset: String
+    startTs: Int!
+    endTs: Int!
+
+    page: Int!
+    size: Int!
+}
+
+extend type Query {
+    Strategies(input: QueryStrategiesInput!): StrategiesConnection!
+    Strategy(id: String!): Strategy
+    Datasources(input: QueryDatasourcesInput!): DatasourcesConnection!
+    Datasource(id: Int!): DataSource
+    Bots(input: QueryBotsInput!): BotsConnection!
+    Bot(id: Int!): Bot
+    BotBalance(input: QueryBotBalanceInput!): Balance
+    BotPositions(input: QueryBotPositionsInput!): [Position!]!
+    BotState(input: QueryBotStateInput!): BotState
+    BotOrders(input: QueryBotOrdersInput!): BotOrdersConnection!
+    BotLedger(input: QueryBotLedgersInput!): BotLedgerConnection!
+    BotEquity(botId: Int!, startTs: Int!, endTs: Int!): BotEquityConnection!
+    BotLogs(input: QueryBotLogsInput!): BotLogsConnection!
+    BotSignalFlow(input: QueryBotSignalFlowInput!): BotSignalFlowConnection!
+    BotSignalStats(startTs: Int!, endTs: Int!, botId: Int): BotSignalStats!
+    BotMetrics(input: QueryBotMetricsInput!): BotMetrics!
+}
+
+type BotSignalStat {
+    botId: Int!
+    stream: String!
+    eventCount: Int!
+    avgLatencyMs: Float!
+    maxLatencyMs: Float!
+}
+
+type BotSignalStats {
+    stats: [BotSignalStat!]!
+}
+
+extend type Mutation {
+    CreateStrategy(input: CreateStrategyInput!): Strategy!
+    UpdateStrategy(input: UpdateStrategyInput!): Strategy!
+    GenerateStrategy(input: GenerateStrategyInput!): GenerateStrategyResponse!
+    DeleteStrategy(id: String!): Boolean!
+    ActiveStrategy(id: String!): Boolean!
+    InactiveStrategy(id: String!): Boolean!
+    CreateDatasource(input: CreateDatasourceInput!): DataSource!
+    DeleteDatasource(id: Int!): Boolean!
+    RunBacktest(input: RunBacktestInput!): RunBacktestResponse!
+    CreateBot(input: CreateBotInput!): Bot!
+    UpdateBot(input: UpdateBotInput!): Bot!
+    StartBot(id: Int!): Boolean!
+    StopBot(id: Int!): Boolean!
+    UpgradeBot(id: Int!): UpgradeBotResult!
+    DeleteBot(id: Int!): Boolean!
+}

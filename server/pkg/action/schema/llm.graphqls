@@ -1,0 +1,257 @@
+# GraphQL schema for LLM management
+
+type LlmConfig {
+  temperature: Float
+  topP: Float
+  maxTokens: Int
+  maxCompletionTokens: Int
+}
+
+type LlmMessage {
+  role: String!
+  content: String!
+  name: String
+}
+
+type LlmResponseFormatJsonSchema {
+  name: String!
+  strict: Boolean!
+  schema: String!
+}
+
+type LlmResponseFormat {
+  type: String!
+  jsonSchema: LlmResponseFormatJsonSchema
+}
+
+type LlmScene {
+  id: ID!
+  key: String!
+  name: String!
+  description: String!
+  config: LlmConfig!
+  messages: [LlmMessage!]!
+  timeout: Int!
+  responseFormat: LlmResponseFormat!
+  enabled: Boolean!
+  createdAt: Int!
+  updatedAt: Int!
+}
+
+type LlmSceneWithPrompts {
+  scene: LlmScene!
+  prompts: [LlmPrompt!]!
+}
+
+type LlmPrompt {
+  id: ID!
+  sceneId: ID!
+  sceneKey: String!
+  platform: String!
+  name: String!
+  model: String!
+  providers: [String!]
+  config: LlmConfig!
+  messages: [LlmMessage!]!
+  timeout: Int!
+  weight: Int!
+  enabled: Boolean!
+  variants: [String!]
+  createdAt: Int!
+  updatedAt: Int!
+}
+
+type LlmScenesConnection {
+  totalCount: Int!
+  list: [LlmScene!]!
+}
+
+input QueryLlmScenesInput {
+  limit: Int!
+  offset: Int!
+  enabled: Boolean
+}
+
+input LlmConfigInput {
+  temperature: Float
+  topP: Float
+  maxTokens: Int
+  maxCompletionTokens: Int
+}
+
+input LlmMessageInput {
+  role: String!
+  content: String!
+  name: String
+}
+
+input LlmResponseFormatJsonSchemaInput {
+  name: String!
+  strict: Boolean!
+  schema: String!
+}
+
+input LlmResponseFormatInput {
+  type: String!
+  jsonSchema: LlmResponseFormatJsonSchemaInput
+}
+
+input CreateLlmSceneInput {
+  key: String!
+  name: String!
+  description: String!
+  config: LlmConfigInput
+  messages: [LlmMessageInput!]
+  timeout: Int!
+  responseFormat: LlmResponseFormatInput!
+  enabled: Boolean!
+}
+
+input UpdateLlmSceneInput {
+  id: ID!
+  key: String!
+  name: String!
+  description: String!
+  config: LlmConfigInput
+  messages: [LlmMessageInput!]
+  timeout: Int!
+  responseFormat: LlmResponseFormatInput!
+  enabled: Boolean!
+}
+
+input DeleteLlmSceneInput {
+  id: ID!
+}
+
+input CreateLlmPromptInput {
+  sceneId: ID!
+  platform: String!
+  name: String!
+  model: String!
+  providers: [String!]
+  config: LlmConfigInput!
+  messages: [LlmMessageInput!]!
+  timeout: Int!
+  weight: Int!
+  enabled: Boolean!
+  variants: [String!]
+}
+
+input StringListInput {
+  values: [String!]
+}
+
+input UpdateLlmPromptInput {
+  id: ID!
+  enabled: Boolean
+  weight: Int
+  variants: StringListInput
+  name: String
+  timeout: Int
+}
+
+input DeleteLlmPromptInput {
+  id: ID!
+}
+
+input GetLlmSceneInput {
+  id: ID!
+  withPrompts: Boolean!
+}
+
+input GetLlmPromptInput {
+  id: ID!
+}
+
+input QueryLlmPromptsInput {
+  limit: Int!
+  offset: Int!
+  sceneId: ID
+  enabled: Boolean
+}
+
+type LlmPromptsConnection {
+  totalCount: Int!
+  list: [LlmPrompt!]!
+}
+
+input SceneTestInput {
+  sceneId: ID!
+
+  byVariant: String
+  byPromptId: ID
+  byPrompt: SceneTestPromptInput
+
+  variables: String!
+}
+
+input SceneTestPromptInput {
+  platform: String!
+  name: String!
+  model: String!
+  providers: [String!]
+  config: LlmConfigInput!
+  messages: [LlmMessageInput!]!
+  timeout: Int!
+}
+
+type CompletionMetadata {
+  sceneKey: String!
+  sceneId: ID!
+  promptId: ID!
+  model: String
+  provider: String
+}
+
+type CompletionUsage {
+  promptTokens: Int!
+  completionTokens: Int!
+  totalTokens: Int!
+}
+
+type SceneTestResult {
+  success: Boolean!
+  metadata: CompletionMetadata
+  result: String
+  error: String
+  completionId: ID
+  duration: Int
+  usage: CompletionUsage
+}
+
+type LlmSceneStats {
+  sceneKey: String!
+  sceneId: ID!
+  totalCount: Int!
+  successCount: Int!
+  failCount: Int!
+  successRate: Float!
+  avgDurationMs: Float!
+}
+
+type LlmCompletionStats {
+  totalCount: Int!
+  successCount: Int!
+  failCount: Int!
+  successRate: Float!
+  sceneStats: [LlmSceneStats!]!
+}
+
+extend type Query {
+  LlmScenes(input: QueryLlmScenesInput!): LlmScenesConnection!
+  LlmScene(input: GetLlmSceneInput!): LlmSceneWithPrompts
+  LlmPrompts(input: QueryLlmPromptsInput!): LlmPromptsConnection!
+  LlmPrompt(input: GetLlmPromptInput!): LlmPrompt
+  LlmCompletionStats(startTs: Int!, endTs: Int!): LlmCompletionStats!
+}
+
+extend type Mutation {
+  CreateLlmScene(input: CreateLlmSceneInput!): LlmScene!
+  UpdateLlmScene(input: UpdateLlmSceneInput!): LlmScene!
+  DeleteLlmScene(input: DeleteLlmSceneInput!): Boolean!
+  CreateLlmPrompt(input: CreateLlmPromptInput!): LlmPrompt!
+  UpdateLlmPrompt(input: UpdateLlmPromptInput!): LlmPrompt!
+  DeleteLlmPrompt(input: DeleteLlmPromptInput!): Boolean!
+
+  SceneTest(input: SceneTestInput!): SceneTestResult!
+}

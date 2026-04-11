@@ -1,0 +1,150 @@
+# 用户相关：API Key 管理（HTTP 使用 X-API-Key 鉴权见网关中间件）
+
+enum UserApiKeyPermission {
+  query
+  trade
+}
+
+type UserApiKey {
+  id: ID!
+  name: String!
+  keyPrefix: String!
+  permissions: [UserApiKeyPermission!]!
+  """
+  创建时间，Unix 毫秒时间戳
+  """
+  createdAt: Int!
+}
+
+type CreateUserApiKeyPayload {
+  record: UserApiKey!
+  """
+  完整密钥，仅创建时返回一次，请立即保存。
+  """
+  plainSecret: String!
+}
+
+type PushConfig {
+  provider: String!
+  pushDocumentEnabled: Boolean!
+  pushAlarmEnabled: Boolean!
+  pushTradeEnabled: Boolean!
+  telegramBotToken: String!
+  telegramChannelId: String!
+  feishuWebhookUrl: String!
+  feishuSecret: String!
+  feishuKeyword: String!
+}
+
+input UpdatePushConfigInput {
+  provider: String!
+  pushDocumentEnabled: Boolean!
+  pushAlarmEnabled: Boolean!
+  pushTradeEnabled: Boolean!
+  telegramBotToken: String!
+  telegramChannelId: String!
+  feishuWebhookUrl: String!
+  feishuSecret: String!
+  feishuKeyword: String!
+}
+
+input SendTelegramCodeInput {
+  appId: String!
+  appHash: String!
+  phoneNumber: String!
+}
+
+type SendTelegramCodePayload { 
+  success: Boolean!
+  message: String!
+  codeHash: String!
+  session: String!
+}
+
+input GetTelegramSessionInput {
+  appId: String!
+  appHash: String!
+  phoneNumber: String!
+  codeHash: String!
+  code: String!
+  session: String!
+}
+
+type GetTelegramSessionPayload {
+  success: Boolean!
+  message: String!
+  session: String!
+}
+
+type LlmProviderConfig {
+  openRouterApiKey: String!
+  siliconFlowApiKey: String!
+  """
+  新建对话等场景使用的默认模型 ID（如 OpenRouter 模型名）；空串表示使用系统内置默认。
+  """
+  defaultModel: String!
+}
+
+input UpdateLlmProviderConfigInput {
+  openRouterApiKey: String!
+  siliconFlowApiKey: String!
+  defaultModel: String!
+}
+
+type NetworkProxyConfig {
+  """
+  出站 HTTP 或 HTTPS 代理完整 URL；空串表示不使用代理。
+  """
+  httpProxyUrl: String!
+}
+
+input UpdateNetworkProxyConfigInput {
+  httpProxyUrl: String!
+}
+
+"""
+用户自定义 KV 条目；key 必须以 settings.user. 开头（与系统级 settings.telegram.* 等隔离）。
+"""
+type UserSettingEntry {
+  key: String!
+  value: String!
+}
+
+extend type Query {
+  UserApiKeys: [UserApiKey!]!
+  """
+  名称是否可用：同一用户下未删除的 API 密钥中不存在同名时为 true。
+  """
+  UserApiKeyNameAvailable(name: String!): Boolean!
+
+  PushConfig: PushConfig!
+
+  LlmProviderConfig: LlmProviderConfig!
+
+  NetworkProxyConfig: NetworkProxyConfig!
+
+  """
+  按 key 列表读取 kv；每个 key 须以 settings.user. 开头，单次最多 50 个；无记录时 value 为空串。
+  """
+  GetSettings(keys: [String!]!): [UserSettingEntry!]!
+}
+
+extend type Mutation {
+  CreateUserApiKey(name: String!, permissions: [UserApiKeyPermission!]!): CreateUserApiKeyPayload!
+  DeleteUserApiKey(id: ID!): Boolean!
+  """
+  校验当前密码后更新为新密码；新密码至少 8 个字符。
+  """
+  ChangeUserPassword(currentPassword: String!, newPassword: String!): Boolean!
+
+  UpdatePushConfig(input: UpdatePushConfigInput!): PushConfig!
+  UpdateLlmProviderConfig(input: UpdateLlmProviderConfigInput!): LlmProviderConfig!
+  UpdateNetworkProxyConfig(input: UpdateNetworkProxyConfigInput!): NetworkProxyConfig!
+  SendTelegramCode(input: SendTelegramCodeInput!): SendTelegramCodePayload!
+  GetTelegramSession(input: GetTelegramSessionInput!): GetTelegramSessionPayload!
+
+  """
+  写入单条 kv；key 须以 settings.user. 开头。
+  """
+  SetSettings(key: String!, value: String!): Boolean!
+}

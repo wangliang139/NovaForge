@@ -1,0 +1,63 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+enum CalendarSource {
+    unspecified
+    gateio
+    jin10
+}
+
+enum CalendarType {
+    unspecified
+    economic_data
+    project_event
+    token_unlock
+    summit_event
+    financing
+    events
+    other
+}
+
+type EconomicCalendarExtention {
+    unit: String!
+    actual: String!
+    previous: String!
+    consensus: String!
+}
+
+union CalendarExtention = EconomicCalendarExtention
+
+type Calendar {
+    id: ID!
+    dateId: Int!
+    source: CalendarSource!
+    sid: String!
+    type: CalendarType!
+    category: String!
+    country: String
+    project: String
+    symbol: String
+    title: String!
+    content: String!
+    importance: Int!
+    url: String
+    ext: CalendarExtention
+    publishedAt: Int!
+    createdAt: Int!
+    updatedAt: Int!
+}
+
+input QueryCalendarsInput {
+    dateId: Int!
+    source: CalendarSource
+    type: CalendarType
+    category: String
+    country: String
+    minImportance: Int
+}
+
+extend type Query {
+    Calendars(input: QueryCalendarsInput!): [Calendar!]!
+}
+

@@ -1,0 +1,58 @@
+create type order_side as enum ('LONG', 'SHORT');
+
+create type order_type as enum ('MARKET', 'LIMIT', 'UNKNOWN');
+
+create type time_in_force as enum ('GTC', 'IOC', 'FOK');
+
+create type algo_type as enum ('NONE', 'CONDITIONAL', 'TRAILING', 'OCO', 'TWAP', 'ICEBERG', 'CHASE', 'UNKNOWN');
+
+create type order_source as enum ('USER', 'STRATEGY', 'LIQUIDATION', 'ADL');
+
+-- 订单记录表
+CREATE TABLE IF NOT EXISTS orders (
+    id BIGSERIAL PRIMARY KEY,
+    bot_id int NOT NULL,
+    account_id VARCHAR(64) NOT NULL,
+    order_id VARCHAR(128) NOT NULL,
+    client_order_id VARCHAR(128) NOT NULL,
+    drived_order_id VARCHAR(128) NOT NULL,
+    order_type order_type NOT NULL,
+    algo_type algo_type NOT NULL,
+    source order_source NOT NULL,
+    exchange VARCHAR(32) NOT NULL,
+    symbol VARCHAR(64) NOT NULL,
+    side order_side NOT NULL,
+    is_buy BOOLEAN NOT NULL,
+    price DECIMAL(32, 8),
+    quantity DECIMAL(32, 8),
+    executed_qty DECIMAL(32, 8),
+    executed_price DECIMAL(32, 8),
+    avg_price DECIMAL(32, 8),
+    reduce_only BOOLEAN NOT NULL,
+    post_only BOOLEAN NOT NULL,
+    tif time_in_force NOT NULL, -- 有效期类型
+    conditions JSONB,
+    detail JSONB,
+    status varchar(32) NOT NULL,
+    reject_reason VARCHAR(128),
+    created_ts TIMESTAMPTZ NOT NULL, -- 创建时间
+    working_ts TIMESTAMPTZ, -- 条件单生效时间
+    finished_ts TIMESTAMPTZ, -- 完成时间
+    updated_ts TIMESTAMPTZ NOT NULL, -- 更新时间
+    locked DECIMAL(32, 8),
+    locked_asset VARCHAR(32),
+    fee DECIMAL(32, 8),
+    fee_asset VARCHAR(32),
+    realized_pnl DECIMAL(32, 8),
+    pnl_asset VARCHAR(16), -- 现货订单 realized_pnl 对应的资产；买入=quote，卖出=base
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_orders_bot_id ON orders(bot_id);
+CREATE INDEX idx_orders_account_id ON orders(account_id);
+CREATE INDEX idx_orders_symbol ON orders(symbol);
+CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX idx_orders_created_at ON orders(created_at);
+CREATE UNIQUE INDEX idx_orders_account_cl_order_id ON orders(account_id, client_order_id) where client_order_id <> '';
+CREATE UNIQUE INDEX idx_orders_account_order_id ON orders(account_id, order_id);

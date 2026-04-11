@@ -1,0 +1,223 @@
+version: "2"
+sql:
+  - schema: account/schema.sql
+    queries: account/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: account
+        out: account
+  - schema: document/schema.sql
+    queries: document/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: document
+        out: document
+        overrides:
+          - db_type: "vector"
+            nullable: true
+            go_type:
+              type: "[]float32"
+  - schema: kv/schema.sql
+    queries: kv/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: kv
+        out: kv
+  - schema: calendar/schema.sql
+    queries: calendar/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: calendar
+        out: calendar
+  - schema: llm_scene/schema.sql
+    queries: llm_scene/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: llm_scene
+        out: llm_scene
+  - schema: llm_prompt/schema.sql
+    queries: llm_prompt/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: llm_prompt
+        out: llm_prompt
+  - schema: llm_completion/schema.sql
+    queries: llm_completion/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: llm_completion
+        out: llm_completion
+  - schema: llm_session/schema.sql
+    queries: llm_session/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: llm_session
+        out: llm_session
+  - schema: llm_dialog/schema.sql
+    queries: llm_dialog/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: llm_dialog
+        out: llm_dialog
+  - schema: [tg_channel/schema.sql, document/schema.sql]
+    queries: tg_channel/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: tg_channel
+        out: tg_channel
+  - schema: [assets/schema.sql, orders/schema.sql]
+    queries: assets/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: assets
+        out: assets
+  - schema: equity/schema.sql
+    queries: equity/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: equity
+        out: equity
+  - schema: positions/schema.sql
+    queries: positions/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: positions
+        out: positions
+  - schema: [assets/schema.sql, ledgers/schema.sql]
+    queries: ledgers/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: ledgers
+        out: ledgers
+  - schema: orders/schema.sql
+    queries: orders/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: orders
+        out: orders
+  - schema: risk_event/schema.sql
+    queries: risk_event/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: risk_event
+        out: risk_event
+  - schema: alert/schema.sql
+    queries: alert/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: alert
+        out: alert
+  - schema: [alert/schema.sql, alert_trigger_event/schema.sql]
+    queries: alert_trigger_event/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: alert_trigger_event
+        out: alert_trigger_event
+  - schema: user/schema.sql
+    queries: user/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: user
+        out: user
+  - schema: user_api_key/schema.sql
+    queries: user_api_key/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: user_api_key
+        out: user_api_key
+  - schema: symbol_equity/schema.sql
+    queries: symbol_equity/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: symbol_equity
+        out: symbol_equity
+  - schema: bot/schema.sql
+    queries: bot/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: bot
+        out: bot
+  - schema: backtest/schema.sql
+    queries: backtest/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: backtest
+        out: backtest
+  - schema: strategy/schema.sql
+    queries: strategy/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: strategy
+        out: strategy
+  - schema: snapshot/schema.sql
+    queries: snapshot/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: snapshot
+        out: snapshot
+  - schema: datasource/schema.sql
+    queries: datasource/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: datasource
+        out: datasource
+  - schema: ds_items/schema.sql
+    queries: ds_items/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: ds_items
+        out: ds_items

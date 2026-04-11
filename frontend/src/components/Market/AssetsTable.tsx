@@ -1,0 +1,162 @@
+import type { Asset } from '@/services/gateway/account';
+import { WalletType } from '@/services/gateway/account';
+import utils from '@/utils';
+import type { ProColumns } from '@ant-design/pro-components';
+import { ProTable } from '@ant-design/pro-components';
+import { Tag } from 'antd';
+import React from 'react';
+
+export type AssetsProTableProps = {
+  assets: Asset[];
+  loading?: boolean;
+  /** 是否展示底部汇总行（现金价值合计） */
+  showSummary?: boolean;
+};
+
+const assetColumns: ProColumns<Asset>[] = [
+  {
+    title: '币种',
+    dataIndex: 'code',
+    align: 'center',
+    key: 'code',
+    width: 100,
+    sorter: (a, b) => String(a.code || '').localeCompare(String(b.code || '')),
+  },
+  {
+    title: '钱包类型',
+    dataIndex: 'walletType',
+    key: 'walletType',
+    align: 'center',
+    width: 120,
+    sorter: (a, b) => String(a.walletType || '').localeCompare(String(b.walletType || '')),
+    filters: [
+      { text: '现货', value: WalletType.Spot },
+      { text: '合约', value: WalletType.Future },
+      { text: '资金', value: WalletType.Fund },
+      { text: '交易', value: WalletType.Trade },
+      { text: '杠杆', value: WalletType.Margin },
+    ],
+    onFilter: (value, record) => record.walletType === value,
+    render: (text: any) => {
+      const typeMap: Record<string, { text: string; color: string }> = {
+        [WalletType.Spot]: { text: '现货', color: 'blue' },
+        [WalletType.Future]: { text: '合约', color: 'orange' },
+        [WalletType.Fund]: { text: '资金', color: 'green' },
+        [WalletType.Trade]: { text: '交易', color: 'purple' },
+        [WalletType.Margin]: { text: '杠杆', color: 'red' },
+      };
+      const info = typeMap[text as string] || { text, color: 'default' };
+      return <Tag color={info.color}>{info.text}</Tag>;
+    },
+  },
+  {
+    title: '余额',
+    dataIndex: 'balance',
+    key: 'balance',
+    align: 'right',
+    render: (text: any) => {
+      const value = utils.math.toSafeNumber(text);
+      return value !== 0 ? utils.math.formatByPrecision(value, 8) : '0';
+    },
+  },
+  {
+    title: '可用',
+    key: 'available',
+    align: 'right',
+    render: (_: any, record: Asset) => {
+      const balance = parseFloat(record.balance as any);
+      const locked = parseFloat(record.locked as any);
+      const available = (Number.isNaN(balance) ? 0 : balance) - (Number.isNaN(locked) ? 0 : locked);
+      return available !== 0 ? utils.math.formatByPrecision(available, 8) : '0';
+    },
+  },
+  {
+    title: '冻结',
+    dataIndex: 'locked',
+    key: 'locked',
+    align: 'right',
+    tooltip: '冻结资产=仓位保证金+订单冻结/占用资金',
+    render: (text: any) => {
+      return utils.math.formatByPrecision(text, 8);
+    },
+  },
+  {
+    title: '均价 (USDT)',
+    key: 'avgPrice',
+    align: 'right',
+    tooltip: '按现金价值/余额计算的平均持仓价格',
+    render: (_: any, record: Asset) => {
+      const balance = parseFloat(record.balance as any);
+      const notional = parseFloat(record.notional as any);
+      const b = Number.isNaN(balance) ? 0 : balance;
+      const n = Number.isNaN(notional) ? 0 : notional;
+      if (b <= 0 || !Number.isFinite(n) || n === 0) {
+        return '-';
+      }
+      const avg = n / b;
+      return avg !== 0 ? utils.math.formatByPrecision(avg, 8) : '0';
+    },
+  },
+  {
+    title: '现金价值 (USDT)',
+    dataIndex: 'notional',
+    key: 'notional',
+    align: 'right',
+    defaultSortOrder: 'descend',
+    sorter: (a, b) => {
+      const left = parseFloat(a.notional as any);
+      const right = parseFloat(b.notional as any);
+      return (Number.isNaN(left) ? 0 : left) - (Number.isNaN(right) ? 0 : right);
+    },
+    render: (text: any) => {
+      const value = parseFloat(text);
+      return value !== 0 ? utils.math.formatByPrecision(text, 2) : '0';
+    },
+  },
+];
+
+const AssetsProTable: React.FC<AssetsProTableProps> = ({ assets, loading = false, showSummary = false }) => {
+  const renderSummary: NonNullable<React.ComponentProps<typeof ProTable<Asset>>['summary']> = (pageData) => {
+    if (!showSummary) {
+      return null;
+    }
+    if (!pageData || pageData.length === 0) {
+      return null;
+    }
+    const source = pageData.length > 0 ? pageData : assets;
+    const total = source.reduce((acc, item) => {
+      const value = parseFloat(item.notional as any);
+      return acc + (Number.isNaN(value) ? 0 : value);
+    }, 0);
+    return (
+      <ProTable.Summary>
+        <ProTable.Summary.Row>
+          <ProTable.Summary.Cell index={0} colSpan={5} align="right">
+            现金价值合计 (USDT)
+          </ProTable.Summary.Cell>
+          <ProTable.Summary.Cell index={1} colSpan={2} align="right">
+            {total > 0 ? utils.math.formatByPrecision(total, 2) : '0'}
+          </ProTable.Summary.Cell>
+        </ProTable.Summary.Row>
+      </ProTable.Summary>
+    );
+  };
+
+  return (
+    <ProTable<Asset>
+      style={{ marginBottom: 24 }}
+      pagination={false}
+      search={false}
+      loading={loading}
+      options={false}
+      toolBarRender={false}
+      dataSource={assets}
+      columns={assetColumns}
+      rowKey={(record) => `${record.code}-${record.walletType}`}
+      summary={showSummary ? renderSummary : undefined}
+    />
+  );
+};
+
+export default AssetsProTable;
+

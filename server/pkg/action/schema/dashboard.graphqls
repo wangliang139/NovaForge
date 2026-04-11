@@ -1,0 +1,12 @@
+# Dashboard 概览统计（基于 SQL COUNT，高性能）
+type DashboardOverview {
+  strategyTotal: Int!
+  botRunning: Int!
+  botTotal: Int!
+  accountOnline: Int!
+  accountTotal: Int!
+}
+
+extend type Query {
+  DashboardOverview: DashboardOverview!
+}

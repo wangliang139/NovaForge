@@ -1,0 +1,7 @@
+extend type Mutation {
+  """
+  请求当前网关进程优雅退出（SIGTERM）。需管理员 JWT，且服务端通过环境变量显式开启。
+  若使用 Docker，请为容器配置 restart 策略以便进程退出后自动重新拉起。
+  """
+  RequestGatewayRestart: Boolean!
+}

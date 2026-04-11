@@ -1,0 +1,263 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+enum AccountStatus {
+  unspecified
+  online
+  offline
+}
+
+directive @goField(forceResolver: Boolean, name: String) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+enum AuthAlgorithm {
+  unspecified
+  none
+  hmac
+  ed25519
+  rsa
+}
+
+enum AccountType {
+  unspecified
+  real
+  virtual
+}
+
+type AmountLimit {
+  amount: String
+  ratio: String
+}
+
+type Account {
+  id: ID!
+  name: String!
+  exchange: Exchange!
+  apiKey: String!
+  apiSecret: String!
+  passphrase: String!
+  tags: [String!]
+  status: AccountStatus!
+  algorithm: AuthAlgorithm!
+  accountType: AccountType!
+  config: AccountConfig!
+  createdAt: Int!
+  updatedAt: Int!
+  stats: AccountStats @goField(forceResolver: true)
+
+  # 当前风险指数（0-100）
+  riskIndex: String @goField(forceResolver: true)
+}
+
+type AccountConfig {
+  # 风控配置字段
+  maxOrderSize: String
+  maxPositionPerSymbol: AmountLimit
+  maxDailyLoss: AmountLimit
+  maxLeverage: String
+  maxOrdersPerMinute: Int
+  minMaintenanceMarginRatio: String
+  maxTotalNetExposure: AmountLimit
+  maxTotalGrossExposure: AmountLimit
+  riskIndexThreshold: String
+  riskIndexAction: String
+  cooldownSeconds: Int
+}
+
+type AccountStats {
+  notional: String!
+  unRealizedProfit: String!
+  notional24HChange: String!
+}
+
+type Equity {
+  id: Int!
+  accountId: ID!
+  ts: Int!
+  notional: String!
+  unRealizedProfit: String!
+  createdAt: Int!
+}
+
+type AccountsConnection {
+  totalCount: Int!
+  list: [Account!]!
+}
+
+input QueryAccountsInput {
+  limit: Int!
+  offset: Int!
+  id: ID
+  name: String
+  exchange: Exchange
+  tags: [String!]
+  status: AccountStatus
+  createdAtStart: Int
+  createdAtEnd: Int
+}
+
+input QueryEquitysInput {
+  accountId: ID!
+  range: String!
+}
+
+enum EventFlowStream {
+  all
+  accountRaw
+  account
+}
+
+input QueryAccountEventFlowInput {
+  accountId: ID!
+  stream: EventFlowStream!
+  startTsMs: Int
+  startId: Int
+  limit: Int
+}
+
+type EventRecord {
+  id: String!
+  accountId: ID!
+  exchange: String!
+  stream: String!
+  topic: String!
+  eventKind: String!
+  tsMs: Int!
+  receiveAtMs: Int!
+  publishAtMs: Int!
+  ingestAtMs: Int!
+  payloadJson: String!
+}
+
+type AccountEventFlowConnection {
+  events: [EventRecord!]!
+  nextId: String!
+}
+
+type RiskEvent {
+  id: Int!
+  accountId: ID!
+  exchange: String!
+  rule: String!
+  riskIndex: String
+  payloadJson: String
+  createdAt: Int!
+}
+
+input QueryRiskEventsInput {
+  accountId: ID!
+  limit: Int
+  offset: Int
+}
+
+input MutationAccountInput {
+  id: ID
+  exchange: Exchange!
+  name: String!
+  apiKey: String!
+  apiSecret: String!
+  passphrase: String!
+  tags: [String!]
+  status: AccountStatus
+  algorithm: AuthAlgorithm
+  accountType: AccountType
+}
+
+input AmountLimitInput {
+  amount: String
+  ratio: String
+}
+
+input UpdateAccountRiskConfigInput {
+  accountId: ID!
+
+  maxOrderSize: String
+  maxPositionPerSymbol: AmountLimitInput
+  maxDailyLoss: AmountLimitInput
+  maxLeverage: String
+  maxOrdersPerMinute: Int
+  minMaintenanceMarginRatio: String
+  maxTotalNetExposure: AmountLimitInput
+  maxTotalGrossExposure: AmountLimitInput
+  riskIndexThreshold: String
+  riskIndexAction: String
+  cooldownSeconds: Int
+}
+
+input PlaceOrderInput {
+  accountId: ID!
+  symbol: String!
+
+  side: PositionSide!
+  isBuy: Boolean!
+  orderType: OrderType!
+
+  price: String
+  quantity: String! # 下单数量（base qty）
+  timeInForce: String
+  reduceOnly: Boolean
+  closePosition: Boolean
+}
+
+type PlaceOrderResult {
+  orderId: String!
+  clientOrderId: String!
+}
+
+input CancelOrderInput {
+  accountId: ID!
+  symbol: String!
+  clientOrderId: String
+  orderId: String
+}
+
+# 账户指标：CAGR、Sharpe、Sortino 等 12 项
+type AccountMetrics {
+  accountId: ID!
+  dimension: MetricsDimension!
+  cagr: Float!
+  sharpe: Float!
+  sortino: Float!
+  maxDrawdown: Float!
+  timeUnderWaterSeconds: Int!
+  calmar: Float!
+  winRate: Float!
+  profitFactor: Float!
+  rollingSharpe: Float!
+  avgSlippageBps: Float!
+  feeRatio: Float!
+  maxConsecutiveLoss: Int!
+  startTs: Int!
+  endTs: Int!
+  symbols: [SymbolMetrics!]!
+}
+
+input QueryAccountMetricsInput {
+  accountId: ID!
+  dimension: MetricsDimension!
+  symbol: String
+  startTs: Int
+  endTs: Int
+}
+
+extend type Query {
+  Accounts(input: QueryAccountsInput!): AccountsConnection!
+  Equitys(input: QueryEquitysInput!): [Equity!]!
+  AccountEventFlow(input: QueryAccountEventFlowInput!): AccountEventFlowConnection!
+  Leverage(accountId: ID!, symbol: String!): Int!
+  AccountMetrics(input: QueryAccountMetricsInput!): AccountMetrics!
+  RiskEvents(input: QueryRiskEventsInput!): [RiskEvent!]!
+}
+
+extend type Mutation {
+  CreateAccount(input: MutationAccountInput!): Account!
+  UpdateAccount(input: MutationAccountInput!): Account!
+  OnlineAccount(id: ID!): Account!
+  OfflineAccount(id: ID!): Account!
+  DeleteAccount(id: ID!): Boolean!
+  RefreshAccountSnapshots(accountId: ID!): Boolean!
+  PlaceOrder(input: PlaceOrderInput!): PlaceOrderResult!
+  CancelOrder(input: CancelOrderInput!): Boolean!
+  SetLeverage(accountId: ID!, symbol: String!, leverage: Int!): Int!
+  UpdateAccountRiskConfig(input: UpdateAccountRiskConfigInput!): Account!
+}

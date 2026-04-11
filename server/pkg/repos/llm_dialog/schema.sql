@@ -1,0 +1,28 @@
+create table if not exists public.llm_dialog (
+    id bigint primary key,
+    session_id bigint not null,
+    dialog_id bigint not null,
+    seq int not null,
+    role varchar(16) not null,
+    provider varchar(64) not null default '',
+    model varchar(128) not null default '',
+    content_text text not null default '',
+    parts jsonb not null default '[]',
+    context_meta jsonb not null default '{}',
+    can_regenerate boolean not null default false,
+    stats jsonb not null default '{}',
+    visible boolean not null default true,
+    status varchar(32) not null default 'pending',
+    error_code varchar(64) not null default '',
+    error_message text not null default '',
+    started_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone default now() not null,
+    updated_at timestamp with time zone default now() not null,
+    deleted_at timestamp with time zone
+);
+
+create unique index if not exists idx_llm_dialog_session_id_seq_unique on public.llm_dialog (session_id, seq);
+create index if not exists idx_llm_dialog_session_id_dialog_id on public.llm_dialog (session_id, dialog_id);
+create index if not exists idx_llm_dialog_session_id_created_at on public.llm_dialog (session_id, created_at desc);
+create index if not exists idx_llm_dialog_role_status on public.llm_dialog (role, status);
