@@ -1,10 +1,10 @@
-# LLT Backoffice Front - 前端管理界面
+# NovaForge 前端
 
 你是一位精通 React、TypeScript、Ant Design Pro、GraphQL 和现代前端开发的专家。
 
 ## 项目概述
 
-llt-backoffice-front 是系统的前端管理界面，基于 Ant Design Pro 和 UmiJS 构建，通过 GraphQL 与后端 API 网关通信。提供完整的后台管理功能，包括账户管理、交易所监控、文档管理、项目管理和 Meme Token 分析等。
+本目录为 **NovaForge** 的桌面端 Web 界面，基于 Ant Design Pro 与 UmiJS，通过 GraphQL 与同仓库的 **server** 单体后端通信。功能覆盖账户、交易所、文档、项目、Meme 分析等模块（以实际页面为准）。
 
 ## 技术栈
 
@@ -156,6 +156,6 @@ function AccountList() {
 
 ## 与后端集成
 
-- 通过 Apollo Client 与 llt-backoffice-gateway 的 GraphQL API 通信
+- 通过 Apollo Client 调用 **NovaForge server** 提供的 GraphQL（路径与 `API_URL` 等见 `config/apollo.ts`）
 - GraphQL endpoint 配置在 `config/apollo.ts`
-- 支持 WebSocket 实时订阅（如果后端支持）
+- 支持 WebSocket 订阅时，与后端订阅端点一致即可

@@ -6,10 +6,10 @@
 
 | 项 | 说明 |
 | --- | --- |
-| Go 模块 | `github.com/wangliang139/llt-trade/server`（见 `server/go.mod`） |
+| Go 模块 | 见 `server/go.mod` 的 `module` 声明 |
 | 进程入口 | `cmd/app`：GraphQL（gqlgen）、策略运行时、市场连接器、定时任务等在同一进程 |
 | 前端 | 仓库内 `frontend/`，包管理使用 **pnpm**（非 npm） |
-| 策略代码根 | `pkg/strategy/`（不再对应已废弃目录名 `services/llt-strategy-api`） |
+| 策略代码根 | `pkg/strategy/` |
 | 行情/交易对接 | `pkg/strategy/proxy` 通过 `Stub` 注入；请求/响应类型多在 `pkg/types` |
 | 数据持久化 | `pkg/repos`（sqlc）、业务实体 `pkg/entity` |
 
@@ -23,8 +23,6 @@
 | `make gqlgen` | 生成 GraphQL |
 | `make build` | `CGO_ENABLED=1 go build -o ./bin ./cmd/app` |
 | `make docker build` 等 | 自**仓库根**构建镜像，见 `server/Makefile` |
-
-文中若仍出现「llt-data-api / llt-backoffice-gateway」等**旧多服务**名称，一般指「账户与行情数据能力」；在**当前单体**中由本模块内 `pkg/repos`、`pkg/entity`、GraphQL resolver 等与 `proxy` 注入共同承担，而非独立仓库路径。
 
 ---
 
@@ -404,7 +402,7 @@ pkg/strategy/
 ```bash
 STRATEGY_ENABLED=true
 STRATEGY_NATS_SERVERS=nats://127.0.0.1:4222
-STRATEGY_NATS_NAME=llt-strategy
+STRATEGY_NATS_NAME=novaforge-strategy
 STRATEGY_TOPIC_PREFIX=md
 ```
 
@@ -2833,7 +2831,8 @@ err := botManager.StopBot(ctx, bot.ID)
 ### 创建异步消息总线（生产环境）
 
 ```go
-import "github.com/wangliang139/llt-trade/server/pkg/strategy/infra/bus"
+// <module> 与 server/go.mod 中 module 行一致
+import "<module>/pkg/strategy/infra/bus"
 
 bus := bus.NewAsync()
 ctx := context.Background()
@@ -2849,7 +2848,8 @@ defer bus.Stop(ctx)
 ### 创建同步消息总线（回测场景）
 
 ```go
-import "github.com/wangliang139/llt-trade/server/pkg/strategy/infra/bus"
+// <module> 与 server/go.mod 中 module 行一致
+import "<module>/pkg/strategy/infra/bus"
 
 bus := bus.NewSync()
 ctx := context.Background()

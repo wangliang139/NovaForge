@@ -21,7 +21,7 @@
 
 ### 2.1 assets 表
 
-**文件**：`services/llt-data-api/pkg/repos/assets/schema.sql`
+**文件**：`server/pkg/repos/assets/schema.sql`
 
 ```sql
 -- 新增字段
@@ -37,7 +37,7 @@ COMMENT ON COLUMN assets.avg_price IS '持仓均价，按 asset/USDT 计价；US
 
 ### 2.2 orders 表
 
-**文件**：`services/llt-data-api/pkg/repos/orders/schema.sql`
+**文件**：`server/pkg/repos/orders/schema.sql`
 
 ```sql
 -- 新增字段
@@ -63,7 +63,7 @@ COMMENT ON COLUMN orders.pnl_asset IS '现货订单 realized_pnl 对应的资产
 | USDC、BUSD、DAI、TUSD 等稳定币 | 是 | 需维护，用于多 quote 场景 |
 | BTC、ETH 等非稳定币 | 是 | 需维护 |
 
-**稳定币白名单**（建议在 `llt-data-api` 或 `common/go` 中定义常量）：
+**稳定币白名单**（建议在 `server/pkg` 下与资产/定价相关的公共包中定义常量）：
 
 ```go
 var Stablecoins = []string{"USDT", "USDC", "BUSD", "DAI", "TUSD", "USDP", "FDUSD"}
@@ -249,14 +249,14 @@ flowchart TB
 
 | 模块 | 文件 | 变更内容 |
 |------|------|----------|
-| repos | `pkg/repos/assets/schema.sql` | 新增 avg_price |
-| repos | `pkg/repos/assets/query.sql` | UpsertAsset 支持 avg_price；新增 UpdateAssetAvgPrice |
-| repos | `pkg/repos/orders/schema.sql` | 新增 pnl_asset |
-| repos | `pkg/repos/orders/query.sql` | UpsertOrder 支持 pnl_asset |
-| entity | `pkg/entity/account/asset.go` | UpdateAssetAvgPriceOnIncrease；FillMissingAvgPrice |
-| entity | `pkg/entity/account/order.go` | 现货订单 PnL 计算并写入 |
-| entity | `pkg/entity/account/cron.go` | refreshAssets 后调用 FillMissingAvgPrice |
-| types | `pkg/types/` 或 `common/go` | 稳定币白名单常量 |
+| repos | `server/pkg/repos/assets/schema.sql` | 新增 avg_price |
+| repos | `server/pkg/repos/assets/query.sql` | UpsertAsset 支持 avg_price；新增 UpdateAssetAvgPrice |
+| repos | `server/pkg/repos/orders/schema.sql` | 新增 pnl_asset |
+| repos | `server/pkg/repos/orders/query.sql` | UpsertOrder 支持 pnl_asset |
+| entity | `server/pkg/entity/account/asset.go` | UpdateAssetAvgPriceOnIncrease；FillMissingAvgPrice |
+| entity | `server/pkg/entity/account/order.go` | 现货订单 PnL 计算并写入 |
+| entity | `server/pkg/entity/account/cron.go` | refreshAssets 后调用 FillMissingAvgPrice |
+| types | `server/pkg/types/`（或资产定价相关包） | 稳定币白名单常量 |
 | - | 迁移脚本 | ALTER TABLE assets/orders |
 
 ---

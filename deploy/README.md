@@ -1,24 +1,23 @@
 # 数据库部署
 
-本目录包含从 **llt-data-api** 与 **llt-strategy-api** 各 `pkg/repos/*/schema.sql` 整理合并后的统一部署脚本。
+本目录提供 **NovaForge** 单体后端（`server/pkg/repos`）相关的 **PostgreSQL** 等一体化部署脚本，由历史 schema 合并整理而来，便于本机或单机环境一次性初始化。
 
 ## deploy.sql（PostgreSQL）
 
-- **用途**：在 PostgreSQL 上一次性创建两服务所需的表、枚举与索引。
-- **依赖**：需安装 [pgvector](https://github.com/pgvector/pgvector) 扩展（`document.embedding` 向量列）。  
-  若使用 document 表的 BM25 全文检索，需单独安装 pg_bm25 并在脚本中取消对应索引的注释后执行。
+- **用途**：在 PostgreSQL 上创建应用所需的表、枚举与索引。
+- **依赖**：若使用向量列，需安装 [pgvector](https://github.com/pgvector/pgvector)。若使用 document 表的 BM25 全文检索，需单独安装 pg_bm25 并在脚本中按需取消注释。
 - **执行**：
   ```bash
   psql "postgresql://user:pass@host:5432/dbname?sslmode=disable" -f deploy/deploy.sql
   ```
-- **幂等**：脚本中枚举类型已做“存在则跳过”处理，表与索引均使用 `IF NOT EXISTS`，可重复执行。
+- **幂等**：枚举类型已做“存在则跳过”处理，表与索引使用 `IF NOT EXISTS`，可重复执行。
 
 ## ClickHouse 表
 
-`deploy.sql` 文件末尾以注释形式保留了 **llt-data-api** 的 `trade.event_flow` 与 **llt-strategy-api** 的 `trade.bot_signal_flow` 的 ClickHouse DDL。  
+`deploy.sql` 末尾以注释形式保留了 **事件流**（`trade.event_flow`）与 **Bot 信号流**（`trade.bot_signal_flow`）的 ClickHouse DDL。  
 这两张表需在 ClickHouse 实例上单独执行，不能通过上述 PostgreSQL 脚本创建。
 
 ## 与 server 服务 schema 的同步
 
-- 日常开发仍以 server 服务内 `pkg/repos/*/schema.sql` 为准，由 sqlc 生成代码。
-- 修改了某个表的 schema 后，请同步更新本目录下的 `deploy.sql`，以便新环境或迁移时与服务定义一致。
+- 日常开发以 `server/pkg/repos/*/schema.sql` 为准，由 sqlc 生成代码。
+- 修改表结构后，请同步更新本目录下的 `deploy.sql`，保证新环境与迁移脚本与运行时代码一致。

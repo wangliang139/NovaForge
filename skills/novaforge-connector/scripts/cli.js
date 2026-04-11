@@ -62,10 +62,13 @@ function readJsonArg(value, filePath) {
   return {};
 }
 
-function buildUrl(baseUrl, envKey, defaultPath) {
-  const override = (process.env[envKey] || '').trim();
-  if (override) {
-    return override;
+function buildUrl(baseUrl, envKeys, defaultPath) {
+  const keys = Array.isArray(envKeys) ? envKeys : [envKeys];
+  for (const k of keys) {
+    const override = (process.env[k] || '').trim();
+    if (override) {
+      return override;
+    }
   }
   return new URL(defaultPath, `${baseUrl.replace(/\/+$/, '')}/`).toString();
 }
@@ -108,8 +111,9 @@ options:
   --timeout-ms <number>       request timeout in milliseconds
 
 environment:
-  LLT_BASE_URL                base gateway URL, default is https://localhost:3000
-  LLT_API_KEY                 API key used as X-API-KEY
+  NOVAFORGE_BASE_URL          base gateway URL, default is https://localhost:3000
+  NOVAFORGE_API_KEY           API key used as X-API-KEY
+  NOVAFORGE_GRAPHQL_URL       optional full GraphQL endpoint URL (overrides base + /query)
 `);
 }
 
@@ -118,8 +122,15 @@ async function runGraphql(flags) {
     fail('global fetch is unavailable; use Node.js 18+');
   }
 
-  const baseUrl = readOptionalEnv('LLT_BASE_URL', 'https://localhost:3000');
-  const apiKey = readEnv('LLT_API_KEY');
+  const baseUrl = readOptionalEnv(
+    'NOVAFORGE_BASE_URL',
+    readOptionalEnv('LLT_BASE_URL', 'https://localhost:3000'),
+  );
+  const apiKey =
+    readOptionalEnv('NOVAFORGE_API_KEY', '') || readOptionalEnv('LLT_API_KEY', '');
+  if (!apiKey) {
+    fail('missing required environment variable: NOVAFORGE_API_KEY');
+  }
   const queryFile = typeof flags['query-file'] === 'string' ? flags['query-file'] : null;
   const variablesFile = typeof flags['variables-file'] === 'string' ? flags['variables-file'] : null;
   const query = await readTextArg(flags.query, queryFile, 'a GraphQL query');
@@ -130,7 +141,7 @@ async function runGraphql(flags) {
     fail('timeout must be a positive integer in milliseconds');
   }
   const timeoutMs = timeoutMsRaw;
-  const url = buildUrl(baseUrl, 'LLT_QUERY_URL', '/query');
+  const url = buildUrl(baseUrl, ['NOVAFORGE_GRAPHQL_URL', 'LLT_QUERY_URL'], '/query');
 
   const payload = {
     query,

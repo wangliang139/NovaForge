@@ -4,58 +4,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture
 
-Multi-language quantitative trading platform using microservices:
+NovaForge is a **desktop-oriented monolith** for multi-exchange Web3 trading: a single Go backend and a React SPA.
 
-- `services/llt-trade-api` — Core trading API (Go, gRPC, sqlc)
-- `services/llt-strategy-api` — Strategy execution engine (Go, gRPC, JS runtime, sqlc)
-- `services/llt-data-api` — Market data distribution (Go, gRPC, Kafka/NATS publishers, sqlc)
-- `services/llt-backoffice-gateway` — Admin gateway (Go, GraphQL via gqlgen)
-- `services/llt-trade-py` — Python data processing service
-- `frontend` — React/TypeScript SPA (Ant Design, UmiJS/Max framework, Apollo GraphQL client)
-- `common/schema` — Protobuf definitions shared across all services
-- `common/go` — Shared Go utilities
+- `server/` — Go application (GraphQL via gqlgen, strategy runtime, market connectors, sqlc repos, scheduled jobs). Entry: `cmd/app`.
+- `frontend/` — React / TypeScript SPA (Ant Design Pro, UmiJS, Apollo Client for GraphQL).
 
-Service boundaries are enforced via protobuf. Each Go service uses sqlc for type-safe DB access and goverter for type conversion between layers.
+The UI talks to the backend over **GraphQL** (same repo; local dev typically runs both processes). Persistence and domain logic live under `server/pkg/repos`, `server/pkg/entity`, resolvers, and strategy `pkg/strategy/`.
 
 ## Commands
 
-### Protobuf (run from `common/`)
-```bash
-make proto          # format, lint, breaking-change check, generate
-make proto-breaking # generate without breaking-change detection
-```
+### Go backend (from `server/`)
 
-### Go services (run from `services/<service>/`)
 ```bash
 make lint           # golangci-lint
 make lint-fix       # golangci-lint --fix
-make repo           # sqlc generate (regenerates DB layer)
-make convert        # goverter gen (llt-data-api, llt-strategy-api)
-make run            # lint + repo [+ convert where applicable]
-```
-
-`llt-backoffice-gateway` extras:
-```bash
-make build          # go build -o ./bin/app ./cmd/app.go
+make repo           # sqlc generate (pkg/repos)
+make convert        # goverter (pkg/converter)
 make gqlgen         # regenerate GraphQL schema/resolvers
+make build          # CGO_ENABLED=1 go build -o ./bin ./cmd/app
 ```
 
-`llt-trade-api` extras:
-```bash
-make proto          # regenerate proto (delegates to api/Makefile)
-```
+### Frontend (from `frontend/`)
 
-### Frontend (run from `frontend/`)
 ```bash
-pnpm run start:dev  # dev server (no mock)
+pnpm run dev        # dev server
 pnpm run build      # production build
 pnpm run lint       # eslint + prettier + tsc
 pnpm run test       # jest
 ```
 
-## Code Generation
+## Code generation
 
-When modifying SQL queries, regenerate with `make repo` in the affected service.
-When modifying proto schemas in `common/schema`, run `make proto` from `common/`.
-When modifying GraphQL schema in `llt-backoffice-gateway`, run `make gqlgen`.
-When modifying converter interfaces, run `make convert`.
+- After changing SQL under `server/pkg/repos/*/`, run `make repo` in `server/`.
+- After changing GraphQL schema, run `make gqlgen` in `server/`.
+- After changing goverter interfaces, run `make convert` in `server/`.
+
+## Database deployment
+
+Aggregated PostgreSQL (and related) DDL for fresh environments lives under `deploy/`; keep it in sync with `server/pkg/repos/*/schema.sql` when schemas change.

@@ -23,10 +23,10 @@
 
 ### 1.2 接口与数据流
 
-| 接口 | 归属服务 | 查询参数 | 数据范围 |
-|------|----------|----------|----------|
-| QueryAccountMetrics | llt-data-api | account_id | 账户下全部数据 |
-| QueryBotMetrics | llt-strategy-api | bot_id | 仅该 Bot 归属数据 |
+| 接口 | 归属（单体） | 查询参数 | 数据范围 |
+|------|--------------|----------|----------|
+| QueryAccountMetrics | `server` 内账户/权益/订单域 | account_id | 账户下全部数据 |
+| QueryBotMetrics | `server` 内策略/Bot 域 | bot_id | 仅该 Bot 归属数据 |
 
 ---
 
@@ -34,7 +34,7 @@
 
 ### 2.1 新增表：symbol_equity
 
-**位置**：llt-strategy-api（与 bots 同库，便于 Bot 维度查询）
+**位置**：与 `bots` 同一 PostgreSQL 库（`server/pkg/repos`），便于 Bot 维度查询
 
 **用途**：存储每个 Bot 下各标的的权益时间序列，支撑 Symbol 级 CAGR/Sharpe/MDD 等指标。
 
@@ -56,23 +56,25 @@ CREATE INDEX idx_symbol_equity_bot_ts ON symbol_equity(bot_id, ts);
 CREATE INDEX idx_symbol_equity_symbol ON symbol_equity(bot_id, exchange, symbol);
 ```
 
-**写入时机**：每小时整点，与 llt-data-api 的 `RefreshAccountEquity` 同步（方案 A）。
+**写入时机**：每小时整点，与账户侧 `RefreshAccountEquity` 类任务对齐（方案 A）。
 
-**写入逻辑**：llt-strategy-api 定时任务，每小时执行：
+**写入逻辑**：`server` 进程内定时任务，每小时执行：
 1. 查询 `status=running` 的 Bot 列表
-2. 对每个 Bot，通过 gRPC 获取其 account 的 assets + positions（llt-data-api）
+2. 对每个 Bot，在进程内查询其 account 的 assets + positions（账户/持仓仓库或服务）
 3. 按 Bot.symbols 拆分，计算每个 symbol 的 net_value（BaseCurrency 计价）
 4. 批量写入 symbol_equity
 
 ---
 
-## 三、服务职责与实现
+## 三、服务职责与实现（单体 NovaForge `server`）
 
-### 3.1 llt-data-api
+以下为能力拆分说明：在微服务时代可能以 gRPC 暴露；在**当前单体**中，等价能力在 **同一进程** 内以包与 GraphQL resolver 实现，无需跨网络。下文保留消息结构示例，便于对齐字段含义。
 
-#### 3.1.1 新增 gRPC：QueryAccountMetrics
+### 3.1 账户与订单域（数据与指标）
 
-**Proto 定义**（建议放在 `account/v1/account.proto` 或新建 `metrics/v1/metrics.proto`）：
+#### 3.1.1 QueryAccountMetrics（对内 API 或 GraphQL 解析链）
+
+**请求/响应形状示例**（历史上可为 Proto；实现时可落在 Go 结构体 + GraphQL）：
 
 ```protobuf
 message QueryAccountMetricsRequest {
@@ -110,14 +112,14 @@ message AccountMetricsResponse {
 - 订单：`orders` 表（account_id）
 
 **实现路径**：
-- `pkg/entity/account/metrics.go`：封装指标计算逻辑
-- `pkg/service/accountsvc/svc.go`：或新建 `metricssvc`，实现 gRPC 接口
+- `server/pkg/entity/...`：封装指标计算逻辑
+- `server/pkg/service/...`：聚合查询与缓存（按现有分层放置）
 
-#### 3.1.2 新增 gRPC：ListOrdersByBotId
+#### 3.1.2 ListOrdersByBotId
 
-**用途**：供 llt-strategy-api 的 QueryBotMetrics 使用，按 bot_id 过滤订单。
+**用途**：供 `QueryBotMetrics` 使用，按 `bot_id` 过滤订单。
 
-**Proto 定义**（建议放在 `order/v1/order.proto`）：
+**请求/响应形状示例**：
 
 ```protobuf
 message QueryOrdersByBotIdRequest {
@@ -136,19 +138,19 @@ message QueryOrdersByBotIdResponse {
 ```
 
 **实现**：
-- `pkg/repos/orders/query.sql`：新增 `ListOrdersByBotId`、`CountOrdersByBotId`
-- `pkg/entity/account/order.go` 或 `pkg/entity/order/`：新增 `ListOrdersByBotId`
-- `pkg/service/ordersvc/svc.go`：或新建 `QueryOrdersByBotId`（需 account 服务暴露）
+- `server/pkg/repos/orders/query.sql`：新增 `ListOrdersByBotId`、`CountOrdersByBotId`
+- `server/pkg/entity/...`：订单列表实体
+- `server/pkg/service/...`：对外暴露查询
 
 **注意**：orders 表已有 `bot_id` 字段，仅需新增按 bot_id 的查询。
 
 ---
 
-### 3.2 llt-strategy-api
+### 3.2 策略与 Bot 域
 
-#### 3.2.1 新增 gRPC：QueryBotMetrics
+#### 3.2.1 QueryBotMetrics
 
-**Proto 定义**（`strategy/v1/strategy.proto`）：
+**请求/响应形状示例**：
 
 ```protobuf
 message QueryBotMetricsRequest {
@@ -174,22 +176,22 @@ message BotMetricsResponse {
 **实现流程**：
 1. 校验 bot_id，获取 Bot 信息（含 symbols）
 2. 若 dimension=SYMBOL 且传入 symbol，校验 symbol 在 Bot.symbols 内
-3. 调用 llt-data-api：
+3. 在进程内调用账户/订单/权益数据访问层：
    - `ListOrdersByBotId`（bot_id）
    - `ListEquityByAccountAndRange`（account_id，从 Bot 获取）
    - 查询 symbol_equity（bot_id，symbol 仅限 Bot.symbols）
-4. 在 strategy-api 内计算 12 项指标，Symbol 级结果按 symbols 白名单过滤
+4. 在策略/Bot 相关包内计算 12 项指标，Symbol 级结果按 symbols 白名单过滤
 
-#### 3.2.2 新增定时任务：RefreshBotSymbolEquity
+#### 3.2.2 定时任务：RefreshBotSymbolEquity
 
 **用途**：每小时写入 symbol_equity。
 
 **实现**：
-- `pkg/entity/strategy/symbol_equity.go`：`CalculateSymbolEquity`、`UpsertSymbolEquity`
-- `pkg/cronjob/` 或 Hatchet：注册 `RefreshBotSymbolEquity`，cron `0 * * * *`（每小时整点）
+- `server/pkg/entity/strategy/...`：`CalculateSymbolEquity`、`UpsertSymbolEquity`（路径以仓库为准）
+- `server` 内定时任务注册：`RefreshBotSymbolEquity`，cron `0 * * * *`（每小时整点）
 - 流程：
   1. `ListBots(status=running)`
-  2. 对每个 Bot，调用 data-api gRPC 获取 `GetAssets`、`GetPositions`（account_id）
+  2. 对每个 Bot，在进程内获取 `GetAssets`、`GetPositions`（account_id）
   3. 按 Bot.symbols + Bot.exchange 拆分，计算每个 symbol 的 net_value
   4. 批量 `INSERT INTO symbol_equity`
 
@@ -197,7 +199,7 @@ message BotMetricsResponse {
 
 ---
 
-### 3.3 llt-backoffice-gateway
+### 3.3 GraphQL 网关层（gqlgen）
 
 **GraphQL Schema**：
 
@@ -251,8 +253,8 @@ type Query {
 ```
 
 **Resolver**：
-- `AccountMetrics` → 调用 llt-data-api `QueryAccountMetrics`
-- `BotMetrics` → 调用 llt-strategy-api `QueryBotMetrics`
+- `AccountMetrics` → 调用进程内账户指标实现（等价于上文 `QueryAccountMetrics`）
+- `BotMetrics` → 调用进程内 Bot 指标实现（等价于上文 `QueryBotMetrics`）
 
 ---
 
@@ -285,7 +287,7 @@ type Query {
 
 ### 4.3 计算包复用
 
-建议在 `common/go` 或 `llt-strategy-api/pkg/strategy/executor/backtest/collectors/` 中抽取公共计算函数：
+建议在 `server/pkg/strategy/executor/backtest/collectors/`（或同职责包）中抽取公共计算函数：
 - `CalculateSharpeRatio`、`CalculateMaxDrawdown` 已存在于 `collectors/calculator.go`
 - 新增：`CalculateSortino`、`CalculateCAGR`、`CalculateTimeUnderWater`、`CalculateCalmar`、`CalculateRollingSharpe`
 - 成交类：`CalculateWinRate`、`CalculateProfitFactor`、`CalculateFeeRatio`、`CalculateMaxConsecutiveLoss`、`CalculateAvgSlippage`
@@ -305,13 +307,13 @@ type Query {
 ## 六、实施顺序
 
 1. **Phase 1**：symbol_equity 表 + RefreshBotSymbolEquity 定时任务（已完成）
-2. **Phase 2**：llt-data-api 新增 ListOrdersByBotId、QueryAccountMetrics
-3. **Phase 3**：llt-strategy-api 新增 QueryBotMetrics
-4. **Phase 4**：Gateway GraphQL + 前端展示
+2. **Phase 2**：在 `server` 内补齐 ListOrdersByBotId、QueryAccountMetrics 能力
+3. **Phase 3**：在 `server` 内补齐 QueryBotMetrics 能力
+4. **Phase 4**：GraphQL（gqlgen）与 `frontend` 展示
 
 ### Phase 1 实施说明
 
-执行建表（在 llt-strategy-api 使用的 PostgreSQL 库中）：
+执行建表（在 NovaForge 使用的 PostgreSQL 库中）：
 
 ```sql
 -- 见 pkg/repos/symbol_equity/schema.sql
@@ -328,10 +330,10 @@ CREATE UNIQUE INDEX idx_symbol_equity_uk ON symbol_equity(bot_id, exchange, symb
 
 ### A. symbol_equity 表归属说明
 
-symbol_equity 放在 llt-strategy-api 的原因：
+symbol_equity 与 Bot 同库的原因：
 - 与 bots 表同库，便于按 bot_id 查询
-- 写入由 strategy-api 的定时任务触发，需获取 Bot 列表及 symbols
-- 避免 data-api 依赖 strategy-api 的 Bot 元数据
+- 写入由策略侧的定时任务触发，需获取 Bot 列表及 symbols
+- 避免账户/行情域反向依赖 Bot 元数据
 
 ### B. 权益序列格式
 
