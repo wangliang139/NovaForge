@@ -28,4 +28,6 @@ go.work
 __debug_bin*
 bin
 .cursor/
+.vscode/
 secrets/
+.pnpm-store/
