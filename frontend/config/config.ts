@@ -168,7 +168,7 @@ export default defineConfig({
   },
   mfsu: {
     strategy: 'normal',
-    exclude: ['dompurify', 'lightweight-charts', '@babel/runtime', 'zod', '@wangliang139/klinecharts-pro'],
+    exclude: ['dompurify', 'lightweight-charts', 'zod', '@wangliang139/klinecharts-pro'],
   },
   esbuildMinifyIIFE: true,
   requestRecord: {},
