@@ -41238,7 +41238,7 @@ func (ec *executionContext) unmarshalInputQueryAccountsInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"limit", "offset", "id", "name", "exchange", "tags", "status", "createdAtStart", "createdAtEnd"}
+	fieldsInOrder := [...]string{"limit", "offset", "id", "name", "exchange", "tags", "status", "accountType", "createdAtStart", "createdAtEnd"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -41294,6 +41294,13 @@ func (ec *executionContext) unmarshalInputQueryAccountsInput(ctx context.Context
 				return it, err
 			}
 			it.Status = data
+		case "accountType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("accountType"))
+			data, err := ec.unmarshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AccountType = data
 		case "createdAtStart":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAtStart"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)

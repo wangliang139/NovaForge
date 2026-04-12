@@ -1206,6 +1206,7 @@ type QueryAccountsInput struct {
 	Exchange       *types.Exchange `json:"exchange,omitempty"`
 	Tags           []string        `json:"tags,omitempty"`
 	Status         *AccountStatus  `json:"status,omitempty"`
+	AccountType    *AccountType    `json:"accountType,omitempty"`
 	CreatedAtStart *int            `json:"createdAtStart,omitempty"`
 	CreatedAtEnd   *int            `json:"createdAtEnd,omitempty"`
 }

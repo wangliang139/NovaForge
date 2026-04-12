@@ -136,7 +136,7 @@ func (e *Entity) autoSubscribeAccountStreams(ctx context.Context) {
 	logger.Ctx(ctx).Info().Int("count", len(accountList)).Msg("starting auto subscription for online accounts")
 	wg := sync.WaitGroup{}
 	for _, acc := range accountList {
-		if acc.AccountType == accountrepo.AccountTypeVirtual {
+		if acc.AccountType != accountrepo.AccountTypeReal {
 			continue
 		}
 		wg.Add(1)

@@ -20,6 +20,17 @@ func AccountStatusGql2TypesPtr(s *model.AccountStatus) *ctypes.AccountStatus {
 	return &st
 }
 
+func AccountTypeGql2TypesPtr(t *model.AccountType) *ctypes.AccountType {
+	if t == nil || *t == model.AccountTypeUnspecified {
+		return nil
+	}
+	at := ctypes.AccountType(strings.ToLower(string(*t)))
+	if !at.Valid() {
+		return nil
+	}
+	return &at
+}
+
 func AccountTypes2Gql(a *ctypes.Account) *model.Account {
 	if a == nil {
 		return nil

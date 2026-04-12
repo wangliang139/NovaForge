@@ -446,6 +446,7 @@ func (r *queryResolver) Accounts(ctx context.Context, input model.QueryAccountsI
 		Tags:           input.Tags,
 		Exchange:       input.Exchange,
 		Status:         converter.AccountStatusGql2TypesPtr(input.Status),
+		AccountType:    converter.AccountTypeGql2TypesPtr(input.AccountType),
 		CreatedAtStart: types.PIntToPInt64(input.CreatedAtStart),
 		CreatedAtEnd:   types.PIntToPInt64(input.CreatedAtEnd),
 	})

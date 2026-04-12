@@ -249,7 +249,13 @@ func (s *Service) QueryAccounts(ctx context.Context, request *types.QueryAccount
 	if request.Exchange != nil && request.Exchange.IsValid() {
 		exchange = request.Exchange
 	}
-	count, err := entity.Account.QueryAccountsCount(ctx, request.Id, exchange, request.Name, request.Tags, sts, request.CreatedAtStart, request.CreatedAtEnd)
+	var acctType *types.AccountType
+	if request.AccountType != nil && request.AccountType.Valid() {
+		acctType = request.AccountType
+	} else if request.AccountType != nil {
+		return nil, errors.New(errors.InvalidArgument, "account_type is invalid")
+	}
+	count, err := entity.Account.QueryAccountsCount(ctx, request.Id, exchange, request.Name, request.Tags, sts, acctType, request.CreatedAtStart, request.CreatedAtEnd)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +268,7 @@ func (s *Service) QueryAccounts(ctx context.Context, request *types.QueryAccount
 		return resp, nil
 	}
 
-	accounts, err := entity.Account.QueryAccounts(ctx, request.Id, exchange, request.Name, request.Tags, sts,
+	accounts, err := entity.Account.QueryAccounts(ctx, request.Id, exchange, request.Name, request.Tags, sts, acctType,
 		request.CreatedAtStart, request.CreatedAtEnd, request.Offset, request.Limit)
 	if err != nil {
 		return nil, err

@@ -105,6 +105,8 @@ export type QueryAccountsParams = API.PageParams & {
   id?: string;
   name?: string;
   exchange?: Exchange;
+  /** 筛选账户类型；不传或 unspecified 表示不按类型过滤 */
+  accountType?: AccountType | string;
   createdAtRange?: string[];
   tags?: string[];
   status?: string;
@@ -477,6 +479,17 @@ export async function queryAccounts(params: QueryAccountsParams) {
     tags: params.tags,
     status: params.status,
     exchange: params.exchange,
+    accountType: (() => {
+      const raw = params.accountType ?? (params as { type?: AccountType | string }).type;
+      if (raw === undefined || raw === null || raw === '') {
+        return undefined;
+      }
+      const s = String(raw);
+      if (s === AccountType.Unspecified) {
+        return undefined;
+      }
+      return s;
+    })(),
   };
   Object.keys(input).forEach((key) => {
     if (input[key] === undefined || input[key] === null || input[key] === '') {

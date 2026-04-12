@@ -337,14 +337,14 @@ const AccountsComponent: React.FC = () => {
               options: enumToOptions(Exchange),
             },
           },
-          type: {
-            title: 'Type',
+          accountType: {
+            title: '账户类型',
             dataIndex: 'accountType',
             valueType: 'select',
             fieldProps: {
               options: enumToOptions(AccountType, 'Unspecified'),
             },
-            render: (dom, row) => {
+            render: (_: React.ReactNode, row: Account) => {
               return renderAccountTypeTag(row.accountType);
             },
           },

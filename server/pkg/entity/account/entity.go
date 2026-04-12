@@ -419,7 +419,7 @@ func (e *Entity) DeleteAccount(ctx context.Context, id string) error {
 	return nil
 }
 
-func (e *Entity) QueryAccountsCount(ctx context.Context, id *string, exchange *ctypes.Exchange, name *string, tags []string, status *types.AccountStatus, createdAtStart, createdAtEnd *int64) (int64, error) {
+func (e *Entity) QueryAccountsCount(ctx context.Context, id *string, exchange *ctypes.Exchange, name *string, tags []string, status *types.AccountStatus, accountType *types.AccountType, createdAtStart, createdAtEnd *int64) (int64, error) {
 	var (
 		createdAtStartTime time.Time
 		createdAtEndTime   time.Time
@@ -448,12 +448,19 @@ func (e *Entity) QueryAccountsCount(ctx context.Context, id *string, exchange *c
 		ex.Valid = true
 	}
 
+	at := accountrepo.NullAccountType{}
+	if accountType != nil {
+		at.AccountType = accountrepo.AccountType(*accountType)
+		at.Valid = true
+	}
+
 	count, err := e.db.AccountRepo.QueryAccountsCount(ctx, accountrepo.QueryAccountsCountParams{
 		ID:             id,
 		Exchange:       ex,
 		Name:           name,
 		Tags:           tags,
 		Status:         sts,
+		AccountType:    at,
 		CreatedAtStart: createdAtStartTime,
 		CreatedAtEnd:   createdAtEndTime,
 	})
@@ -463,7 +470,7 @@ func (e *Entity) QueryAccountsCount(ctx context.Context, id *string, exchange *c
 	return *count, nil
 }
 
-func (e *Entity) QueryAccounts(ctx context.Context, id *string, exchange *ctypes.Exchange, name *string, tags []string, status *types.AccountStatus, createdAtStart, createdAtEnd *int64, offset, limit int64) ([]*types.Account, error) {
+func (e *Entity) QueryAccounts(ctx context.Context, id *string, exchange *ctypes.Exchange, name *string, tags []string, status *types.AccountStatus, accountType *types.AccountType, createdAtStart, createdAtEnd *int64, offset, limit int64) ([]*types.Account, error) {
 	var (
 		createdAtStartTime time.Time
 		createdAtEndTime   time.Time
@@ -492,12 +499,19 @@ func (e *Entity) QueryAccounts(ctx context.Context, id *string, exchange *ctypes
 		ex.Valid = true
 	}
 
+	at := accountrepo.NullAccountType{}
+	if accountType != nil {
+		at.AccountType = accountrepo.AccountType(*accountType)
+		at.Valid = true
+	}
+
 	list, err := e.db.AccountRepo.QueryAccounts(ctx, accountrepo.QueryAccountsParams{
 		ID:             id,
 		Exchange:       ex,
 		Name:           name,
 		Tags:           tags,
 		Status:         sts,
+		AccountType:    at,
 		CreatedAtStart: createdAtStartTime,
 		CreatedAtEnd:   createdAtEndTime,
 		Offset:         offset,

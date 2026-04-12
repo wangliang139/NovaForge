@@ -489,9 +489,9 @@ WHERE id = coalesce($1::varchar, id)
   AND ($5::varchar[] is null or tags @> $5::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN $6::timestamptz AND $7::timestamptz
-  AND ($1::varchar IS NOT NULL OR account_type <> 'virtual_sub')
+  AND account_type = coalesce($8::account_type, account_type)
 ORDER BY id DESC
-OFFSET $8::int8 LIMIT $9::int8
+OFFSET $9::int8 LIMIT $10::int8
 `
 
 type QueryAccountsParams struct {
@@ -502,6 +502,7 @@ type QueryAccountsParams struct {
 	Tags           []string
 	CreatedAtStart time.Time
 	CreatedAtEnd   time.Time
+	AccountType    NullAccountType
 	Offset         int64
 	Limit          int64
 }
@@ -527,6 +528,7 @@ func _QueryAccounts(ctx context.Context, q CacheQuerierConn, arg QueryAccountsPa
 		arg.Tags,
 		arg.CreatedAtStart,
 		arg.CreatedAtEnd,
+		arg.AccountType,
 		arg.Offset,
 		arg.Limit)
 	if err != nil {
@@ -575,7 +577,7 @@ WHERE id = coalesce($1::varchar, id)
   AND ($5::varchar[] is null or tags @> $5::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN $6::timestamptz AND $7::timestamptz
-  AND ($1::varchar IS NOT NULL OR account_type <> 'virtual_sub')
+  AND account_type = coalesce($8::account_type, account_type)
 `
 
 type QueryAccountsCountParams struct {
@@ -586,6 +588,7 @@ type QueryAccountsCountParams struct {
 	Tags           []string
 	CreatedAtStart time.Time
 	CreatedAtEnd   time.Time
+	AccountType    NullAccountType
 }
 
 // -- timeout: 5s
@@ -608,7 +611,8 @@ func _QueryAccountsCount(ctx context.Context, q CacheQuerierConn, arg QueryAccou
 		arg.Status,
 		arg.Tags,
 		arg.CreatedAtStart,
-		arg.CreatedAtEnd)
+		arg.CreatedAtEnd,
+		arg.AccountType)
 	var count *int64 = new(int64)
 	err := row.Scan(count)
 	if err == pgx.ErrNoRows {

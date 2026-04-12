@@ -88,7 +88,7 @@ WHERE id = coalesce(sqlc.narg('id')::varchar, id)
   AND (sqlc.narg('tags')::varchar[] is null or tags @> sqlc.narg('tags')::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN sqlc.arg('created_at_start')::timestamptz AND sqlc.arg('created_at_end')::timestamptz
-  AND (sqlc.narg('id')::varchar IS NOT NULL OR account_type <> 'virtual_sub');
+  AND account_type = coalesce(sqlc.narg('account_type')::account_type, account_type);
 
 -- name: QueryAccounts :many
 -- -- timeout: 5s
@@ -101,7 +101,7 @@ WHERE id = coalesce(sqlc.narg('id')::varchar, id)
   AND (sqlc.narg('tags')::varchar[] is null or tags @> sqlc.narg('tags')::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN sqlc.arg('created_at_start')::timestamptz AND sqlc.arg('created_at_end')::timestamptz
-  AND (sqlc.narg('id')::varchar IS NOT NULL OR account_type <> 'virtual_sub')
+  AND account_type = coalesce(sqlc.narg('account_type')::account_type, account_type)
 ORDER BY id DESC
 OFFSET sqlc.arg('offset')::int8 LIMIT sqlc.arg('limit')::int8;
 

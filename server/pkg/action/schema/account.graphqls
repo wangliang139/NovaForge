@@ -95,6 +95,7 @@ input QueryAccountsInput {
   exchange: Exchange
   tags: [String!]
   status: AccountStatus
+  accountType: AccountType
   createdAtStart: Int
   createdAtEnd: Int
 }

@@ -489,6 +489,7 @@ type QueryAccountsRequest struct {
 	Name           *string
 	Tags           []string
 	Status         *AccountStatus
+	AccountType    *AccountType
 	Exchange       *Exchange
 	CreatedAtStart *int64
 	CreatedAtEnd   *int64

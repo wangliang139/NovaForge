@@ -137,7 +137,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
           name="exchange"
           label="Exchange"
           width="sm"
-          readonly={isReadonly}
+          readonly={isReadonly || mode !== 'new'}
           fieldProps={{
             options: enumToOptions(Exchange),
             onChange: (nextValue) => {
@@ -151,28 +151,28 @@ const AccountModal: React.FC<AccountModalProps> = ({
             },
           ]}
         />
-        <ProFormSelect
-          allowClear={false}
-          name="algorithm"
-          label="Algorithm"
-          width="sm"
+        <ProFormSwitch
+          name="multiBotMode"
+          label="多 Bot 模式（子账户）"
           readonly={isReadonly}
-          fieldProps={{
-            options: enumToOptions(AuthAlgorithm),
-          }}
-          rules={[
-            {
-              required: true,
-              message: 'Algorithm is required',
-            },
-          ]}
+          tooltip="启用后，每个实盘 Bot 使用独立虚拟子账户与初始资金池，仍共用本账户的交易所 API"
         />
       </ProForm.Group>
-      <ProFormSwitch
-        name="multiBotMode"
-        label="多 Bot 模式（子账户）"
+      <ProFormSelect
+        allowClear={false}
+        name="algorithm"
+        label="Algorithm"
+        width="sm"
         readonly={isReadonly}
-        tooltip="启用后，每个实盘 Bot 使用独立虚拟子账户与初始资金池，仍共用本账户的交易所 API"
+        fieldProps={{
+          options: enumToOptions(AuthAlgorithm),
+        }}
+        rules={[
+          {
+            required: true,
+            message: 'Algorithm is required',
+          },
+        ]}
       />
       <ProFormText
         name="apiKey"
