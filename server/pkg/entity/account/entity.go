@@ -163,6 +163,29 @@ func validateAccountParentMultiInvariant(t accountrepo.AccountType, parentID *st
 	return nil
 }
 
+// validateVirtualSubAccountUpdate 虚拟子账户仅允许改名称（及与库内一致的其它只读字段）。
+func validateVirtualSubAccountUpdate(account *accountrepo.Account, input types.UpdateAccountRequest) error {
+	if input.MultiBotMode != nil && *input.MultiBotMode {
+		return errors.New(errors.InvalidArgument, "virtual_sub account cannot enable multi_bot_mode")
+	}
+	if ctypes.Exchange(account.Exchange) != input.Exchange {
+		return errors.New(errors.InvalidArgument, "virtual_sub account: only name can be modified")
+	}
+	if ctypes.AuthAlgorithm(account.Algorithm) != input.Algorithm {
+		return errors.New(errors.InvalidArgument, "virtual_sub account: only name can be modified")
+	}
+	if ctypes.AccountStatus(account.Status) != input.Status {
+		return errors.New(errors.InvalidArgument, "virtual_sub account: only name can be modified")
+	}
+	if account.ApiKey != input.ApiKey || account.ApiSecret != input.ApiSecret || account.Passphrase != input.Passphrase {
+		return errors.New(errors.InvalidArgument, "virtual_sub account: only name can be modified")
+	}
+	if !lo.ElementsMatch(account.Tags, input.Tags) {
+		return errors.New(errors.InvalidArgument, "virtual_sub account: only name can be modified")
+	}
+	return nil
+}
+
 func (e *Entity) CreateAccount(ctx context.Context, input types.CreateAccountInput) (*types.Account, error) {
 	account, err := e.db.AccountRepo.GetByName(ctx, input.Name)
 	if err != nil {
@@ -270,6 +293,12 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 		return nil, errors.New(errors.InvalidArgument, "account name already exists")
 	}
 
+	if account.AccountType == accountrepo.AccountTypeVirtualSub {
+		if err := validateVirtualSubAccountUpdate(account, input); err != nil {
+			return nil, err
+		}
+	}
+
 	key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", input.Exchange)
 	err = e.db.DCache.Invalidate(ctx, key)
 	if err != nil {
@@ -294,12 +323,24 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 				return nil, errors.New(errors.InvalidArgument, "multi_bot_mode cannot be enabled for virtual accounts")
 			}
 			if account.AccountType == accountrepo.AccountTypeReal {
-				cnt, err := e.db.BotRepo.CountActiveBotsForParentAccount(ctx, input.ID)
-				if err != nil {
-					return nil, err
-				}
-				if cnt != nil && *cnt > 0 {
-					return nil, errors.New(errors.InvalidArgument, "cannot change multi_bot_mode while active bots are bound to this account")
+				if account.MultiBotMode && !newVal {
+					subs, err := e.db.AccountRepo.ListVirtualSubByParent(ctx, &input.ID)
+					if err != nil {
+						return nil, err
+					}
+					if len(subs) > 0 {
+						return nil, errors.New(errors.InvalidArgument,
+							"cannot disable multi_bot_mode while virtual sub-accounts exist; delete related bots and sub-accounts first")
+					}
+				} else if !account.MultiBotMode && newVal {
+					cnt, err := e.db.BotRepo.CountActiveBotsForParentAccount(ctx, input.ID)
+					if err != nil {
+						return nil, err
+					}
+					if cnt != nil && *cnt > 0 {
+						return nil, errors.New(errors.InvalidArgument,
+							"cannot enable multi_bot_mode while bots are bound to this account; remove or migrate bots first")
+					}
 				}
 			}
 		}

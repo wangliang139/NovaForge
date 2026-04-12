@@ -42,6 +42,8 @@ const AccountModal: React.FC<AccountModalProps> = ({
   const [isOkx, setIsOkx] = useState(false);
 
   const isReadonly = mode === 'readonly';
+  const isVirtualSub = value?.accountType === AccountType.VirtualSub;
+  const isReal = value?.accountType === AccountType.Real;
 
   useEffect(() => {
     if (!open) {
@@ -68,7 +70,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
     <ModalForm<Account>
       form={form}
       title={getTitle()}
-      width="600px"
+      width="660px"
       grid={false}
       style={{
         paddingTop: 12,
@@ -114,30 +116,10 @@ const AccountModal: React.FC<AccountModalProps> = ({
         />
         <ProFormSelect
           allowClear={false}
-          name="accountType"
-          label="账户类型"
-          width="sm"
-          readonly={isReadonly || mode !== 'new'}
-          fieldProps={{
-            options: [
-              { label: '真实账户', value: AccountType.Real },
-            ],
-          }}
-          rules={[
-            {
-              required: true,
-              message: '账户类型不能为空',
-            },
-          ]}
-        />
-      </ProForm.Group>
-      <ProForm.Group>
-        <ProFormSelect
-          allowClear={false}
           name="exchange"
           label="Exchange"
           width="sm"
-          readonly={isReadonly || mode !== 'new'}
+          readonly={isReadonly || mode !== 'new' || isVirtualSub}
           fieldProps={{
             options: enumToOptions(Exchange),
             onChange: (nextValue) => {
@@ -151,78 +133,102 @@ const AccountModal: React.FC<AccountModalProps> = ({
             },
           ]}
         />
+      </ProForm.Group>
+      <ProForm.Group>
+        <ProFormSelect
+          allowClear={false}
+          name="accountType"
+          label="账户类型"
+          width="sm"
+          readonly={isReadonly || mode !== 'new'}
+          fieldProps={{
+            options: isVirtualSub
+              ? [{ label: '虚拟子账户', value: AccountType.VirtualSub }]
+              : [{ label: '真实账户', value: AccountType.Real }],
+          }}
+          rules={[
+            {
+              required: true,
+              message: '账户类型不能为空',
+            },
+          ]}
+        />
         <ProFormSwitch
           name="multiBotMode"
           label="多 Bot 模式（子账户）"
-          readonly={isReadonly}
+          readonly={isReadonly || isVirtualSub}
           tooltip="启用后，每个实盘 Bot 使用独立虚拟子账户与初始资金池，仍共用本账户的交易所 API"
         />
       </ProForm.Group>
-      <ProFormSelect
-        allowClear={false}
-        name="algorithm"
-        label="Algorithm"
-        width="sm"
-        readonly={isReadonly}
-        fieldProps={{
-          options: enumToOptions(AuthAlgorithm),
-        }}
-        rules={[
-          {
-            required: true,
-            message: 'Algorithm is required',
-          },
-        ]}
-      />
-      <ProFormText
-        name="apiKey"
-        label="ApiKey"
-        disabled={isReadonly}
-        rules={[
-          {
-            required: true,
-            message: 'ApiKey is required',
-          },
-        ]}
-      />
-      <ProFormTextArea
-        name="apiSecret"
-        label="ApiSecret"
-        disabled={isReadonly}
-        fieldProps={{
-          onChange: (e) => {
-            console.log('onChange', e);
-            const value = e.target.value.trim();
-            if (value.length === 0) {
-              form.setFieldsValue({ apiSecret: '' });
-              return;
-            }
-            form.setFieldsValue({ apiSecret: encrypt(value) });
-          },
-        }}
-        rules={[
-          {
-            required: true,
-            message: 'ApiSecret is required',
-          },
-        ]}
-      />
-      <ProFormText
-        hidden={!isOkx}
-        name="passphrase"
-        label="Passphrase"
-        width="md"
-        disabled={isReadonly}
-        fieldProps={{
-          type: 'password',
-        }}
-        rules={[
-          {
-            required: isOkx,
-            message: 'Passphrase is required',
-          },
-        ]}
-      />
+      {(isReal || mode === 'new') && (
+        <>
+          <ProFormSelect
+            allowClear={false}
+            name="algorithm"
+            label="Algorithm"
+            width="sm"
+            readonly={isReadonly || isVirtualSub}
+            fieldProps={{
+              options: enumToOptions(AuthAlgorithm),
+            }}
+            rules={[
+              {
+                required: true,
+                message: 'Algorithm is required',
+              },
+            ]}
+          />
+          <ProFormText
+            name="apiKey"
+            label="ApiKey"
+            disabled={isReadonly || isVirtualSub}
+            rules={[
+              {
+                required: true,
+                message: 'ApiKey is required',
+              },
+            ]}
+          />
+          <ProFormTextArea
+            name="apiSecret"
+            label="ApiSecret"
+            disabled={isReadonly || isVirtualSub}
+            fieldProps={{
+              onChange: (e) => {
+                console.log('onChange', e);
+                const value = e.target.value.trim();
+                if (value.length === 0) {
+                  form.setFieldsValue({ apiSecret: '' });
+                  return;
+                }
+                form.setFieldsValue({ apiSecret: encrypt(value) });
+              },
+            }}
+            rules={[
+              {
+                required: true,
+                message: 'ApiSecret is required',
+              },
+            ]}
+          />
+          <ProFormText
+            hidden={!isOkx}
+            name="passphrase"
+            label="Passphrase"
+            width="md"
+            disabled={isReadonly || isVirtualSub}
+            fieldProps={{
+              type: 'password',
+            }}
+            rules={[
+              {
+                required: isOkx,
+                message: 'Passphrase is required',
+              },
+            ]}
+          />
+        </>
+      )}
       <ProForm.Item
         name="tags"
         label="Tags"
