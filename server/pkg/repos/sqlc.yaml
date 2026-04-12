@@ -117,7 +117,7 @@ sql:
         sql_package: wpgx
         package: ledgers
         out: ledgers
-  - schema: orders/schema.sql
+  - schema: [orders/schema.sql, account/schema.sql]
     queries: orders/query.sql
     engine: postgresql
     gen:
@@ -173,7 +173,7 @@ sql:
         sql_package: wpgx
         package: symbol_equity
         out: symbol_equity
-  - schema: bot/schema.sql
+  - schema: [bot/schema.sql, account/schema.sql]
     queries: bot/query.sql
     engine: postgresql
     gen:

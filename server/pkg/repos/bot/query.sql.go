@@ -18,6 +18,48 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const countActiveBotsForParentAccount = `-- name: CountActiveBotsForParentAccount :one
+SELECT COUNT(*)::bigint
+FROM bots b
+WHERE b.deleted_at IS NULL
+  AND (
+    b.account_id = $1
+    OR EXISTS (
+      SELECT 1
+      FROM public.account a
+      WHERE a.id = b.account_id
+        AND a.parent_account_id = $1
+        AND a.deleted_at IS NULL
+        AND a.account_type = 'virtual_sub'
+    )
+  )
+`
+
+// -- timeout: 1s
+func (q *Queries) CountActiveBotsForParentAccount(ctx context.Context, accountID string) (*int64, error) {
+	return _CountActiveBotsForParentAccount(ctx, q.AsReadOnly(), accountID)
+}
+
+func (q *ReadOnlyQueries) CountActiveBotsForParentAccount(ctx context.Context, accountID string) (*int64, error) {
+	return _CountActiveBotsForParentAccount(ctx, q, accountID)
+}
+
+func _CountActiveBotsForParentAccount(ctx context.Context, q CacheQuerierConn, accountID string) (*int64, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
+	defer cancel()
+	q.GetConn().CountIntent("bot.CountActiveBotsForParentAccount")
+	row := q.GetConn().WQueryRow(qctx, "bot.CountActiveBotsForParentAccount", countActiveBotsForParentAccount, accountID)
+	var column_1 *int64 = new(int64)
+	err := row.Scan(column_1)
+	if err == pgx.ErrNoRows {
+		return (*int64)(nil), nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return column_1, err
+}
+
 const countBots = `-- name: CountBots :one
 SELECT COUNT(*) FROM bots
 WHERE ($1::INT IS NULL OR id = $1)

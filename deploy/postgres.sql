@@ -28,7 +28,17 @@ DO $$ BEGIN CREATE TYPE public.position_side AS ENUM ('LONG', 'SHORT'); EXCEPTIO
 DO $$ BEGIN CREATE TYPE public.account_status AS ENUM ('online', 'offline'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.exchange AS ENUM ('binance', 'okx', 'binance_test', 'okx_test'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.algorithm AS ENUM ('none', 'hmac', 'ed25519', 'rsa'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE public.account_type AS ENUM ('real', 'virtual'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE public.account_type AS ENUM ('real', 'virtual', 'virtual_sub'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum e
+    JOIN pg_type t ON t.oid = e.enumtypid
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'account_type' AND e.enumlabel = 'virtual_sub'
+  ) THEN
+    ALTER TYPE public.account_type ADD VALUE 'virtual_sub';
+  END IF;
+END $$;
 DO $$ BEGIN CREATE TYPE public.calendar_source AS ENUM ('gateio', 'jin10'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.calendar_type AS ENUM ('economic_data', 'project_event', 'token_unlock', 'summit_event', 'financing', 'events', 'other'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE public.document_catalog AS ENUM ('airdrop', 'api', 'cryptocurrency_listing', 'cryptocurrency_delisting', 'activity', 'news', 'flash_news', 'other'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -93,10 +103,18 @@ CREATE TABLE IF NOT EXISTS public.account (
     tags varchar(64)[],
     status public.account_status NOT NULL,
     account_type public.account_type NOT NULL DEFAULT 'real',
+    parent_account_id varchar(32),
+    multi_bot_mode boolean NOT NULL DEFAULT false,
     deleted_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
+
+ALTER TABLE public.account ADD COLUMN IF NOT EXISTS parent_account_id varchar(32);
+ALTER TABLE public.account ADD COLUMN IF NOT EXISTS multi_bot_mode boolean NOT NULL DEFAULT false;
+
+-- 约束改由应用层校验；若旧环境曾创建过 DB CHECK，升级时删除
+ALTER TABLE public.account DROP CONSTRAINT IF EXISTS account_parent_multi_chk;
 
 -- assets
 CREATE TABLE IF NOT EXISTS assets (
@@ -492,6 +510,7 @@ CREATE INDEX IF NOT EXISTS idx_account_deleted_at ON public.account (deleted_at)
 CREATE INDEX IF NOT EXISTS idx_account_status ON public.account (status);
 CREATE INDEX IF NOT EXISTS idx_account_account_type ON public.account (account_type);
 CREATE INDEX IF NOT EXISTS idx_account_created_at ON public.account (created_at);
+CREATE INDEX IF NOT EXISTS idx_account_parent_account_id ON public.account (parent_account_id) WHERE deleted_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_assets_account_id ON assets(account_id);
 CREATE INDEX IF NOT EXISTS idx_assets_exchange ON assets(exchange);

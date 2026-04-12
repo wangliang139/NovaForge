@@ -41,21 +41,23 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Account struct {
-		APIKey      func(childComplexity int) int
-		APISecret   func(childComplexity int) int
-		AccountType func(childComplexity int) int
-		Algorithm   func(childComplexity int) int
-		Config      func(childComplexity int) int
-		CreatedAt   func(childComplexity int) int
-		Exchange    func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Name        func(childComplexity int) int
-		Passphrase  func(childComplexity int) int
-		RiskIndex   func(childComplexity int) int
-		Stats       func(childComplexity int) int
-		Status      func(childComplexity int) int
-		Tags        func(childComplexity int) int
-		UpdatedAt   func(childComplexity int) int
+		APIKey          func(childComplexity int) int
+		APISecret       func(childComplexity int) int
+		AccountType     func(childComplexity int) int
+		Algorithm       func(childComplexity int) int
+		Config          func(childComplexity int) int
+		CreatedAt       func(childComplexity int) int
+		Exchange        func(childComplexity int) int
+		ID              func(childComplexity int) int
+		MultiBotMode    func(childComplexity int) int
+		Name            func(childComplexity int) int
+		ParentAccountID func(childComplexity int) int
+		Passphrase      func(childComplexity int) int
+		RiskIndex       func(childComplexity int) int
+		Stats           func(childComplexity int) int
+		Status          func(childComplexity int) int
+		Tags            func(childComplexity int) int
+		UpdatedAt       func(childComplexity int) int
 	}
 
 	AccountBalanceSnapshot struct {
@@ -132,6 +134,14 @@ type ComplexityRoot struct {
 		Locked     func(childComplexity int) int
 		UpdatedTs  func(childComplexity int) int
 		WalletType func(childComplexity int) int
+	}
+
+	AccountUnallocatedAsset struct {
+		Asset         func(childComplexity int) int
+		ParentTotal   func(childComplexity int) int
+		SubsAllocated func(childComplexity int) int
+		Unallocated   func(childComplexity int) int
+		WalletType    func(childComplexity int) int
 	}
 
 	AccountsConnection struct {
@@ -960,64 +970,65 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		AccountEventFlow        func(childComplexity int, input model.QueryAccountEventFlowInput) int
-		AccountInfo             func(childComplexity int, input model.QueryAccountInfoInput) int
-		AccountMetrics          func(childComplexity int, input model.QueryAccountMetricsInput) int
-		Accounts                func(childComplexity int, input model.QueryAccountsInput) int
-		Balance                 func(childComplexity int, input model.QueryBalanceInput) int
-		Bot                     func(childComplexity int, id int) int
-		BotBalance              func(childComplexity int, input model.QueryBotBalanceInput) int
-		BotEquity               func(childComplexity int, botID int, startTs int, endTs int) int
-		BotLedger               func(childComplexity int, input model.QueryBotLedgersInput) int
-		BotLogs                 func(childComplexity int, input model.QueryBotLogsInput) int
-		BotMetrics              func(childComplexity int, input model.QueryBotMetricsInput) int
-		BotOrders               func(childComplexity int, input model.QueryBotOrdersInput) int
-		BotPositions            func(childComplexity int, input model.QueryBotPositionsInput) int
-		BotSignalFlow           func(childComplexity int, input model.QueryBotSignalFlowInput) int
-		BotSignalStats          func(childComplexity int, startTs int, endTs int, botID *int) int
-		BotState                func(childComplexity int, input model.QueryBotStateInput) int
-		Bots                    func(childComplexity int, input model.QueryBotsInput) int
-		Calendars               func(childComplexity int, input model.QueryCalendarsInput) int
-		Channels                func(childComplexity int, input model.QueryChannelsInput) int
-		DashboardOverview       func(childComplexity int) int
-		Datasource              func(childComplexity int, id int) int
-		Datasources             func(childComplexity int, input model.QueryDatasourcesInput) int
-		Document                func(childComplexity int, input model.GetDocumentInput) int
-		DocumentSimilarity      func(childComplexity int, input model.DocumentSimilarityInput) int
-		DocumentStats           func(childComplexity int, startTs int, endTs int) int
-		Documents               func(childComplexity int, input model.QueryDocumentsInput) int
-		Equitys                 func(childComplexity int, input model.QueryEquitysInput) int
-		EstimateOrder           func(childComplexity int, input model.EstimateOrderInput) int
-		FundingRate             func(childComplexity int, input model.QueryFundingRateInput) int
-		FundingRates            func(childComplexity int, input model.QueryFundingRatesInput) int
-		GetSettings             func(childComplexity int, keys []string) int
-		IndexComponent          func(childComplexity int, input model.QueryIndexComponentInput) int
-		IndexPrice              func(childComplexity int, input model.QueryIndexPriceInput) int
-		Kline                   func(childComplexity int, input model.QueryKlineInput) int
-		Ledgers                 func(childComplexity int, input model.QueryLedgersInput) int
-		Leverage                func(childComplexity int, accountID string, symbol string) int
-		LeverageBracket         func(childComplexity int, input model.QueryLeverageBracketInput) int
-		ListAlerts              func(childComplexity int, exchange types.Exchange, symbol string) int
-		LlmCompletionStats      func(childComplexity int, startTs int, endTs int) int
-		LlmPrompt               func(childComplexity int, input model.GetLlmPromptInput) int
-		LlmPrompts              func(childComplexity int, input model.QueryLlmPromptsInput) int
-		LlmProviderConfig       func(childComplexity int) int
-		LlmScene                func(childComplexity int, input model.GetLlmSceneInput) int
-		LlmScenes               func(childComplexity int, input model.QueryLlmScenesInput) int
-		Market                  func(childComplexity int, input model.GetMarketInput) int
-		Markets                 func(childComplexity int, input model.GetMarketsInput) int
-		NetworkProxyConfig      func(childComplexity int) int
-		OpenInterest            func(childComplexity int, input model.QueryOpenInterestInput) int
-		OrderBook               func(childComplexity int, input model.QueryOrderBookInput) int
-		Orders                  func(childComplexity int, input model.QueryOrdersInput) int
-		Positions               func(childComplexity int, input model.QueryPositionsInput) int
-		PushConfig              func(childComplexity int) int
-		RiskEvents              func(childComplexity int, input model.QueryRiskEventsInput) int
-		Strategies              func(childComplexity int, input model.QueryStrategiesInput) int
-		Strategy                func(childComplexity int, id string) int
-		StreamStats             func(childComplexity int, windowHours *int) int
-		UserAPIKeyNameAvailable func(childComplexity int, name string) int
-		UserAPIKeys             func(childComplexity int) int
+		AccountEventFlow         func(childComplexity int, input model.QueryAccountEventFlowInput) int
+		AccountInfo              func(childComplexity int, input model.QueryAccountInfoInput) int
+		AccountMetrics           func(childComplexity int, input model.QueryAccountMetricsInput) int
+		AccountUnallocatedAssets func(childComplexity int, accountID string) int
+		Accounts                 func(childComplexity int, input model.QueryAccountsInput) int
+		Balance                  func(childComplexity int, input model.QueryBalanceInput) int
+		Bot                      func(childComplexity int, id int) int
+		BotBalance               func(childComplexity int, input model.QueryBotBalanceInput) int
+		BotEquity                func(childComplexity int, botID int, startTs int, endTs int) int
+		BotLedger                func(childComplexity int, input model.QueryBotLedgersInput) int
+		BotLogs                  func(childComplexity int, input model.QueryBotLogsInput) int
+		BotMetrics               func(childComplexity int, input model.QueryBotMetricsInput) int
+		BotOrders                func(childComplexity int, input model.QueryBotOrdersInput) int
+		BotPositions             func(childComplexity int, input model.QueryBotPositionsInput) int
+		BotSignalFlow            func(childComplexity int, input model.QueryBotSignalFlowInput) int
+		BotSignalStats           func(childComplexity int, startTs int, endTs int, botID *int) int
+		BotState                 func(childComplexity int, input model.QueryBotStateInput) int
+		Bots                     func(childComplexity int, input model.QueryBotsInput) int
+		Calendars                func(childComplexity int, input model.QueryCalendarsInput) int
+		Channels                 func(childComplexity int, input model.QueryChannelsInput) int
+		DashboardOverview        func(childComplexity int) int
+		Datasource               func(childComplexity int, id int) int
+		Datasources              func(childComplexity int, input model.QueryDatasourcesInput) int
+		Document                 func(childComplexity int, input model.GetDocumentInput) int
+		DocumentSimilarity       func(childComplexity int, input model.DocumentSimilarityInput) int
+		DocumentStats            func(childComplexity int, startTs int, endTs int) int
+		Documents                func(childComplexity int, input model.QueryDocumentsInput) int
+		Equitys                  func(childComplexity int, input model.QueryEquitysInput) int
+		EstimateOrder            func(childComplexity int, input model.EstimateOrderInput) int
+		FundingRate              func(childComplexity int, input model.QueryFundingRateInput) int
+		FundingRates             func(childComplexity int, input model.QueryFundingRatesInput) int
+		GetSettings              func(childComplexity int, keys []string) int
+		IndexComponent           func(childComplexity int, input model.QueryIndexComponentInput) int
+		IndexPrice               func(childComplexity int, input model.QueryIndexPriceInput) int
+		Kline                    func(childComplexity int, input model.QueryKlineInput) int
+		Ledgers                  func(childComplexity int, input model.QueryLedgersInput) int
+		Leverage                 func(childComplexity int, accountID string, symbol string) int
+		LeverageBracket          func(childComplexity int, input model.QueryLeverageBracketInput) int
+		ListAlerts               func(childComplexity int, exchange types.Exchange, symbol string) int
+		LlmCompletionStats       func(childComplexity int, startTs int, endTs int) int
+		LlmPrompt                func(childComplexity int, input model.GetLlmPromptInput) int
+		LlmPrompts               func(childComplexity int, input model.QueryLlmPromptsInput) int
+		LlmProviderConfig        func(childComplexity int) int
+		LlmScene                 func(childComplexity int, input model.GetLlmSceneInput) int
+		LlmScenes                func(childComplexity int, input model.QueryLlmScenesInput) int
+		Market                   func(childComplexity int, input model.GetMarketInput) int
+		Markets                  func(childComplexity int, input model.GetMarketsInput) int
+		NetworkProxyConfig       func(childComplexity int) int
+		OpenInterest             func(childComplexity int, input model.QueryOpenInterestInput) int
+		OrderBook                func(childComplexity int, input model.QueryOrderBookInput) int
+		Orders                   func(childComplexity int, input model.QueryOrdersInput) int
+		Positions                func(childComplexity int, input model.QueryPositionsInput) int
+		PushConfig               func(childComplexity int) int
+		RiskEvents               func(childComplexity int, input model.QueryRiskEventsInput) int
+		Strategies               func(childComplexity int, input model.QueryStrategiesInput) int
+		Strategy                 func(childComplexity int, id string) int
+		StreamStats              func(childComplexity int, windowHours *int) int
+		UserAPIKeyNameAvailable  func(childComplexity int, name string) int
+		UserAPIKeys              func(childComplexity int) int
 	}
 
 	RiskEvent struct {
@@ -1302,6 +1313,7 @@ type QueryResolver interface {
 	Leverage(ctx context.Context, accountID string, symbol string) (int, error)
 	AccountMetrics(ctx context.Context, input model.QueryAccountMetricsInput) (*model.AccountMetrics, error)
 	RiskEvents(ctx context.Context, input model.QueryRiskEventsInput) ([]*model.RiskEvent, error)
+	AccountUnallocatedAssets(ctx context.Context, accountID string) ([]*model.AccountUnallocatedAsset, error)
 	Calendars(ctx context.Context, input model.QueryCalendarsInput) ([]*model.Calendar, error)
 	DashboardOverview(ctx context.Context) (*model.DashboardOverview, error)
 	Documents(ctx context.Context, input model.QueryDocumentsInput) (*model.DocumentsConnection, error)
@@ -1421,12 +1433,24 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Account.ID(childComplexity), true
+	case "Account.multiBotMode":
+		if e.ComplexityRoot.Account.MultiBotMode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Account.MultiBotMode(childComplexity), true
 	case "Account.name":
 		if e.ComplexityRoot.Account.Name == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Account.Name(childComplexity), true
+	case "Account.parentAccountId":
+		if e.ComplexityRoot.Account.ParentAccountID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Account.ParentAccountID(childComplexity), true
 	case "Account.passphrase":
 		if e.ComplexityRoot.Account.Passphrase == nil {
 			break
@@ -1766,6 +1790,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccountStreamAsset.WalletType(childComplexity), true
+
+	case "AccountUnallocatedAsset.asset":
+		if e.ComplexityRoot.AccountUnallocatedAsset.Asset == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountUnallocatedAsset.Asset(childComplexity), true
+	case "AccountUnallocatedAsset.parentTotal":
+		if e.ComplexityRoot.AccountUnallocatedAsset.ParentTotal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountUnallocatedAsset.ParentTotal(childComplexity), true
+	case "AccountUnallocatedAsset.subsAllocated":
+		if e.ComplexityRoot.AccountUnallocatedAsset.SubsAllocated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountUnallocatedAsset.SubsAllocated(childComplexity), true
+	case "AccountUnallocatedAsset.unallocated":
+		if e.ComplexityRoot.AccountUnallocatedAsset.Unallocated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountUnallocatedAsset.Unallocated(childComplexity), true
+	case "AccountUnallocatedAsset.walletType":
+		if e.ComplexityRoot.AccountUnallocatedAsset.WalletType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountUnallocatedAsset.WalletType(childComplexity), true
 
 	case "AccountsConnection.list":
 		if e.ComplexityRoot.AccountsConnection.List == nil {
@@ -5506,6 +5561,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AccountMetrics(childComplexity, args["input"].(model.QueryAccountMetricsInput)), true
+	case "Query.AccountUnallocatedAssets":
+		if e.ComplexityRoot.Query.AccountUnallocatedAssets == nil {
+			break
+		}
+
+		args, err := ec.field_Query_AccountUnallocatedAssets_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AccountUnallocatedAssets(childComplexity, args["accountId"].(string)), true
 	case "Query.Accounts":
 		if e.ComplexityRoot.Query.Accounts == nil {
 			break
@@ -7280,7 +7346,7 @@ func (ec *executionContext) field_Mutation_ActiveStrategy_args(ctx context.Conte
 func (ec *executionContext) field_Mutation_AddAlert_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAlertItemInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNAlertItemInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7291,7 +7357,7 @@ func (ec *executionContext) field_Mutation_AddAlert_args(ctx context.Context, ra
 func (ec *executionContext) field_Mutation_ArchiveDocument_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNArchiveDocumentInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐArchiveDocumentInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNArchiveDocumentInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐArchiveDocumentInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7302,7 +7368,7 @@ func (ec *executionContext) field_Mutation_ArchiveDocument_args(ctx context.Cont
 func (ec *executionContext) field_Mutation_CancelOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCancelOrderInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCancelOrderInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCancelOrderInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCancelOrderInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7329,7 +7395,7 @@ func (ec *executionContext) field_Mutation_ChangeUserPassword_args(ctx context.C
 func (ec *executionContext) field_Mutation_CreateAccount_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7340,7 +7406,7 @@ func (ec *executionContext) field_Mutation_CreateAccount_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_CreateBot_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateBotInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateBotInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateBotInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateBotInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7351,7 +7417,7 @@ func (ec *executionContext) field_Mutation_CreateBot_args(ctx context.Context, r
 func (ec *executionContext) field_Mutation_CreateChannel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateChannelInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateChannelInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateChannelInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateChannelInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7362,7 +7428,7 @@ func (ec *executionContext) field_Mutation_CreateChannel_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_CreateDatasource_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateDatasourceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateDatasourceInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateDatasourceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateDatasourceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7373,7 +7439,7 @@ func (ec *executionContext) field_Mutation_CreateDatasource_args(ctx context.Con
 func (ec *executionContext) field_Mutation_CreateLlmPrompt_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmPromptInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmPromptInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7384,7 +7450,7 @@ func (ec *executionContext) field_Mutation_CreateLlmPrompt_args(ctx context.Cont
 func (ec *executionContext) field_Mutation_CreateLlmScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmSceneInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmSceneInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7395,7 +7461,7 @@ func (ec *executionContext) field_Mutation_CreateLlmScene_args(ctx context.Conte
 func (ec *executionContext) field_Mutation_CreateStrategy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateStrategyInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateStrategyInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNCreateStrategyInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateStrategyInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7411,7 +7477,7 @@ func (ec *executionContext) field_Mutation_CreateUserApiKey_args(ctx context.Con
 		return nil, err
 	}
 	args["name"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "permissions", ec.unmarshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ)
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "permissions", ec.unmarshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ)
 	if err != nil {
 		return nil, err
 	}
@@ -7455,7 +7521,7 @@ func (ec *executionContext) field_Mutation_DeleteDatasource_args(ctx context.Con
 func (ec *executionContext) field_Mutation_DeleteLlmPrompt_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmPromptInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmPromptInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7466,7 +7532,7 @@ func (ec *executionContext) field_Mutation_DeleteLlmPrompt_args(ctx context.Cont
 func (ec *executionContext) field_Mutation_DeleteLlmScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmSceneInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDeleteLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmSceneInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7499,7 +7565,7 @@ func (ec *executionContext) field_Mutation_DeleteUserApiKey_args(ctx context.Con
 func (ec *executionContext) field_Mutation_GenerateStrategy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGenerateStrategyInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGenerateStrategyInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7510,7 +7576,7 @@ func (ec *executionContext) field_Mutation_GenerateStrategy_args(ctx context.Con
 func (ec *executionContext) field_Mutation_GetTelegramSession_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetTelegramSessionInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetTelegramSessionInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7554,7 +7620,7 @@ func (ec *executionContext) field_Mutation_OnlineAccount_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_PlaceOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNPlaceOrderInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNPlaceOrderInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7587,7 +7653,7 @@ func (ec *executionContext) field_Mutation_RemoveAlert_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_RunBacktest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRunBacktestInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNRunBacktestInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7598,7 +7664,7 @@ func (ec *executionContext) field_Mutation_RunBacktest_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_SceneTest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSceneTestInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSceneTestInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7609,7 +7675,7 @@ func (ec *executionContext) field_Mutation_SceneTest_args(ctx context.Context, r
 func (ec *executionContext) field_Mutation_SendTelegramCode_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSendTelegramCodeInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodeInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNSendTelegramCodeInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodeInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7679,7 +7745,7 @@ func (ec *executionContext) field_Mutation_StopBot_args(ctx context.Context, raw
 func (ec *executionContext) field_Mutation_TestExtract_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTestExtractInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNTestExtractInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7690,7 +7756,7 @@ func (ec *executionContext) field_Mutation_TestExtract_args(ctx context.Context,
 func (ec *executionContext) field_Mutation_UpdateAccountRiskConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateAccountRiskConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateAccountRiskConfigInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateAccountRiskConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateAccountRiskConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7701,7 +7767,7 @@ func (ec *executionContext) field_Mutation_UpdateAccountRiskConfig_args(ctx cont
 func (ec *executionContext) field_Mutation_UpdateAccount_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7712,7 +7778,7 @@ func (ec *executionContext) field_Mutation_UpdateAccount_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_UpdateBot_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateBotInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateBotInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateBotInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateBotInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7723,7 +7789,7 @@ func (ec *executionContext) field_Mutation_UpdateBot_args(ctx context.Context, r
 func (ec *executionContext) field_Mutation_UpdateChannel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateChannelInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateChannelInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateChannelInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateChannelInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7734,7 +7800,7 @@ func (ec *executionContext) field_Mutation_UpdateChannel_args(ctx context.Contex
 func (ec *executionContext) field_Mutation_UpdateLlmPrompt_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmPromptInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmPromptInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7745,7 +7811,7 @@ func (ec *executionContext) field_Mutation_UpdateLlmPrompt_args(ctx context.Cont
 func (ec *executionContext) field_Mutation_UpdateLlmProviderConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateLlmProviderConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmProviderConfigInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateLlmProviderConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmProviderConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7756,7 +7822,7 @@ func (ec *executionContext) field_Mutation_UpdateLlmProviderConfig_args(ctx cont
 func (ec *executionContext) field_Mutation_UpdateLlmScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmSceneInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmSceneInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7767,7 +7833,7 @@ func (ec *executionContext) field_Mutation_UpdateLlmScene_args(ctx context.Conte
 func (ec *executionContext) field_Mutation_UpdateNetworkProxyConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateNetworkProxyConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateNetworkProxyConfigInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateNetworkProxyConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateNetworkProxyConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7778,7 +7844,7 @@ func (ec *executionContext) field_Mutation_UpdateNetworkProxyConfig_args(ctx con
 func (ec *executionContext) field_Mutation_UpdatePushConfig_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdatePushConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdatePushConfigInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdatePushConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdatePushConfigInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7789,7 +7855,7 @@ func (ec *executionContext) field_Mutation_UpdatePushConfig_args(ctx context.Con
 func (ec *executionContext) field_Mutation_UpdateStrategy_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateStrategyInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateStrategyInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNUpdateStrategyInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateStrategyInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7811,7 +7877,7 @@ func (ec *executionContext) field_Mutation_UpgradeBot_args(ctx context.Context, 
 func (ec *executionContext) field_Query_AccountEventFlow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountEventFlowInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountEventFlowInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountEventFlowInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountEventFlowInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7822,7 +7888,7 @@ func (ec *executionContext) field_Query_AccountEventFlow_args(ctx context.Contex
 func (ec *executionContext) field_Query_AccountInfo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountInfoInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountInfoInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountInfoInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountInfoInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7833,7 +7899,7 @@ func (ec *executionContext) field_Query_AccountInfo_args(ctx context.Context, ra
 func (ec *executionContext) field_Query_AccountMetrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountMetricsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountMetricsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountMetricsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountMetricsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7841,10 +7907,21 @@ func (ec *executionContext) field_Query_AccountMetrics_args(ctx context.Context,
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_AccountUnallocatedAssets_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "accountId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["accountId"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_Accounts_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAccountsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7855,7 +7932,7 @@ func (ec *executionContext) field_Query_Accounts_args(ctx context.Context, rawAr
 func (ec *executionContext) field_Query_Balance_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBalanceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBalanceInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBalanceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBalanceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7866,7 +7943,7 @@ func (ec *executionContext) field_Query_Balance_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_BotBalance_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotBalanceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotBalanceInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotBalanceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotBalanceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7898,7 +7975,7 @@ func (ec *executionContext) field_Query_BotEquity_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_BotLedger_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotLedgersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLedgersInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotLedgersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLedgersInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7909,7 +7986,7 @@ func (ec *executionContext) field_Query_BotLedger_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_BotLogs_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotLogsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLogsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotLogsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLogsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7920,7 +7997,7 @@ func (ec *executionContext) field_Query_BotLogs_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_BotMetrics_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotMetricsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotMetricsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotMetricsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotMetricsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7931,7 +8008,7 @@ func (ec *executionContext) field_Query_BotMetrics_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_BotOrders_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotOrdersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotOrdersInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotOrdersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotOrdersInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7942,7 +8019,7 @@ func (ec *executionContext) field_Query_BotOrders_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_BotPositions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotPositionsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotPositionsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotPositionsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotPositionsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7953,7 +8030,7 @@ func (ec *executionContext) field_Query_BotPositions_args(ctx context.Context, r
 func (ec *executionContext) field_Query_BotSignalFlow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotSignalFlowInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotSignalFlowInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotSignalFlowInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotSignalFlowInput)
 	if err != nil {
 		return nil, err
 	}
@@ -7985,7 +8062,7 @@ func (ec *executionContext) field_Query_BotSignalStats_args(ctx context.Context,
 func (ec *executionContext) field_Query_BotState_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotStateInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotStateInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotStateInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotStateInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8007,7 +8084,7 @@ func (ec *executionContext) field_Query_Bot_args(ctx context.Context, rawArgs ma
 func (ec *executionContext) field_Query_Bots_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryBotsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8018,7 +8095,7 @@ func (ec *executionContext) field_Query_Bots_args(ctx context.Context, rawArgs m
 func (ec *executionContext) field_Query_Calendars_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryCalendarsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryCalendarsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryCalendarsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryCalendarsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8029,7 +8106,7 @@ func (ec *executionContext) field_Query_Calendars_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_Channels_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryChannelsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryChannelsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryChannelsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryChannelsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8051,7 +8128,7 @@ func (ec *executionContext) field_Query_Datasource_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_Datasources_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryDatasourcesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDatasourcesInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryDatasourcesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDatasourcesInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8062,7 +8139,7 @@ func (ec *executionContext) field_Query_Datasources_args(ctx context.Context, ra
 func (ec *executionContext) field_Query_DocumentSimilarity_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDocumentSimilarityInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarityInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNDocumentSimilarityInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarityInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8089,7 +8166,7 @@ func (ec *executionContext) field_Query_DocumentStats_args(ctx context.Context, 
 func (ec *executionContext) field_Query_Document_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetDocumentInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetDocumentInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetDocumentInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetDocumentInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8100,7 +8177,7 @@ func (ec *executionContext) field_Query_Document_args(ctx context.Context, rawAr
 func (ec *executionContext) field_Query_Documents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryDocumentsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDocumentsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryDocumentsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDocumentsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8111,7 +8188,7 @@ func (ec *executionContext) field_Query_Documents_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_Equitys_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryEquitysInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryEquitysInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryEquitysInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryEquitysInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8122,7 +8199,7 @@ func (ec *executionContext) field_Query_Equitys_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_EstimateOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNEstimateOrderInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNEstimateOrderInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8133,7 +8210,7 @@ func (ec *executionContext) field_Query_EstimateOrder_args(ctx context.Context, 
 func (ec *executionContext) field_Query_FundingRate_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryFundingRateInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRateInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryFundingRateInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRateInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8144,7 +8221,7 @@ func (ec *executionContext) field_Query_FundingRate_args(ctx context.Context, ra
 func (ec *executionContext) field_Query_FundingRates_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryFundingRatesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRatesInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryFundingRatesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRatesInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8166,7 +8243,7 @@ func (ec *executionContext) field_Query_GetSettings_args(ctx context.Context, ra
 func (ec *executionContext) field_Query_IndexComponent_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryIndexComponentInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexComponentInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryIndexComponentInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexComponentInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8177,7 +8254,7 @@ func (ec *executionContext) field_Query_IndexComponent_args(ctx context.Context,
 func (ec *executionContext) field_Query_IndexPrice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryIndexPriceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexPriceInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryIndexPriceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexPriceInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8188,7 +8265,7 @@ func (ec *executionContext) field_Query_IndexPrice_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_Kline_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryKlineInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryKlineInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryKlineInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryKlineInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8199,7 +8276,7 @@ func (ec *executionContext) field_Query_Kline_args(ctx context.Context, rawArgs 
 func (ec *executionContext) field_Query_Ledgers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLedgersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLedgersInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLedgersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLedgersInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8210,7 +8287,7 @@ func (ec *executionContext) field_Query_Ledgers_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_LeverageBracket_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLeverageBracketInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLeverageBracketInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLeverageBracketInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLeverageBracketInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8237,7 +8314,7 @@ func (ec *executionContext) field_Query_Leverage_args(ctx context.Context, rawAr
 func (ec *executionContext) field_Query_ListAlerts_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "exchange", ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "exchange", ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange)
 	if err != nil {
 		return nil, err
 	}
@@ -8269,7 +8346,7 @@ func (ec *executionContext) field_Query_LlmCompletionStats_args(ctx context.Cont
 func (ec *executionContext) field_Query_LlmPrompt_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmPromptInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmPromptInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8280,7 +8357,7 @@ func (ec *executionContext) field_Query_LlmPrompt_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_LlmPrompts_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLlmPromptsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmPromptsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLlmPromptsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmPromptsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8291,7 +8368,7 @@ func (ec *executionContext) field_Query_LlmPrompts_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_LlmScene_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmSceneInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmSceneInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8302,7 +8379,7 @@ func (ec *executionContext) field_Query_LlmScene_args(ctx context.Context, rawAr
 func (ec *executionContext) field_Query_LlmScenes_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLlmScenesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmScenesInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryLlmScenesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmScenesInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8313,7 +8390,7 @@ func (ec *executionContext) field_Query_LlmScenes_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_Market_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetMarketInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetMarketInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8324,7 +8401,7 @@ func (ec *executionContext) field_Query_Market_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_Markets_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetMarketsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNGetMarketsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8335,7 +8412,7 @@ func (ec *executionContext) field_Query_Markets_args(ctx context.Context, rawArg
 func (ec *executionContext) field_Query_OpenInterest_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOpenInterestInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOpenInterestInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOpenInterestInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOpenInterestInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8346,7 +8423,7 @@ func (ec *executionContext) field_Query_OpenInterest_args(ctx context.Context, r
 func (ec *executionContext) field_Query_OrderBook_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOrderBookInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrderBookInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOrderBookInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrderBookInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8357,7 +8434,7 @@ func (ec *executionContext) field_Query_OrderBook_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_Orders_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOrdersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrdersInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOrdersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrdersInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8368,7 +8445,7 @@ func (ec *executionContext) field_Query_Orders_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Query_Positions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryPositionsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryPositionsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryPositionsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryPositionsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8379,7 +8456,7 @@ func (ec *executionContext) field_Query_Positions_args(ctx context.Context, rawA
 func (ec *executionContext) field_Query_RiskEvents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryRiskEventsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryRiskEventsInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryRiskEventsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryRiskEventsInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8390,7 +8467,7 @@ func (ec *executionContext) field_Query_RiskEvents_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_Strategies_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryStrategiesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryStrategiesInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryStrategiesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryStrategiesInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8445,7 +8522,7 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 func (ec *executionContext) field_Subscription_Stream_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNStreamInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamInput)
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNStreamInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamInput)
 	if err != nil {
 		return nil, err
 	}
@@ -8573,7 +8650,7 @@ func (ec *executionContext) _Account_exchange(ctx context.Context, field graphql
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -8718,7 +8795,7 @@ func (ec *executionContext) _Account_status(ctx context.Context, field graphql.C
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalNAccountStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus,
+		ec.marshalNAccountStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus,
 		true,
 		true,
 	)
@@ -8747,7 +8824,7 @@ func (ec *executionContext) _Account_algorithm(ctx context.Context, field graphq
 			return obj.Algorithm, nil
 		},
 		nil,
-		ec.marshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm,
+		ec.marshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm,
 		true,
 		true,
 	)
@@ -8776,7 +8853,7 @@ func (ec *executionContext) _Account_accountType(ctx context.Context, field grap
 			return obj.AccountType, nil
 		},
 		nil,
-		ec.marshalNAccountType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType,
+		ec.marshalNAccountType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType,
 		true,
 		true,
 	)
@@ -8795,6 +8872,64 @@ func (ec *executionContext) fieldContext_Account_accountType(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Account_parentAccountId(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Account_parentAccountId,
+		func(ctx context.Context) (any, error) {
+			return obj.ParentAccountID, nil
+		},
+		nil,
+		ec.marshalOID2ᚖstring,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Account_parentAccountId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Account",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Account_multiBotMode(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Account_multiBotMode,
+		func(ctx context.Context) (any, error) {
+			return obj.MultiBotMode, nil
+		},
+		nil,
+		ec.marshalNBoolean2bool,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Account_multiBotMode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Account",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Account_config(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -8805,7 +8940,7 @@ func (ec *executionContext) _Account_config(ctx context.Context, field graphql.C
 			return obj.Config, nil
 		},
 		nil,
-		ec.marshalNAccountConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountConfig,
+		ec.marshalNAccountConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountConfig,
 		true,
 		true,
 	)
@@ -8916,7 +9051,7 @@ func (ec *executionContext) _Account_stats(ctx context.Context, field graphql.Co
 			return ec.Resolvers.Account().Stats(ctx, obj)
 		},
 		nil,
-		ec.marshalOAccountStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStats,
+		ec.marshalOAccountStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStats,
 		true,
 		false,
 	)
@@ -8982,7 +9117,7 @@ func (ec *executionContext) _AccountBalanceSnapshot_scope(ctx context.Context, f
 			return obj.Scope, nil
 		},
 		nil,
-		ec.marshalNWalletType2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletTypeᚄ,
+		ec.marshalNWalletType2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletTypeᚄ,
 		true,
 		true,
 	)
@@ -9011,7 +9146,7 @@ func (ec *executionContext) _AccountBalanceSnapshot_assets(ctx context.Context, 
 			return obj.Assets, nil
 		},
 		nil,
-		ec.marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAssetᚄ,
+		ec.marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAssetᚄ,
 		true,
 		true,
 	)
@@ -9081,7 +9216,7 @@ func (ec *executionContext) _AccountBalanceUpdate_type(ctx context.Context, fiel
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType,
+		ec.marshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType,
 		true,
 		true,
 	)
@@ -9139,7 +9274,7 @@ func (ec *executionContext) _AccountBalanceUpdate_assets(ctx context.Context, fi
 			return obj.Assets, nil
 		},
 		nil,
-		ec.marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAssetᚄ,
+		ec.marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAssetᚄ,
 		true,
 		true,
 	)
@@ -9209,7 +9344,7 @@ func (ec *executionContext) _AccountConfig_maxPositionPerSymbol(ctx context.Cont
 			return obj.MaxPositionPerSymbol, nil
 		},
 		nil,
-		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
+		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
 		true,
 		false,
 	)
@@ -9244,7 +9379,7 @@ func (ec *executionContext) _AccountConfig_maxDailyLoss(ctx context.Context, fie
 			return obj.MaxDailyLoss, nil
 		},
 		nil,
-		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
+		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
 		true,
 		false,
 	)
@@ -9366,7 +9501,7 @@ func (ec *executionContext) _AccountConfig_maxTotalNetExposure(ctx context.Conte
 			return obj.MaxTotalNetExposure, nil
 		},
 		nil,
-		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
+		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
 		true,
 		false,
 	)
@@ -9401,7 +9536,7 @@ func (ec *executionContext) _AccountConfig_maxTotalGrossExposure(ctx context.Con
 			return obj.MaxTotalGrossExposure, nil
 		},
 		nil,
-		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
+		ec.marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit,
 		true,
 		false,
 	)
@@ -9523,7 +9658,7 @@ func (ec *executionContext) _AccountEventFlowConnection_events(ctx context.Conte
 			return obj.Events, nil
 		},
 		nil,
-		ec.marshalNEventRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecordᚄ,
+		ec.marshalNEventRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecordᚄ,
 		true,
 		true,
 	)
@@ -9634,7 +9769,7 @@ func (ec *executionContext) _AccountMetrics_dimension(ctx context.Context, field
 			return obj.Dimension, nil
 		},
 		nil,
-		ec.marshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension,
+		ec.marshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension,
 		true,
 		true,
 	)
@@ -10069,7 +10204,7 @@ func (ec *executionContext) _AccountMetrics_symbols(ctx context.Context, field g
 			return obj.Symbols, nil
 		},
 		nil,
-		ec.marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetricsᚄ,
+		ec.marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetricsᚄ,
 		true,
 		true,
 	)
@@ -10128,7 +10263,7 @@ func (ec *executionContext) _AccountPositionSnapshot_positions(ctx context.Conte
 			return obj.Positions, nil
 		},
 		nil,
-		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
+		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
 		true,
 		true,
 	)
@@ -10214,7 +10349,7 @@ func (ec *executionContext) _AccountPositionsUpdate_type(ctx context.Context, fi
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType,
+		ec.marshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType,
 		true,
 		true,
 	)
@@ -10272,7 +10407,7 @@ func (ec *executionContext) _AccountPositionsUpdate_positions(ctx context.Contex
 			return obj.Positions, nil
 		},
 		nil,
-		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
+		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
 		true,
 		true,
 	)
@@ -10416,7 +10551,7 @@ func (ec *executionContext) _AccountStreamAsset_walletType(ctx context.Context, 
 			return obj.WalletType, nil
 		},
 		nil,
-		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
+		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
 		true,
 		true,
 	)
@@ -10551,6 +10686,151 @@ func (ec *executionContext) fieldContext_AccountStreamAsset_updatedTs(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _AccountUnallocatedAsset_asset(ctx context.Context, field graphql.CollectedField, obj *model.AccountUnallocatedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountUnallocatedAsset_asset,
+		func(ctx context.Context) (any, error) {
+			return obj.Asset, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountUnallocatedAsset_asset(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountUnallocatedAsset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AccountUnallocatedAsset_walletType(ctx context.Context, field graphql.CollectedField, obj *model.AccountUnallocatedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountUnallocatedAsset_walletType,
+		func(ctx context.Context) (any, error) {
+			return obj.WalletType, nil
+		},
+		nil,
+		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountUnallocatedAsset_walletType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountUnallocatedAsset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type WalletType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AccountUnallocatedAsset_parentTotal(ctx context.Context, field graphql.CollectedField, obj *model.AccountUnallocatedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountUnallocatedAsset_parentTotal,
+		func(ctx context.Context) (any, error) {
+			return obj.ParentTotal, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountUnallocatedAsset_parentTotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountUnallocatedAsset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AccountUnallocatedAsset_subsAllocated(ctx context.Context, field graphql.CollectedField, obj *model.AccountUnallocatedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountUnallocatedAsset_subsAllocated,
+		func(ctx context.Context) (any, error) {
+			return obj.SubsAllocated, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountUnallocatedAsset_subsAllocated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountUnallocatedAsset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AccountUnallocatedAsset_unallocated(ctx context.Context, field graphql.CollectedField, obj *model.AccountUnallocatedAsset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountUnallocatedAsset_unallocated,
+		func(ctx context.Context) (any, error) {
+			return obj.Unallocated, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountUnallocatedAsset_unallocated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountUnallocatedAsset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AccountsConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.AccountsConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -10590,7 +10870,7 @@ func (ec *executionContext) _AccountsConnection_list(ctx context.Context, field 
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountᚄ,
+		ec.marshalNAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountᚄ,
 		true,
 		true,
 	)
@@ -10624,6 +10904,10 @@ func (ec *executionContext) fieldContext_AccountsConnection_list(_ context.Conte
 				return ec.fieldContext_Account_algorithm(ctx, field)
 			case "accountType":
 				return ec.fieldContext_Account_accountType(ctx, field)
+			case "parentAccountId":
+				return ec.fieldContext_Account_parentAccountId(ctx, field)
+			case "multiBotMode":
+				return ec.fieldContext_Account_multiBotMode(ctx, field)
 			case "config":
 				return ec.fieldContext_Account_config(ctx, field)
 			case "createdAt":
@@ -10680,7 +10964,7 @@ func (ec *executionContext) _AlertItem_exchange(ctx context.Context, field graph
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -10738,7 +11022,7 @@ func (ec *executionContext) _AlertItem_type(ctx context.Context, field graphql.C
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNAlertType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType,
+		ec.marshalNAlertType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType,
 		true,
 		true,
 	)
@@ -10767,7 +11051,7 @@ func (ec *executionContext) _AlertItem_frequency(ctx context.Context, field grap
 			return obj.Frequency, nil
 		},
 		nil,
-		ec.marshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency,
+		ec.marshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency,
 		true,
 		true,
 	)
@@ -10941,7 +11225,7 @@ func (ec *executionContext) _AlertItem_status(ctx context.Context, field graphql
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalNAlertStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertStatus,
+		ec.marshalNAlertStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertStatus,
 		true,
 		true,
 	)
@@ -11289,7 +11573,7 @@ func (ec *executionContext) _Asset_walletType(ctx context.Context, field graphql
 			return obj.WalletType, nil
 		},
 		nil,
-		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
+		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
 		true,
 		true,
 	)
@@ -11347,7 +11631,7 @@ func (ec *executionContext) _BacktestResultData_symbols(ctx context.Context, fie
 			return obj.Symbols, nil
 		},
 		nil,
-		ec.marshalNSymbolSummary2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummaryᚄ,
+		ec.marshalNSymbolSummary2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummaryᚄ,
 		true,
 		true,
 	)
@@ -11426,7 +11710,7 @@ func (ec *executionContext) _BacktestResultData_equity(ctx context.Context, fiel
 			return obj.Equity, nil
 		},
 		nil,
-		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
+		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
 		true,
 		true,
 	)
@@ -11469,7 +11753,7 @@ func (ec *executionContext) _BacktestResultData_orders(ctx context.Context, fiel
 			return obj.Orders, nil
 		},
 		nil,
-		ec.marshalOOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ,
+		ec.marshalOOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ,
 		true,
 		false,
 	)
@@ -11578,7 +11862,7 @@ func (ec *executionContext) _BacktestResultData_fills(ctx context.Context, field
 			return obj.Fills, nil
 		},
 		nil,
-		ec.marshalOFill2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFillᚄ,
+		ec.marshalOFill2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFillᚄ,
 		true,
 		false,
 	)
@@ -11753,7 +12037,7 @@ func (ec *executionContext) _Balance_assets(ctx context.Context, field graphql.C
 			return obj.Assets, nil
 		},
 		nil,
-		ec.marshalNAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAssetᚄ,
+		ec.marshalNAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAssetᚄ,
 		true,
 		true,
 	)
@@ -11943,7 +12227,7 @@ func (ec *executionContext) _Bot_mode(ctx context.Context, field graphql.Collect
 			return obj.Mode, nil
 		},
 		nil,
-		ec.marshalNBotMode2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode,
+		ec.marshalNBotMode2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode,
 		true,
 		true,
 	)
@@ -12059,7 +12343,7 @@ func (ec *executionContext) _Bot_exchange(ctx context.Context, field graphql.Col
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -12146,7 +12430,7 @@ func (ec *executionContext) _Bot_status(ctx context.Context, field graphql.Colle
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalNBotStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus,
+		ec.marshalNBotStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus,
 		true,
 		true,
 	)
@@ -12320,7 +12604,7 @@ func (ec *executionContext) _BotEquityConnection_list(ctx context.Context, field
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
+		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
 		true,
 		true,
 	)
@@ -12392,7 +12676,7 @@ func (ec *executionContext) _BotLedgerConnection_list(ctx context.Context, field
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ,
+		ec.marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ,
 		true,
 		true,
 	)
@@ -12625,7 +12909,7 @@ func (ec *executionContext) _BotLogsConnection_list(ctx context.Context, field g
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNBotLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogᚄ,
+		ec.marshalNBotLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogᚄ,
 		true,
 		true,
 	)
@@ -12755,7 +13039,7 @@ func (ec *executionContext) _BotMetrics_dimension(ctx context.Context, field gra
 			return obj.Dimension, nil
 		},
 		nil,
-		ec.marshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension,
+		ec.marshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension,
 		true,
 		true,
 	)
@@ -13219,7 +13503,7 @@ func (ec *executionContext) _BotMetrics_symbols(ctx context.Context, field graph
 			return obj.Symbols, nil
 		},
 		nil,
-		ec.marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetricsᚄ,
+		ec.marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetricsᚄ,
 		true,
 		true,
 	)
@@ -13307,7 +13591,7 @@ func (ec *executionContext) _BotOrdersConnection_list(ctx context.Context, field
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ,
+		ec.marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ,
 		true,
 		true,
 	)
@@ -13416,7 +13700,7 @@ func (ec *executionContext) _BotPortfolio_assets(ctx context.Context, field grap
 			return obj.Assets, nil
 		},
 		nil,
-		ec.marshalNBotPortfolioAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAssetᚄ,
+		ec.marshalNBotPortfolioAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAssetᚄ,
 		true,
 		true,
 	)
@@ -13459,7 +13743,7 @@ func (ec *executionContext) _BotPortfolio_positions(ctx context.Context, field g
 			return obj.Positions, nil
 		},
 		nil,
-		ec.marshalNBotPortfolioPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPositionᚄ,
+		ec.marshalNBotPortfolioPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPositionᚄ,
 		true,
 		true,
 	)
@@ -13535,7 +13819,7 @@ func (ec *executionContext) _BotPortfolioAsset_exchange(ctx context.Context, fie
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -13564,7 +13848,7 @@ func (ec *executionContext) _BotPortfolioAsset_walletType(ctx context.Context, f
 			return obj.WalletType, nil
 		},
 		nil,
-		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
+		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
 		true,
 		true,
 	)
@@ -13709,7 +13993,7 @@ func (ec *executionContext) _BotPortfolioPosition_exchange(ctx context.Context, 
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -13767,7 +14051,7 @@ func (ec *executionContext) _BotPortfolioPosition_marketType(ctx context.Context
 			return obj.MarketType, nil
 		},
 		nil,
-		ec.marshalNMarketType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType,
+		ec.marshalNMarketType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType,
 		true,
 		true,
 	)
@@ -13796,7 +14080,7 @@ func (ec *executionContext) _BotPortfolioPosition_side(ctx context.Context, fiel
 			return obj.Side, nil
 		},
 		nil,
-		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
+		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
 		true,
 		true,
 	)
@@ -13941,7 +14225,7 @@ func (ec *executionContext) _BotSignalFlowConnection_events(ctx context.Context,
 			return obj.Events, nil
 		},
 		nil,
-		ec.marshalNBotSignalRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecordᚄ,
+		ec.marshalNBotSignalRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecordᚄ,
 		true,
 		true,
 	)
@@ -14549,7 +14833,7 @@ func (ec *executionContext) _BotSignalStats_stats(ctx context.Context, field gra
 			return obj.Stats, nil
 		},
 		nil,
-		ec.marshalNBotSignalStat2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStatᚄ,
+		ec.marshalNBotSignalStat2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStatᚄ,
 		true,
 		true,
 	)
@@ -14590,7 +14874,7 @@ func (ec *executionContext) _BotState_botStatus(ctx context.Context, field graph
 			return obj.BotStatus, nil
 		},
 		nil,
-		ec.marshalNBotStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus,
+		ec.marshalNBotStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus,
 		true,
 		true,
 	)
@@ -14677,7 +14961,7 @@ func (ec *executionContext) _BotState_portfolio(ctx context.Context, field graph
 			return obj.Portfolio, nil
 		},
 		nil,
-		ec.marshalOBotPortfolio2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolio,
+		ec.marshalOBotPortfolio2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolio,
 		true,
 		false,
 	)
@@ -14859,7 +15143,7 @@ func (ec *executionContext) _BotsConnection_list(ctx context.Context, field grap
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNBot2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotᚄ,
+		ec.marshalNBot2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotᚄ,
 		true,
 		true,
 	)
@@ -15156,7 +15440,7 @@ func (ec *executionContext) _Calendar_source(ctx context.Context, field graphql.
 			return obj.Source, nil
 		},
 		nil,
-		ec.marshalNCalendarSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource,
+		ec.marshalNCalendarSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource,
 		true,
 		true,
 	)
@@ -15214,7 +15498,7 @@ func (ec *executionContext) _Calendar_type(ctx context.Context, field graphql.Co
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNCalendarType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType,
+		ec.marshalNCalendarType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType,
 		true,
 		true,
 	)
@@ -15475,7 +15759,7 @@ func (ec *executionContext) _Calendar_ext(ctx context.Context, field graphql.Col
 			return obj.Ext, nil
 		},
 		nil,
-		ec.marshalOCalendarExtention2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarExtention,
+		ec.marshalOCalendarExtention2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarExtention,
 		true,
 		false,
 	)
@@ -15736,7 +16020,7 @@ func (ec *executionContext) _Channel_catalog(ctx context.Context, field graphql.
 			return obj.Catalog, nil
 		},
 		nil,
-		ec.marshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog,
+		ec.marshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog,
 		true,
 		true,
 	)
@@ -15765,7 +16049,7 @@ func (ec *executionContext) _Channel_extractCfg(ctx context.Context, field graph
 			return obj.ExtractCfg, nil
 		},
 		nil,
-		ec.marshalNExtractCfg2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfg,
+		ec.marshalNExtractCfg2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfg,
 		true,
 		true,
 	)
@@ -16032,7 +16316,7 @@ func (ec *executionContext) _ChannelsConnection_list(ctx context.Context, field 
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNChannel2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelᚄ,
+		ec.marshalNChannel2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelᚄ,
 		true,
 		true,
 	)
@@ -16402,7 +16686,7 @@ func (ec *executionContext) _CreateUserApiKeyPayload_record(ctx context.Context,
 			return obj.Record, nil
 		},
 		nil,
-		ec.marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKey,
+		ec.marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKey,
 		true,
 		true,
 	)
@@ -16646,7 +16930,7 @@ func (ec *executionContext) _DataSource_type(ctx context.Context, field graphql.
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNSignalType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType,
+		ec.marshalNSignalType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType,
 		true,
 		true,
 	)
@@ -16733,7 +17017,7 @@ func (ec *executionContext) _DataSource_exchange(ctx context.Context, field grap
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		false,
 	)
@@ -16965,7 +17249,7 @@ func (ec *executionContext) _DatasourcesConnection_list(ctx context.Context, fie
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNDataSource2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSourceᚄ,
+		ec.marshalNDataSource2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSourceᚄ,
 		true,
 		true,
 	)
@@ -17105,7 +17389,7 @@ func (ec *executionContext) _Document_catalog(ctx context.Context, field graphql
 			return obj.Catalog, nil
 		},
 		nil,
-		ec.marshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog,
+		ec.marshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog,
 		true,
 		true,
 	)
@@ -17453,7 +17737,7 @@ func (ec *executionContext) _Document_format(ctx context.Context, field graphql.
 			return obj.Format, nil
 		},
 		nil,
-		ec.marshalNDocumentFormat2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentFormat,
+		ec.marshalNDocumentFormat2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentFormat,
 		true,
 		true,
 	)
@@ -17540,7 +17824,7 @@ func (ec *executionContext) _Document_status(ctx context.Context, field graphql.
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalNDocumentStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus,
+		ec.marshalNDocumentStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus,
 		true,
 		true,
 	)
@@ -17801,7 +18085,7 @@ func (ec *executionContext) _DocumentStats_stats(ctx context.Context, field grap
 			return obj.Stats, nil
 		},
 		nil,
-		ec.marshalNDocumentStatsSummary2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatsSummary,
+		ec.marshalNDocumentStatsSummary2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatsSummary,
 		true,
 		true,
 	)
@@ -17842,7 +18126,7 @@ func (ec *executionContext) _DocumentStats_channelCounts(ctx context.Context, fi
 			return obj.ChannelCounts, nil
 		},
 		nil,
-		ec.marshalNChannelDocumentCount2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCountᚄ,
+		ec.marshalNChannelDocumentCount2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCountᚄ,
 		true,
 		true,
 	)
@@ -18055,7 +18339,7 @@ func (ec *executionContext) _DocumentsConnection_list(ctx context.Context, field
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNDocument2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentᚄ,
+		ec.marshalNDocument2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentᚄ,
 		true,
 		true,
 	)
@@ -18859,7 +19143,7 @@ func (ec *executionContext) _ExtractCfg_plans(ctx context.Context, field graphql
 			return obj.Plans, nil
 		},
 		nil,
-		ec.marshalNExtractPlan2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanᚄ,
+		ec.marshalNExtractPlan2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanᚄ,
 		true,
 		true,
 	)
@@ -18954,7 +19238,7 @@ func (ec *executionContext) _ExtractField_rule(ctx context.Context, field graphq
 			return obj.Rule, nil
 		},
 		nil,
-		ec.marshalNExtractRule2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRule,
+		ec.marshalNExtractRule2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRule,
 		true,
 		true,
 	)
@@ -19078,7 +19362,7 @@ func (ec *executionContext) _ExtractPlan_fields(ctx context.Context, field graph
 			return obj.Fields, nil
 		},
 		nil,
-		ec.marshalNExtractField2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldᚄ,
+		ec.marshalNExtractField2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldᚄ,
 		true,
 		true,
 	)
@@ -19115,7 +19399,7 @@ func (ec *executionContext) _ExtractRule_type(ctx context.Context, field graphql
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType,
+		ec.marshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType,
 		true,
 		true,
 	)
@@ -19202,7 +19486,7 @@ func (ec *executionContext) _Fill_exchange(ctx context.Context, field graphql.Co
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -19347,7 +19631,7 @@ func (ec *executionContext) _Fill_side(ctx context.Context, field graphql.Collec
 			return obj.Side, nil
 		},
 		nil,
-		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
+		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
 		true,
 		true,
 	)
@@ -19608,7 +19892,7 @@ func (ec *executionContext) _FundingRate_exchange(ctx context.Context, field gra
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -19927,7 +20211,7 @@ func (ec *executionContext) _IndexComponent_exchange(ctx context.Context, field 
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -19985,7 +20269,7 @@ func (ec *executionContext) _IndexComponent_components(ctx context.Context, fiel
 			return obj.Components, nil
 		},
 		nil,
-		ec.marshalNIndexComponentItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItemᚄ,
+		ec.marshalNIndexComponentItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItemᚄ,
 		true,
 		true,
 	)
@@ -20198,7 +20482,7 @@ func (ec *executionContext) _IndexPrice_exchange(ctx context.Context, field grap
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -20662,7 +20946,7 @@ func (ec *executionContext) _Ledger_exchange(ctx context.Context, field graphql.
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -20720,7 +21004,7 @@ func (ec *executionContext) _Ledger_walletType(ctx context.Context, field graphq
 			return obj.WalletType, nil
 		},
 		nil,
-		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
+		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
 		true,
 		true,
 	)
@@ -21010,7 +21294,7 @@ func (ec *executionContext) _LedgersConnection_list(ctx context.Context, field g
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ,
+		ec.marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ,
 		true,
 		true,
 	)
@@ -21127,7 +21411,7 @@ func (ec *executionContext) _LeverageBracket_brackets(ctx context.Context, field
 			return obj.Brackets, nil
 		},
 		nil,
-		ec.marshalNBracket2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBracketᚄ,
+		ec.marshalNBracket2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBracketᚄ,
 		true,
 		true,
 	)
@@ -21286,7 +21570,7 @@ func (ec *executionContext) _LlmCompletionStats_sceneStats(ctx context.Context, 
 			return obj.SceneStats, nil
 		},
 		nil,
-		ec.marshalNLlmSceneStats2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStatsᚄ,
+		ec.marshalNLlmSceneStats2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStatsᚄ,
 		true,
 		true,
 	)
@@ -21737,7 +22021,7 @@ func (ec *executionContext) _LlmPrompt_config(ctx context.Context, field graphql
 			return obj.Config, nil
 		},
 		nil,
-		ec.marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfig,
+		ec.marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfig,
 		true,
 		true,
 	)
@@ -21776,7 +22060,7 @@ func (ec *executionContext) _LlmPrompt_messages(ctx context.Context, field graph
 			return obj.Messages, nil
 		},
 		nil,
-		ec.marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageᚄ,
+		ec.marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageᚄ,
 		true,
 		true,
 	)
@@ -22016,7 +22300,7 @@ func (ec *executionContext) _LlmPromptsConnection_list(ctx context.Context, fiel
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptᚄ,
+		ec.marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptᚄ,
 		true,
 		true,
 	)
@@ -22193,7 +22477,7 @@ func (ec *executionContext) _LlmResponseFormat_jsonSchema(ctx context.Context, f
 			return obj.JSONSchema, nil
 		},
 		nil,
-		ec.marshalOLlmResponseFormatJsonSchema2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchema,
+		ec.marshalOLlmResponseFormatJsonSchema2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchema,
 		true,
 		false,
 	)
@@ -22433,7 +22717,7 @@ func (ec *executionContext) _LlmScene_config(ctx context.Context, field graphql.
 			return obj.Config, nil
 		},
 		nil,
-		ec.marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfig,
+		ec.marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfig,
 		true,
 		true,
 	)
@@ -22472,7 +22756,7 @@ func (ec *executionContext) _LlmScene_messages(ctx context.Context, field graphq
 			return obj.Messages, nil
 		},
 		nil,
-		ec.marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageᚄ,
+		ec.marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageᚄ,
 		true,
 		true,
 	)
@@ -22538,7 +22822,7 @@ func (ec *executionContext) _LlmScene_responseFormat(ctx context.Context, field 
 			return obj.ResponseFormat, nil
 		},
 		nil,
-		ec.marshalNLlmResponseFormat2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormat,
+		ec.marshalNLlmResponseFormat2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormat,
 		true,
 		true,
 	)
@@ -22863,7 +23147,7 @@ func (ec *executionContext) _LlmSceneWithPrompts_scene(ctx context.Context, fiel
 			return obj.Scene, nil
 		},
 		nil,
-		ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene,
+		ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene,
 		true,
 		true,
 	)
@@ -22916,7 +23200,7 @@ func (ec *executionContext) _LlmSceneWithPrompts_prompts(ctx context.Context, fi
 			return obj.Prompts, nil
 		},
 		nil,
-		ec.marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptᚄ,
+		ec.marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptᚄ,
 		true,
 		true,
 	)
@@ -23006,7 +23290,7 @@ func (ec *executionContext) _LlmScenesConnection_list(ctx context.Context, field
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNLlmScene2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneᚄ,
+		ec.marshalNLlmScene2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneᚄ,
 		true,
 		true,
 	)
@@ -23117,7 +23401,7 @@ func (ec *executionContext) _MarkPrice_exchange(ctx context.Context, field graph
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -23233,7 +23517,7 @@ func (ec *executionContext) _Market_exchange(ctx context.Context, field graphql.
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -23407,7 +23691,7 @@ func (ec *executionContext) _Market_rules(ctx context.Context, field graphql.Col
 			return obj.Rules, nil
 		},
 		nil,
-		ec.marshalOMarketRules2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketRules,
+		ec.marshalOMarketRules2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketRules,
 		true,
 		false,
 	)
@@ -23456,7 +23740,7 @@ func (ec *executionContext) _Market_supportOrderTypes(ctx context.Context, field
 			return obj.SupportOrderTypes, nil
 		},
 		nil,
-		ec.marshalOMarketOrderType2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderTypeᚄ,
+		ec.marshalOMarketOrderType2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderTypeᚄ,
 		true,
 		false,
 	)
@@ -23491,7 +23775,7 @@ func (ec *executionContext) _MarketAccount_exchange(ctx context.Context, field g
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -23636,7 +23920,7 @@ func (ec *executionContext) _MarketOrderType_rules(ctx context.Context, field gr
 			return obj.Rules, nil
 		},
 		nil,
-		ec.marshalOMarketRules2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketRules,
+		ec.marshalOMarketRules2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketRules,
 		true,
 		false,
 	)
@@ -23947,7 +24231,7 @@ func (ec *executionContext) _Mutation_CreateAccount(ctx context.Context, field g
 			return ec.Resolvers.Mutation().CreateAccount(ctx, fc.Args["input"].(model.MutationAccountInput))
 		},
 		nil,
-		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
+		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
 		true,
 		true,
 	)
@@ -23981,6 +24265,10 @@ func (ec *executionContext) fieldContext_Mutation_CreateAccount(ctx context.Cont
 				return ec.fieldContext_Account_algorithm(ctx, field)
 			case "accountType":
 				return ec.fieldContext_Account_accountType(ctx, field)
+			case "parentAccountId":
+				return ec.fieldContext_Account_parentAccountId(ctx, field)
+			case "multiBotMode":
+				return ec.fieldContext_Account_multiBotMode(ctx, field)
 			case "config":
 				return ec.fieldContext_Account_config(ctx, field)
 			case "createdAt":
@@ -24020,7 +24308,7 @@ func (ec *executionContext) _Mutation_UpdateAccount(ctx context.Context, field g
 			return ec.Resolvers.Mutation().UpdateAccount(ctx, fc.Args["input"].(model.MutationAccountInput))
 		},
 		nil,
-		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
+		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
 		true,
 		true,
 	)
@@ -24054,6 +24342,10 @@ func (ec *executionContext) fieldContext_Mutation_UpdateAccount(ctx context.Cont
 				return ec.fieldContext_Account_algorithm(ctx, field)
 			case "accountType":
 				return ec.fieldContext_Account_accountType(ctx, field)
+			case "parentAccountId":
+				return ec.fieldContext_Account_parentAccountId(ctx, field)
+			case "multiBotMode":
+				return ec.fieldContext_Account_multiBotMode(ctx, field)
 			case "config":
 				return ec.fieldContext_Account_config(ctx, field)
 			case "createdAt":
@@ -24093,7 +24385,7 @@ func (ec *executionContext) _Mutation_OnlineAccount(ctx context.Context, field g
 			return ec.Resolvers.Mutation().OnlineAccount(ctx, fc.Args["id"].(string))
 		},
 		nil,
-		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
+		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
 		true,
 		true,
 	)
@@ -24127,6 +24419,10 @@ func (ec *executionContext) fieldContext_Mutation_OnlineAccount(ctx context.Cont
 				return ec.fieldContext_Account_algorithm(ctx, field)
 			case "accountType":
 				return ec.fieldContext_Account_accountType(ctx, field)
+			case "parentAccountId":
+				return ec.fieldContext_Account_parentAccountId(ctx, field)
+			case "multiBotMode":
+				return ec.fieldContext_Account_multiBotMode(ctx, field)
 			case "config":
 				return ec.fieldContext_Account_config(ctx, field)
 			case "createdAt":
@@ -24166,7 +24462,7 @@ func (ec *executionContext) _Mutation_OfflineAccount(ctx context.Context, field 
 			return ec.Resolvers.Mutation().OfflineAccount(ctx, fc.Args["id"].(string))
 		},
 		nil,
-		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
+		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
 		true,
 		true,
 	)
@@ -24200,6 +24496,10 @@ func (ec *executionContext) fieldContext_Mutation_OfflineAccount(ctx context.Con
 				return ec.fieldContext_Account_algorithm(ctx, field)
 			case "accountType":
 				return ec.fieldContext_Account_accountType(ctx, field)
+			case "parentAccountId":
+				return ec.fieldContext_Account_parentAccountId(ctx, field)
+			case "multiBotMode":
+				return ec.fieldContext_Account_multiBotMode(ctx, field)
 			case "config":
 				return ec.fieldContext_Account_config(ctx, field)
 			case "createdAt":
@@ -24321,7 +24621,7 @@ func (ec *executionContext) _Mutation_PlaceOrder(ctx context.Context, field grap
 			return ec.Resolvers.Mutation().PlaceOrder(ctx, fc.Args["input"].(model.PlaceOrderInput))
 		},
 		nil,
-		ec.marshalNPlaceOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderResult,
+		ec.marshalNPlaceOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderResult,
 		true,
 		true,
 	)
@@ -24450,7 +24750,7 @@ func (ec *executionContext) _Mutation_UpdateAccountRiskConfig(ctx context.Contex
 			return ec.Resolvers.Mutation().UpdateAccountRiskConfig(ctx, fc.Args["input"].(model.UpdateAccountRiskConfigInput))
 		},
 		nil,
-		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
+		ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount,
 		true,
 		true,
 	)
@@ -24484,6 +24784,10 @@ func (ec *executionContext) fieldContext_Mutation_UpdateAccountRiskConfig(ctx co
 				return ec.fieldContext_Account_algorithm(ctx, field)
 			case "accountType":
 				return ec.fieldContext_Account_accountType(ctx, field)
+			case "parentAccountId":
+				return ec.fieldContext_Account_parentAccountId(ctx, field)
+			case "multiBotMode":
+				return ec.fieldContext_Account_multiBotMode(ctx, field)
 			case "config":
 				return ec.fieldContext_Account_config(ctx, field)
 			case "createdAt":
@@ -24564,7 +24868,7 @@ func (ec *executionContext) _Mutation_CreateChannel(ctx context.Context, field g
 			return ec.Resolvers.Mutation().CreateChannel(ctx, fc.Args["input"].(model.CreateChannelInput))
 		},
 		nil,
-		ec.marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannel,
+		ec.marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannel,
 		true,
 		true,
 	)
@@ -24627,7 +24931,7 @@ func (ec *executionContext) _Mutation_UpdateChannel(ctx context.Context, field g
 			return ec.Resolvers.Mutation().UpdateChannel(ctx, fc.Args["input"].(model.UpdateChannelInput))
 		},
 		nil,
-		ec.marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannel,
+		ec.marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannel,
 		true,
 		true,
 	)
@@ -24690,7 +24994,7 @@ func (ec *executionContext) _Mutation_TestExtract(ctx context.Context, field gra
 			return ec.Resolvers.Mutation().TestExtract(ctx, fc.Args["input"].(model.TestExtractInput))
 		},
 		nil,
-		ec.marshalNTestExtractResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractResult,
+		ec.marshalNTestExtractResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractResult,
 		true,
 		true,
 	)
@@ -24745,7 +25049,7 @@ func (ec *executionContext) _Mutation_CreateLlmScene(ctx context.Context, field 
 			return ec.Resolvers.Mutation().CreateLlmScene(ctx, fc.Args["input"].(model.CreateLlmSceneInput))
 		},
 		nil,
-		ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene,
+		ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene,
 		true,
 		true,
 	)
@@ -24810,7 +25114,7 @@ func (ec *executionContext) _Mutation_UpdateLlmScene(ctx context.Context, field 
 			return ec.Resolvers.Mutation().UpdateLlmScene(ctx, fc.Args["input"].(model.UpdateLlmSceneInput))
 		},
 		nil,
-		ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene,
+		ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene,
 		true,
 		true,
 	)
@@ -24916,7 +25220,7 @@ func (ec *executionContext) _Mutation_CreateLlmPrompt(ctx context.Context, field
 			return ec.Resolvers.Mutation().CreateLlmPrompt(ctx, fc.Args["input"].(model.CreateLlmPromptInput))
 		},
 		nil,
-		ec.marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt,
+		ec.marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt,
 		true,
 		true,
 	)
@@ -24989,7 +25293,7 @@ func (ec *executionContext) _Mutation_UpdateLlmPrompt(ctx context.Context, field
 			return ec.Resolvers.Mutation().UpdateLlmPrompt(ctx, fc.Args["input"].(model.UpdateLlmPromptInput))
 		},
 		nil,
-		ec.marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt,
+		ec.marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt,
 		true,
 		true,
 	)
@@ -25103,7 +25407,7 @@ func (ec *executionContext) _Mutation_SceneTest(ctx context.Context, field graph
 			return ec.Resolvers.Mutation().SceneTest(ctx, fc.Args["input"].(model.SceneTestInput))
 		},
 		nil,
-		ec.marshalNSceneTestResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestResult,
+		ec.marshalNSceneTestResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestResult,
 		true,
 		true,
 	)
@@ -25160,7 +25464,7 @@ func (ec *executionContext) _Mutation_AddAlert(ctx context.Context, field graphq
 			return ec.Resolvers.Mutation().AddAlert(ctx, fc.Args["input"].(model.AlertItemInput))
 		},
 		nil,
-		ec.marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem,
+		ec.marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem,
 		true,
 		true,
 	)
@@ -25274,7 +25578,7 @@ func (ec *executionContext) _Mutation_CreateStrategy(ctx context.Context, field 
 			return ec.Resolvers.Mutation().CreateStrategy(ctx, fc.Args["input"].(model.CreateStrategyInput))
 		},
 		nil,
-		ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
+		ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
 		true,
 		true,
 	)
@@ -25337,7 +25641,7 @@ func (ec *executionContext) _Mutation_UpdateStrategy(ctx context.Context, field 
 			return ec.Resolvers.Mutation().UpdateStrategy(ctx, fc.Args["input"].(model.UpdateStrategyInput))
 		},
 		nil,
-		ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
+		ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
 		true,
 		true,
 	)
@@ -25400,7 +25704,7 @@ func (ec *executionContext) _Mutation_GenerateStrategy(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().GenerateStrategy(ctx, fc.Args["input"].(model.GenerateStrategyInput))
 		},
 		nil,
-		ec.marshalNGenerateStrategyResponse2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyResponse,
+		ec.marshalNGenerateStrategyResponse2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyResponse,
 		true,
 		true,
 	)
@@ -25570,7 +25874,7 @@ func (ec *executionContext) _Mutation_CreateDatasource(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().CreateDatasource(ctx, fc.Args["input"].(model.CreateDatasourceInput))
 		},
 		nil,
-		ec.marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource,
+		ec.marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource,
 		true,
 		true,
 	)
@@ -25676,7 +25980,7 @@ func (ec *executionContext) _Mutation_RunBacktest(ctx context.Context, field gra
 			return ec.Resolvers.Mutation().RunBacktest(ctx, fc.Args["input"].(model.RunBacktestInput))
 		},
 		nil,
-		ec.marshalNRunBacktestResponse2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestResponse,
+		ec.marshalNRunBacktestResponse2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestResponse,
 		true,
 		true,
 	)
@@ -25753,7 +26057,7 @@ func (ec *executionContext) _Mutation_CreateBot(ctx context.Context, field graph
 			return ec.Resolvers.Mutation().CreateBot(ctx, fc.Args["input"].(model.CreateBotInput))
 		},
 		nil,
-		ec.marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
+		ec.marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
 		true,
 		true,
 	)
@@ -25830,7 +26134,7 @@ func (ec *executionContext) _Mutation_UpdateBot(ctx context.Context, field graph
 			return ec.Resolvers.Mutation().UpdateBot(ctx, fc.Args["input"].(model.UpdateBotInput))
 		},
 		nil,
-		ec.marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
+		ec.marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
 		true,
 		true,
 	)
@@ -25989,7 +26293,7 @@ func (ec *executionContext) _Mutation_UpgradeBot(ctx context.Context, field grap
 			return ec.Resolvers.Mutation().UpgradeBot(ctx, fc.Args["id"].(int))
 		},
 		nil,
-		ec.marshalNUpgradeBotResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpgradeBotResult,
+		ec.marshalNUpgradeBotResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpgradeBotResult,
 		true,
 		true,
 	)
@@ -26108,7 +26412,7 @@ func (ec *executionContext) _Mutation_CreateUserApiKey(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().CreateUserAPIKey(ctx, fc.Args["name"].(string), fc.Args["permissions"].([]model.UserAPIKeyPermission))
 		},
 		nil,
-		ec.marshalNCreateUserApiKeyPayload2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateUserAPIKeyPayload,
+		ec.marshalNCreateUserApiKeyPayload2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateUserAPIKeyPayload,
 		true,
 		true,
 	)
@@ -26237,7 +26541,7 @@ func (ec *executionContext) _Mutation_UpdatePushConfig(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().UpdatePushConfig(ctx, fc.Args["input"].(model.UpdatePushConfigInput))
 		},
 		nil,
-		ec.marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig,
+		ec.marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig,
 		true,
 		true,
 	)
@@ -26298,7 +26602,7 @@ func (ec *executionContext) _Mutation_UpdateLlmProviderConfig(ctx context.Contex
 			return ec.Resolvers.Mutation().UpdateLlmProviderConfig(ctx, fc.Args["input"].(model.UpdateLlmProviderConfigInput))
 		},
 		nil,
-		ec.marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig,
+		ec.marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig,
 		true,
 		true,
 	)
@@ -26347,7 +26651,7 @@ func (ec *executionContext) _Mutation_UpdateNetworkProxyConfig(ctx context.Conte
 			return ec.Resolvers.Mutation().UpdateNetworkProxyConfig(ctx, fc.Args["input"].(model.UpdateNetworkProxyConfigInput))
 		},
 		nil,
-		ec.marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig,
+		ec.marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig,
 		true,
 		true,
 	)
@@ -26392,7 +26696,7 @@ func (ec *executionContext) _Mutation_SendTelegramCode(ctx context.Context, fiel
 			return ec.Resolvers.Mutation().SendTelegramCode(ctx, fc.Args["input"].(model.SendTelegramCodeInput))
 		},
 		nil,
-		ec.marshalNSendTelegramCodePayload2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodePayload,
+		ec.marshalNSendTelegramCodePayload2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodePayload,
 		true,
 		true,
 	)
@@ -26443,7 +26747,7 @@ func (ec *executionContext) _Mutation_GetTelegramSession(ctx context.Context, fi
 			return ec.Resolvers.Mutation().GetTelegramSession(ctx, fc.Args["input"].(model.GetTelegramSessionInput))
 		},
 		nil,
-		ec.marshalNGetTelegramSessionPayload2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionPayload,
+		ec.marshalNGetTelegramSessionPayload2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionPayload,
 		true,
 		true,
 	)
@@ -26561,7 +26865,7 @@ func (ec *executionContext) _OpenInterest_exchange(ctx context.Context, field gr
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -26735,7 +27039,7 @@ func (ec *executionContext) _Order_exchange(ctx context.Context, field graphql.C
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -26880,7 +27184,7 @@ func (ec *executionContext) _Order_side(ctx context.Context, field graphql.Colle
 			return obj.Side, nil
 		},
 		nil,
-		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
+		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
 		true,
 		true,
 	)
@@ -26938,7 +27242,7 @@ func (ec *executionContext) _Order_orderType(ctx context.Context, field graphql.
 			return obj.OrderType, nil
 		},
 		nil,
-		ec.marshalNOrderType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType,
+		ec.marshalNOrderType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType,
 		true,
 		true,
 	)
@@ -26967,7 +27271,7 @@ func (ec *executionContext) _Order_algoType(ctx context.Context, field graphql.C
 			return obj.AlgoType, nil
 		},
 		nil,
-		ec.marshalNAlgoType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlgoType,
+		ec.marshalNAlgoType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlgoType,
 		true,
 		true,
 	)
@@ -26996,7 +27300,7 @@ func (ec *executionContext) _Order_source(ctx context.Context, field graphql.Col
 			return obj.Source, nil
 		},
 		nil,
-		ec.marshalNOrderSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource,
+		ec.marshalNOrderSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource,
 		true,
 		true,
 	)
@@ -27257,7 +27561,7 @@ func (ec *executionContext) _Order_status(ctx context.Context, field graphql.Col
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalNOrderStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderStatus,
+		ec.marshalNOrderStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderStatus,
 		true,
 		true,
 	)
@@ -27431,7 +27735,7 @@ func (ec *executionContext) _Order_conditions(ctx context.Context, field graphql
 			return obj.Conditions, nil
 		},
 		nil,
-		ec.marshalNOrderCondition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderConditionᚄ,
+		ec.marshalNOrderCondition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderConditionᚄ,
 		true,
 		true,
 	)
@@ -27830,7 +28134,7 @@ func (ec *executionContext) _OrderBook_bids(ctx context.Context, field graphql.C
 			return obj.Bids, nil
 		},
 		nil,
-		ec.marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevelᚄ,
+		ec.marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevelᚄ,
 		true,
 		true,
 	)
@@ -27865,7 +28169,7 @@ func (ec *executionContext) _OrderBook_asks(ctx context.Context, field graphql.C
 			return obj.Asks, nil
 		},
 		nil,
-		ec.marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevelᚄ,
+		ec.marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevelᚄ,
 		true,
 		true,
 	)
@@ -28335,7 +28639,7 @@ func (ec *executionContext) _OrdersConnection_list(ctx context.Context, field gr
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ,
+		ec.marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ,
 		true,
 		true,
 	)
@@ -28560,7 +28864,7 @@ func (ec *executionContext) _Position_side(ctx context.Context, field graphql.Co
 			return obj.Side, nil
 		},
 		nil,
-		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
+		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
 		true,
 		true,
 	)
@@ -29170,7 +29474,7 @@ func (ec *executionContext) _Query_Accounts(ctx context.Context, field graphql.C
 			return ec.Resolvers.Query().Accounts(ctx, fc.Args["input"].(model.QueryAccountsInput))
 		},
 		nil,
-		ec.marshalNAccountsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountsConnection,
+		ec.marshalNAccountsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountsConnection,
 		true,
 		true,
 	)
@@ -29217,7 +29521,7 @@ func (ec *executionContext) _Query_Equitys(ctx context.Context, field graphql.Co
 			return ec.Resolvers.Query().Equitys(ctx, fc.Args["input"].(model.QueryEquitysInput))
 		},
 		nil,
-		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
+		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
 		true,
 		true,
 	)
@@ -29272,7 +29576,7 @@ func (ec *executionContext) _Query_AccountEventFlow(ctx context.Context, field g
 			return ec.Resolvers.Query().AccountEventFlow(ctx, fc.Args["input"].(model.QueryAccountEventFlowInput))
 		},
 		nil,
-		ec.marshalNAccountEventFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountEventFlowConnection,
+		ec.marshalNAccountEventFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountEventFlowConnection,
 		true,
 		true,
 	)
@@ -29360,7 +29664,7 @@ func (ec *executionContext) _Query_AccountMetrics(ctx context.Context, field gra
 			return ec.Resolvers.Query().AccountMetrics(ctx, fc.Args["input"].(model.QueryAccountMetricsInput))
 		},
 		nil,
-		ec.marshalNAccountMetrics2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMetrics,
+		ec.marshalNAccountMetrics2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMetrics,
 		true,
 		true,
 	)
@@ -29437,7 +29741,7 @@ func (ec *executionContext) _Query_RiskEvents(ctx context.Context, field graphql
 			return ec.Resolvers.Query().RiskEvents(ctx, fc.Args["input"].(model.QueryRiskEventsInput))
 		},
 		nil,
-		ec.marshalNRiskEvent2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEventᚄ,
+		ec.marshalNRiskEvent2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEventᚄ,
 		true,
 		true,
 	)
@@ -29483,6 +29787,59 @@ func (ec *executionContext) fieldContext_Query_RiskEvents(ctx context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_AccountUnallocatedAssets(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_AccountUnallocatedAssets,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AccountUnallocatedAssets(ctx, fc.Args["accountId"].(string))
+		},
+		nil,
+		ec.marshalNAccountUnallocatedAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountUnallocatedAssetᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_AccountUnallocatedAssets(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "asset":
+				return ec.fieldContext_AccountUnallocatedAsset_asset(ctx, field)
+			case "walletType":
+				return ec.fieldContext_AccountUnallocatedAsset_walletType(ctx, field)
+			case "parentTotal":
+				return ec.fieldContext_AccountUnallocatedAsset_parentTotal(ctx, field)
+			case "subsAllocated":
+				return ec.fieldContext_AccountUnallocatedAsset_subsAllocated(ctx, field)
+			case "unallocated":
+				return ec.fieldContext_AccountUnallocatedAsset_unallocated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AccountUnallocatedAsset", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_AccountUnallocatedAssets_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_Calendars(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -29494,7 +29851,7 @@ func (ec *executionContext) _Query_Calendars(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().Calendars(ctx, fc.Args["input"].(model.QueryCalendarsInput))
 		},
 		nil,
-		ec.marshalNCalendar2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarᚄ,
+		ec.marshalNCalendar2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarᚄ,
 		true,
 		true,
 	)
@@ -29570,7 +29927,7 @@ func (ec *executionContext) _Query_DashboardOverview(ctx context.Context, field 
 			return ec.Resolvers.Query().DashboardOverview(ctx)
 		},
 		nil,
-		ec.marshalNDashboardOverview2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDashboardOverview,
+		ec.marshalNDashboardOverview2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDashboardOverview,
 		true,
 		true,
 	)
@@ -29612,7 +29969,7 @@ func (ec *executionContext) _Query_Documents(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().Documents(ctx, fc.Args["input"].(model.QueryDocumentsInput))
 		},
 		nil,
-		ec.marshalNDocumentsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentsConnection,
+		ec.marshalNDocumentsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentsConnection,
 		true,
 		true,
 	)
@@ -29659,7 +30016,7 @@ func (ec *executionContext) _Query_Document(ctx context.Context, field graphql.C
 			return ec.Resolvers.Query().Document(ctx, fc.Args["input"].(model.GetDocumentInput))
 		},
 		nil,
-		ec.marshalODocument2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocument,
+		ec.marshalODocument2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocument,
 		true,
 		false,
 	)
@@ -29750,7 +30107,7 @@ func (ec *executionContext) _Query_DocumentSimilarity(ctx context.Context, field
 			return ec.Resolvers.Query().DocumentSimilarity(ctx, fc.Args["input"].(model.DocumentSimilarityInput))
 		},
 		nil,
-		ec.marshalNDocumentSimilarity2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarity,
+		ec.marshalNDocumentSimilarity2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarity,
 		true,
 		true,
 	)
@@ -29799,7 +30156,7 @@ func (ec *executionContext) _Query_DocumentStats(ctx context.Context, field grap
 			return ec.Resolvers.Query().DocumentStats(ctx, fc.Args["startTs"].(int), fc.Args["endTs"].(int))
 		},
 		nil,
-		ec.marshalNDocumentStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStats,
+		ec.marshalNDocumentStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStats,
 		true,
 		true,
 	)
@@ -29846,7 +30203,7 @@ func (ec *executionContext) _Query_Channels(ctx context.Context, field graphql.C
 			return ec.Resolvers.Query().Channels(ctx, fc.Args["input"].(model.QueryChannelsInput))
 		},
 		nil,
-		ec.marshalNChannelsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelsConnection,
+		ec.marshalNChannelsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelsConnection,
 		true,
 		true,
 	)
@@ -29893,7 +30250,7 @@ func (ec *executionContext) _Query_LlmScenes(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().LlmScenes(ctx, fc.Args["input"].(model.QueryLlmScenesInput))
 		},
 		nil,
-		ec.marshalNLlmScenesConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScenesConnection,
+		ec.marshalNLlmScenesConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScenesConnection,
 		true,
 		true,
 	)
@@ -29940,7 +30297,7 @@ func (ec *executionContext) _Query_LlmScene(ctx context.Context, field graphql.C
 			return ec.Resolvers.Query().LlmScene(ctx, fc.Args["input"].(model.GetLlmSceneInput))
 		},
 		nil,
-		ec.marshalOLlmSceneWithPrompts2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneWithPrompts,
+		ec.marshalOLlmSceneWithPrompts2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneWithPrompts,
 		true,
 		false,
 	)
@@ -29987,7 +30344,7 @@ func (ec *executionContext) _Query_LlmPrompts(ctx context.Context, field graphql
 			return ec.Resolvers.Query().LlmPrompts(ctx, fc.Args["input"].(model.QueryLlmPromptsInput))
 		},
 		nil,
-		ec.marshalNLlmPromptsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptsConnection,
+		ec.marshalNLlmPromptsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptsConnection,
 		true,
 		true,
 	)
@@ -30034,7 +30391,7 @@ func (ec *executionContext) _Query_LlmPrompt(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().LlmPrompt(ctx, fc.Args["input"].(model.GetLlmPromptInput))
 		},
 		nil,
-		ec.marshalOLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt,
+		ec.marshalOLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt,
 		true,
 		false,
 	)
@@ -30107,7 +30464,7 @@ func (ec *executionContext) _Query_LlmCompletionStats(ctx context.Context, field
 			return ec.Resolvers.Query().LlmCompletionStats(ctx, fc.Args["startTs"].(int), fc.Args["endTs"].(int))
 		},
 		nil,
-		ec.marshalNLlmCompletionStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmCompletionStats,
+		ec.marshalNLlmCompletionStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmCompletionStats,
 		true,
 		true,
 	)
@@ -30160,7 +30517,7 @@ func (ec *executionContext) _Query_Markets(ctx context.Context, field graphql.Co
 			return ec.Resolvers.Query().Markets(ctx, fc.Args["input"].(model.GetMarketsInput))
 		},
 		nil,
-		ec.marshalNMarket2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketᚄ,
+		ec.marshalNMarket2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketᚄ,
 		true,
 		true,
 	)
@@ -30219,7 +30576,7 @@ func (ec *executionContext) _Query_Market(ctx context.Context, field graphql.Col
 			return ec.Resolvers.Query().Market(ctx, fc.Args["input"].(model.GetMarketInput))
 		},
 		nil,
-		ec.marshalOMarket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarket,
+		ec.marshalOMarket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarket,
 		true,
 		false,
 	)
@@ -30278,7 +30635,7 @@ func (ec *executionContext) _Query_StreamStats(ctx context.Context, field graphq
 			return ec.Resolvers.Query().StreamStats(ctx, fc.Args["windowHours"].(*int))
 		},
 		nil,
-		ec.marshalNStreamStatsItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItemᚄ,
+		ec.marshalNStreamStatsItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItemᚄ,
 		true,
 		true,
 	)
@@ -30333,7 +30690,7 @@ func (ec *executionContext) _Query_OrderBook(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().OrderBook(ctx, fc.Args["input"].(model.QueryOrderBookInput))
 		},
 		nil,
-		ec.marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook,
+		ec.marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook,
 		true,
 		false,
 	)
@@ -30386,7 +30743,7 @@ func (ec *executionContext) _Query_Kline(ctx context.Context, field graphql.Coll
 			return ec.Resolvers.Query().Kline(ctx, fc.Args["input"].(model.QueryKlineInput))
 		},
 		nil,
-		ec.marshalNKline2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐKlineᚄ,
+		ec.marshalNKline2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐKlineᚄ,
 		true,
 		true,
 	)
@@ -30449,7 +30806,7 @@ func (ec *executionContext) _Query_FundingRate(ctx context.Context, field graphq
 			return ec.Resolvers.Query().FundingRate(ctx, fc.Args["input"].(model.QueryFundingRateInput))
 		},
 		nil,
-		ec.marshalOFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate,
+		ec.marshalOFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate,
 		true,
 		false,
 	)
@@ -30504,7 +30861,7 @@ func (ec *executionContext) _Query_FundingRates(ctx context.Context, field graph
 			return ec.Resolvers.Query().FundingRates(ctx, fc.Args["input"].(model.QueryFundingRatesInput))
 		},
 		nil,
-		ec.marshalNFundingRate2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRateᚄ,
+		ec.marshalNFundingRate2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRateᚄ,
 		true,
 		true,
 	)
@@ -30559,7 +30916,7 @@ func (ec *executionContext) _Query_OpenInterest(ctx context.Context, field graph
 			return ec.Resolvers.Query().OpenInterest(ctx, fc.Args["input"].(model.QueryOpenInterestInput))
 		},
 		nil,
-		ec.marshalOOpenInterest2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOpenInterest,
+		ec.marshalOOpenInterest2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOpenInterest,
 		true,
 		false,
 	)
@@ -30610,7 +30967,7 @@ func (ec *executionContext) _Query_LeverageBracket(ctx context.Context, field gr
 			return ec.Resolvers.Query().LeverageBracket(ctx, fc.Args["input"].(model.QueryLeverageBracketInput))
 		},
 		nil,
-		ec.marshalOLeverageBracket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLeverageBracket,
+		ec.marshalOLeverageBracket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLeverageBracket,
 		true,
 		false,
 	)
@@ -30657,7 +31014,7 @@ func (ec *executionContext) _Query_IndexPrice(ctx context.Context, field graphql
 			return ec.Resolvers.Query().IndexPrice(ctx, fc.Args["input"].(model.QueryIndexPriceInput))
 		},
 		nil,
-		ec.marshalOIndexPrice2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexPrice,
+		ec.marshalOIndexPrice2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexPrice,
 		true,
 		false,
 	)
@@ -30708,7 +31065,7 @@ func (ec *executionContext) _Query_IndexComponent(ctx context.Context, field gra
 			return ec.Resolvers.Query().IndexComponent(ctx, fc.Args["input"].(model.QueryIndexComponentInput))
 		},
 		nil,
-		ec.marshalOIndexComponent2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponent,
+		ec.marshalOIndexComponent2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponent,
 		true,
 		false,
 	)
@@ -30761,7 +31118,7 @@ func (ec *executionContext) _Query_AccountInfo(ctx context.Context, field graphq
 			return ec.Resolvers.Query().AccountInfo(ctx, fc.Args["input"].(model.QueryAccountInfoInput))
 		},
 		nil,
-		ec.marshalOMarketAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketAccount,
+		ec.marshalOMarketAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketAccount,
 		true,
 		false,
 	)
@@ -30812,7 +31169,7 @@ func (ec *executionContext) _Query_Balance(ctx context.Context, field graphql.Co
 			return ec.Resolvers.Query().Balance(ctx, fc.Args["input"].(model.QueryBalanceInput))
 		},
 		nil,
-		ec.marshalOBalance2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBalance,
+		ec.marshalOBalance2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBalance,
 		true,
 		false,
 	)
@@ -30863,7 +31220,7 @@ func (ec *executionContext) _Query_Positions(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().Positions(ctx, fc.Args["input"].(model.QueryPositionsInput))
 		},
 		nil,
-		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
+		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
 		true,
 		true,
 	)
@@ -30932,7 +31289,7 @@ func (ec *executionContext) _Query_Orders(ctx context.Context, field graphql.Col
 			return ec.Resolvers.Query().Orders(ctx, fc.Args["input"].(model.QueryOrdersInput))
 		},
 		nil,
-		ec.marshalNOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrdersConnection,
+		ec.marshalNOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrdersConnection,
 		true,
 		true,
 	)
@@ -30979,7 +31336,7 @@ func (ec *executionContext) _Query_Ledgers(ctx context.Context, field graphql.Co
 			return ec.Resolvers.Query().Ledgers(ctx, fc.Args["input"].(model.QueryLedgersInput))
 		},
 		nil,
-		ec.marshalNLedgersConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedgersConnection,
+		ec.marshalNLedgersConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgersConnection,
 		true,
 		true,
 	)
@@ -31026,7 +31383,7 @@ func (ec *executionContext) _Query_EstimateOrder(ctx context.Context, field grap
 			return ec.Resolvers.Query().EstimateOrder(ctx, fc.Args["input"].(model.EstimateOrderInput))
 		},
 		nil,
-		ec.marshalNEstimateOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderResult,
+		ec.marshalNEstimateOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderResult,
 		true,
 		true,
 	)
@@ -31077,7 +31434,7 @@ func (ec *executionContext) _Query_ListAlerts(ctx context.Context, field graphql
 			return ec.Resolvers.Query().ListAlerts(ctx, fc.Args["exchange"].(types.Exchange), fc.Args["symbol"].(string))
 		},
 		nil,
-		ec.marshalNAlertItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemᚄ,
+		ec.marshalNAlertItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemᚄ,
 		true,
 		true,
 	)
@@ -31150,7 +31507,7 @@ func (ec *executionContext) _Query_Strategies(ctx context.Context, field graphql
 			return ec.Resolvers.Query().Strategies(ctx, fc.Args["input"].(model.QueryStrategiesInput))
 		},
 		nil,
-		ec.marshalNStrategiesConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategiesConnection,
+		ec.marshalNStrategiesConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategiesConnection,
 		true,
 		true,
 	)
@@ -31197,7 +31554,7 @@ func (ec *executionContext) _Query_Strategy(ctx context.Context, field graphql.C
 			return ec.Resolvers.Query().Strategy(ctx, fc.Args["id"].(string))
 		},
 		nil,
-		ec.marshalOStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
+		ec.marshalOStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
 		true,
 		false,
 	)
@@ -31260,7 +31617,7 @@ func (ec *executionContext) _Query_Datasources(ctx context.Context, field graphq
 			return ec.Resolvers.Query().Datasources(ctx, fc.Args["input"].(model.QueryDatasourcesInput))
 		},
 		nil,
-		ec.marshalNDatasourcesConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDatasourcesConnection,
+		ec.marshalNDatasourcesConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDatasourcesConnection,
 		true,
 		true,
 	)
@@ -31307,7 +31664,7 @@ func (ec *executionContext) _Query_Datasource(ctx context.Context, field graphql
 			return ec.Resolvers.Query().Datasource(ctx, fc.Args["id"].(int))
 		},
 		nil,
-		ec.marshalODataSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource,
+		ec.marshalODataSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource,
 		true,
 		false,
 	)
@@ -31372,7 +31729,7 @@ func (ec *executionContext) _Query_Bots(ctx context.Context, field graphql.Colle
 			return ec.Resolvers.Query().Bots(ctx, fc.Args["input"].(model.QueryBotsInput))
 		},
 		nil,
-		ec.marshalNBotsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotsConnection,
+		ec.marshalNBotsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotsConnection,
 		true,
 		true,
 	)
@@ -31419,7 +31776,7 @@ func (ec *executionContext) _Query_Bot(ctx context.Context, field graphql.Collec
 			return ec.Resolvers.Query().Bot(ctx, fc.Args["id"].(int))
 		},
 		nil,
-		ec.marshalOBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
+		ec.marshalOBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
 		true,
 		false,
 	)
@@ -31496,7 +31853,7 @@ func (ec *executionContext) _Query_BotBalance(ctx context.Context, field graphql
 			return ec.Resolvers.Query().BotBalance(ctx, fc.Args["input"].(model.QueryBotBalanceInput))
 		},
 		nil,
-		ec.marshalOBalance2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBalance,
+		ec.marshalOBalance2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBalance,
 		true,
 		false,
 	)
@@ -31547,7 +31904,7 @@ func (ec *executionContext) _Query_BotPositions(ctx context.Context, field graph
 			return ec.Resolvers.Query().BotPositions(ctx, fc.Args["input"].(model.QueryBotPositionsInput))
 		},
 		nil,
-		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
+		ec.marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ,
 		true,
 		true,
 	)
@@ -31616,7 +31973,7 @@ func (ec *executionContext) _Query_BotState(ctx context.Context, field graphql.C
 			return ec.Resolvers.Query().BotState(ctx, fc.Args["input"].(model.QueryBotStateInput))
 		},
 		nil,
-		ec.marshalOBotState2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotState,
+		ec.marshalOBotState2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotState,
 		true,
 		false,
 	)
@@ -31675,7 +32032,7 @@ func (ec *executionContext) _Query_BotOrders(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().BotOrders(ctx, fc.Args["input"].(model.QueryBotOrdersInput))
 		},
 		nil,
-		ec.marshalNBotOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotOrdersConnection,
+		ec.marshalNBotOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotOrdersConnection,
 		true,
 		true,
 	)
@@ -31722,7 +32079,7 @@ func (ec *executionContext) _Query_BotLedger(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().BotLedger(ctx, fc.Args["input"].(model.QueryBotLedgersInput))
 		},
 		nil,
-		ec.marshalNBotLedgerConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLedgerConnection,
+		ec.marshalNBotLedgerConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLedgerConnection,
 		true,
 		true,
 	)
@@ -31769,7 +32126,7 @@ func (ec *executionContext) _Query_BotEquity(ctx context.Context, field graphql.
 			return ec.Resolvers.Query().BotEquity(ctx, fc.Args["botId"].(int), fc.Args["startTs"].(int), fc.Args["endTs"].(int))
 		},
 		nil,
-		ec.marshalNBotEquityConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotEquityConnection,
+		ec.marshalNBotEquityConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotEquityConnection,
 		true,
 		true,
 	)
@@ -31816,7 +32173,7 @@ func (ec *executionContext) _Query_BotLogs(ctx context.Context, field graphql.Co
 			return ec.Resolvers.Query().BotLogs(ctx, fc.Args["input"].(model.QueryBotLogsInput))
 		},
 		nil,
-		ec.marshalNBotLogsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogsConnection,
+		ec.marshalNBotLogsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogsConnection,
 		true,
 		true,
 	)
@@ -31863,7 +32220,7 @@ func (ec *executionContext) _Query_BotSignalFlow(ctx context.Context, field grap
 			return ec.Resolvers.Query().BotSignalFlow(ctx, fc.Args["input"].(model.QueryBotSignalFlowInput))
 		},
 		nil,
-		ec.marshalNBotSignalFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalFlowConnection,
+		ec.marshalNBotSignalFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalFlowConnection,
 		true,
 		true,
 	)
@@ -31910,7 +32267,7 @@ func (ec *executionContext) _Query_BotSignalStats(ctx context.Context, field gra
 			return ec.Resolvers.Query().BotSignalStats(ctx, fc.Args["startTs"].(int), fc.Args["endTs"].(int), fc.Args["botId"].(*int))
 		},
 		nil,
-		ec.marshalNBotSignalStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStats,
+		ec.marshalNBotSignalStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStats,
 		true,
 		true,
 	)
@@ -31955,7 +32312,7 @@ func (ec *executionContext) _Query_BotMetrics(ctx context.Context, field graphql
 			return ec.Resolvers.Query().BotMetrics(ctx, fc.Args["input"].(model.QueryBotMetricsInput))
 		},
 		nil,
-		ec.marshalNBotMetrics2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMetrics,
+		ec.marshalNBotMetrics2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMetrics,
 		true,
 		true,
 	)
@@ -32035,7 +32392,7 @@ func (ec *executionContext) _Query_UserApiKeys(ctx context.Context, field graphq
 			return ec.Resolvers.Query().UserAPIKeys(ctx)
 		},
 		nil,
-		ec.marshalNUserApiKey2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyᚄ,
+		ec.marshalNUserApiKey2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyᚄ,
 		true,
 		true,
 	)
@@ -32117,7 +32474,7 @@ func (ec *executionContext) _Query_PushConfig(ctx context.Context, field graphql
 			return ec.Resolvers.Query().PushConfig(ctx)
 		},
 		nil,
-		ec.marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig,
+		ec.marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig,
 		true,
 		true,
 	)
@@ -32166,7 +32523,7 @@ func (ec *executionContext) _Query_LlmProviderConfig(ctx context.Context, field 
 			return ec.Resolvers.Query().LlmProviderConfig(ctx)
 		},
 		nil,
-		ec.marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig,
+		ec.marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig,
 		true,
 		true,
 	)
@@ -32203,7 +32560,7 @@ func (ec *executionContext) _Query_NetworkProxyConfig(ctx context.Context, field
 			return ec.Resolvers.Query().NetworkProxyConfig(ctx)
 		},
 		nil,
-		ec.marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig,
+		ec.marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig,
 		true,
 		true,
 	)
@@ -32237,7 +32594,7 @@ func (ec *executionContext) _Query_GetSettings(ctx context.Context, field graphq
 			return ec.Resolvers.Query().GetSettings(ctx, fc.Args["keys"].([]string))
 		},
 		nil,
-		ec.marshalNUserSettingEntry2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntryᚄ,
+		ec.marshalNUserSettingEntry2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntryᚄ,
 		true,
 		true,
 	)
@@ -32623,7 +32980,7 @@ func (ec *executionContext) _RunBacktestResponse_strategy(ctx context.Context, f
 			return obj.Strategy, nil
 		},
 		nil,
-		ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
+		ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy,
 		true,
 		true,
 	)
@@ -32993,7 +33350,7 @@ func (ec *executionContext) _RunBacktestResponse_data(ctx context.Context, field
 			return obj.Data, nil
 		},
 		nil,
-		ec.marshalNBacktestResultData2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestResultData,
+		ec.marshalNBacktestResultData2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestResultData,
 		true,
 		true,
 	)
@@ -33092,7 +33449,7 @@ func (ec *executionContext) _RunBacktestResponse_consoleLogs(ctx context.Context
 			return obj.ConsoleLogs, nil
 		},
 		nil,
-		ec.marshalNConsoleLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLogᚄ,
+		ec.marshalNConsoleLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLogᚄ,
 		true,
 		true,
 	)
@@ -33158,7 +33515,7 @@ func (ec *executionContext) _SceneTestResult_metadata(ctx context.Context, field
 			return obj.Metadata, nil
 		},
 		nil,
-		ec.marshalOCompletionMetadata2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionMetadata,
+		ec.marshalOCompletionMetadata2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionMetadata,
 		true,
 		false,
 	)
@@ -33315,7 +33672,7 @@ func (ec *executionContext) _SceneTestResult_usage(ctx context.Context, field gr
 			return obj.Usage, nil
 		},
 		nil,
-		ec.marshalOCompletionUsage2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionUsage,
+		ec.marshalOCompletionUsage2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionUsage,
 		true,
 		false,
 	)
@@ -33497,7 +33854,7 @@ func (ec *executionContext) _SignalDefinition_type(ctx context.Context, field gr
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNSignalType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType,
+		ec.marshalNSignalType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType,
 		true,
 		true,
 	)
@@ -33526,7 +33883,7 @@ func (ec *executionContext) _SignalDefinition_exchange(ctx context.Context, fiel
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		false,
 	)
@@ -33613,7 +33970,7 @@ func (ec *executionContext) _SignalDefinition_scope(ctx context.Context, field g
 			return obj.Scope, nil
 		},
 		nil,
-		ec.marshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope,
+		ec.marshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope,
 		true,
 		false,
 	)
@@ -33671,7 +34028,7 @@ func (ec *executionContext) _StrategiesConnection_list(ctx context.Context, fiel
 			return obj.List, nil
 		},
 		nil,
-		ec.marshalNStrategy2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyᚄ,
+		ec.marshalNStrategy2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyᚄ,
 		true,
 		true,
 	)
@@ -33867,7 +34224,7 @@ func (ec *executionContext) _Strategy_params(ctx context.Context, field graphql.
 			return obj.Params, nil
 		},
 		nil,
-		ec.marshalNStrategyParam2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamᚄ,
+		ec.marshalNStrategyParam2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamᚄ,
 		true,
 		true,
 	)
@@ -33908,7 +34265,7 @@ func (ec *executionContext) _Strategy_status(ctx context.Context, field graphql.
 			return obj.Status, nil
 		},
 		nil,
-		ec.marshalNStrategyStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus,
+		ec.marshalNStrategyStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus,
 		true,
 		true,
 	)
@@ -33937,7 +34294,7 @@ func (ec *executionContext) _Strategy_signals(ctx context.Context, field graphql
 			return obj.Signals, nil
 		},
 		nil,
-		ec.marshalNSignalDefinition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionᚄ,
+		ec.marshalNSignalDefinition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionᚄ,
 		true,
 		true,
 	)
@@ -34183,7 +34540,7 @@ func (ec *executionContext) _StreamEvent_type(ctx context.Context, field graphql
 			return obj.Type, nil
 		},
 		nil,
-		ec.marshalNStreamType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType,
+		ec.marshalNStreamType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType,
 		true,
 		true,
 	)
@@ -34241,7 +34598,7 @@ func (ec *executionContext) _StreamEvent_ticker(ctx context.Context, field graph
 			return obj.Ticker, nil
 		},
 		nil,
-		ec.marshalOTicker2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTicker,
+		ec.marshalOTicker2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTicker,
 		true,
 		false,
 	)
@@ -34292,7 +34649,7 @@ func (ec *executionContext) _StreamEvent_trade(ctx context.Context, field graphq
 			return obj.Trade, nil
 		},
 		nil,
-		ec.marshalOTrade2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTrade,
+		ec.marshalOTrade2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTrade,
 		true,
 		false,
 	)
@@ -34337,7 +34694,7 @@ func (ec *executionContext) _StreamEvent_depth(ctx context.Context, field graphq
 			return obj.Depth, nil
 		},
 		nil,
-		ec.marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook,
+		ec.marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook,
 		true,
 		false,
 	)
@@ -34378,7 +34735,7 @@ func (ec *executionContext) _StreamEvent_kline(ctx context.Context, field graphq
 			return obj.Kline, nil
 		},
 		nil,
-		ec.marshalOKline2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐKline,
+		ec.marshalOKline2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐKline,
 		true,
 		false,
 	)
@@ -34429,7 +34786,7 @@ func (ec *executionContext) _StreamEvent_markPrice(ctx context.Context, field gr
 			return obj.MarkPrice, nil
 		},
 		nil,
-		ec.marshalOMarkPrice2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarkPrice,
+		ec.marshalOMarkPrice2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarkPrice,
 		true,
 		false,
 	)
@@ -34468,7 +34825,7 @@ func (ec *executionContext) _StreamEvent_social(ctx context.Context, field graph
 			return obj.Social, nil
 		},
 		nil,
-		ec.marshalODocument2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocument,
+		ec.marshalODocument2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocument,
 		true,
 		false,
 	)
@@ -34547,7 +34904,7 @@ func (ec *executionContext) _StreamEvent_balanceSnapshot(ctx context.Context, fi
 			return obj.BalanceSnapshot, nil
 		},
 		nil,
-		ec.marshalOAccountBalanceSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceSnapshot,
+		ec.marshalOAccountBalanceSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceSnapshot,
 		true,
 		false,
 	)
@@ -34582,7 +34939,7 @@ func (ec *executionContext) _StreamEvent_balanceUpdate(ctx context.Context, fiel
 			return obj.BalanceUpdate, nil
 		},
 		nil,
-		ec.marshalOAccountBalanceUpdate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceUpdate,
+		ec.marshalOAccountBalanceUpdate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceUpdate,
 		true,
 		false,
 	)
@@ -34621,7 +34978,7 @@ func (ec *executionContext) _StreamEvent_positionSnapshot(ctx context.Context, f
 			return obj.PositionSnapshot, nil
 		},
 		nil,
-		ec.marshalOAccountPositionSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionSnapshot,
+		ec.marshalOAccountPositionSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionSnapshot,
 		true,
 		false,
 	)
@@ -34654,7 +35011,7 @@ func (ec *executionContext) _StreamEvent_positionsUpdate(ctx context.Context, fi
 			return obj.PositionsUpdate, nil
 		},
 		nil,
-		ec.marshalOAccountPositionsUpdate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionsUpdate,
+		ec.marshalOAccountPositionsUpdate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionsUpdate,
 		true,
 		false,
 	)
@@ -34693,7 +35050,7 @@ func (ec *executionContext) _StreamEvent_order(ctx context.Context, field graphq
 			return obj.Order, nil
 		},
 		nil,
-		ec.marshalOOrder2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrder,
+		ec.marshalOOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrder,
 		true,
 		false,
 	)
@@ -34802,7 +35159,7 @@ func (ec *executionContext) _StreamEvent_fill(ctx context.Context, field graphql
 			return obj.Fill, nil
 		},
 		nil,
-		ec.marshalOFill2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFill,
+		ec.marshalOFill2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFill,
 		true,
 		false,
 	)
@@ -34861,7 +35218,7 @@ func (ec *executionContext) _StreamEvent_symbolLeverage(ctx context.Context, fie
 			return obj.SymbolLeverage, nil
 		},
 		nil,
-		ec.marshalOSymbolLeverage2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolLeverage,
+		ec.marshalOSymbolLeverage2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolLeverage,
 		true,
 		false,
 	)
@@ -35077,7 +35434,7 @@ func (ec *executionContext) _Subscription_Stream(ctx context.Context, field grap
 			return ec.Resolvers.Subscription().Stream(ctx, fc.Args["input"].(model.StreamInput))
 		},
 		nil,
-		ec.marshalNStreamEvent2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamEvent,
+		ec.marshalNStreamEvent2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamEvent,
 		true,
 		true,
 	)
@@ -35149,7 +35506,7 @@ func (ec *executionContext) _SymbolLeverage_exchange(ctx context.Context, field 
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -35207,7 +35564,7 @@ func (ec *executionContext) _SymbolLeverage_side(ctx context.Context, field grap
 			return obj.Side, nil
 		},
 		nil,
-		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
+		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
 		true,
 		true,
 	)
@@ -35700,7 +36057,7 @@ func (ec *executionContext) _SymbolSummary_exchange(ctx context.Context, field g
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -36570,7 +36927,7 @@ func (ec *executionContext) _Ticker_exchange(ctx context.Context, field graphql.
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -36889,7 +37246,7 @@ func (ec *executionContext) _Trade_exchange(ctx context.Context, field graphql.C
 			return obj.Exchange, nil
 		},
 		nil,
-		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
 		true,
 		true,
 	)
@@ -37121,7 +37478,7 @@ func (ec *executionContext) _UpgradeBotResult_bot(ctx context.Context, field gra
 			return obj.Bot, nil
 		},
 		nil,
-		ec.marshalOBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
+		ec.marshalOBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot,
 		true,
 		false,
 	)
@@ -37273,7 +37630,7 @@ func (ec *executionContext) _UserApiKey_permissions(ctx context.Context, field g
 			return obj.Permissions, nil
 		},
 		nil,
-		ec.marshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ,
+		ec.marshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ,
 		true,
 		true,
 	)
@@ -38845,7 +39202,7 @@ func (ec *executionContext) unmarshalInputAlertItemInput(ctx context.Context, ob
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -38859,14 +39216,14 @@ func (ec *executionContext) unmarshalInputAlertItemInput(ctx context.Context, ob
 			it.Symbol = data
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalNAlertType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType(ctx, v)
+			data, err := ec.unmarshalNAlertType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Type = data
 		case "frequency":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("frequency"))
-			data, err := ec.unmarshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency(ctx, v)
+			data, err := ec.unmarshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39035,21 +39392,21 @@ func (ec *executionContext) unmarshalInputBacktestExchangeInput(ctx context.Cont
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Exchange = data
 		case "symbols":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("symbols"))
-			data, err := ec.unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx, v)
+			data, err := ec.unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Symbols = data
 		case "assets":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("assets"))
-			data, err := ec.unmarshalOBacktestAssetInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInputᚄ(ctx, v)
+			data, err := ec.unmarshalOBacktestAssetInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39093,7 +39450,7 @@ func (ec *executionContext) unmarshalInputBacktestSignalInput(ctx context.Contex
 			it.DatasourceID = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39130,7 +39487,7 @@ func (ec *executionContext) unmarshalInputBacktestSymbolInput(ctx context.Contex
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39260,14 +39617,14 @@ func (ec *executionContext) unmarshalInputCreateBotInput(ctx context.Context, ob
 			it.StrategyVer = data
 		case "mode":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
-			data, err := ec.unmarshalNBotMode2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx, v)
+			data, err := ec.unmarshalNBotMode2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Mode = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39353,14 +39710,14 @@ func (ec *executionContext) unmarshalInputCreateChannelInput(ctx context.Context
 			it.Source = data
 		case "catalog":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("catalog"))
-			data, err := ec.unmarshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
+			data, err := ec.unmarshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Catalog = data
 		case "extractCfg":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("extractCfg"))
-			data, err := ec.unmarshalNExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx, v)
+			data, err := ec.unmarshalNExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39397,7 +39754,7 @@ func (ec *executionContext) unmarshalInputCreateDatasourceInput(ctx context.Cont
 		switch k {
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalNSignalType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
+			data, err := ec.unmarshalNSignalType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39418,7 +39775,7 @@ func (ec *executionContext) unmarshalInputCreateDatasourceInput(ctx context.Cont
 			it.Description = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39511,14 +39868,14 @@ func (ec *executionContext) unmarshalInputCreateLlmPromptInput(ctx context.Conte
 			it.Providers = data
 		case "config":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-			data, err := ec.unmarshalNLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
+			data, err := ec.unmarshalNLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Config = data
 		case "messages":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
-			data, err := ec.unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
+			data, err := ec.unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39597,14 +39954,14 @@ func (ec *executionContext) unmarshalInputCreateLlmSceneInput(ctx context.Contex
 			it.Description = data
 		case "config":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-			data, err := ec.unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
+			data, err := ec.unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Config = data
 		case "messages":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
-			data, err := ec.unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
+			data, err := ec.unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39618,7 +39975,7 @@ func (ec *executionContext) unmarshalInputCreateLlmSceneInput(ctx context.Contex
 			it.Timeout = data
 		case "responseFormat":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responseFormat"))
-			data, err := ec.unmarshalNLlmResponseFormatInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatInput(ctx, v)
+			data, err := ec.unmarshalNLlmResponseFormatInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39676,14 +40033,14 @@ func (ec *executionContext) unmarshalInputCreateStrategyInput(ctx context.Contex
 			it.Code = data
 		case "params":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("params"))
-			data, err := ec.unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx, v)
+			data, err := ec.unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Params = data
 		case "signals":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("signals"))
-			data, err := ec.unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx, v)
+			data, err := ec.unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39824,7 +40181,7 @@ func (ec *executionContext) unmarshalInputEstimateOrderInput(ctx context.Context
 			it.Symbol = data
 		case "side":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("side"))
-			data, err := ec.unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx, v)
+			data, err := ec.unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39838,7 +40195,7 @@ func (ec *executionContext) unmarshalInputEstimateOrderInput(ctx context.Context
 			it.IsBuy = data
 		case "orderType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderType"))
-			data, err := ec.unmarshalNOrderType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
+			data, err := ec.unmarshalNOrderType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39889,7 +40246,7 @@ func (ec *executionContext) unmarshalInputExtractCfgInput(ctx context.Context, o
 		switch k {
 		case "plans":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("plans"))
-			data, err := ec.unmarshalNExtractPlanInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInputᚄ(ctx, v)
+			data, err := ec.unmarshalNExtractPlanInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39933,7 +40290,7 @@ func (ec *executionContext) unmarshalInputExtractFieldInput(ctx context.Context,
 			it.Key = data
 		case "rule":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rule"))
-			data, err := ec.unmarshalNExtractRuleInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleInput(ctx, v)
+			data, err := ec.unmarshalNExtractRuleInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -39977,7 +40334,7 @@ func (ec *executionContext) unmarshalInputExtractPlanInput(ctx context.Context, 
 			it.MatchRegex = data
 		case "fields":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("fields"))
-			data, err := ec.unmarshalNExtractFieldInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInputᚄ(ctx, v)
+			data, err := ec.unmarshalNExtractFieldInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40014,7 +40371,7 @@ func (ec *executionContext) unmarshalInputExtractRuleInput(ctx context.Context, 
 		switch k {
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType(ctx, v)
+			data, err := ec.unmarshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40185,7 +40542,7 @@ func (ec *executionContext) unmarshalInputGetMarketInput(ctx context.Context, ob
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40229,14 +40586,14 @@ func (ec *executionContext) unmarshalInputGetMarketsInput(ctx context.Context, o
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Exchange = data
 		case "marketTypes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("marketTypes"))
-			data, err := ec.unmarshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketTypeᚄ(ctx, v)
+			data, err := ec.unmarshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketTypeᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40440,7 +40797,7 @@ func (ec *executionContext) unmarshalInputLlmResponseFormatInput(ctx context.Con
 			it.Type = data
 		case "jsonSchema":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jsonSchema"))
-			data, err := ec.unmarshalOLlmResponseFormatJsonSchemaInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchemaInput(ctx, v)
+			data, err := ec.unmarshalOLlmResponseFormatJsonSchemaInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchemaInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40542,7 +40899,7 @@ func (ec *executionContext) unmarshalInputMutationAccountInput(ctx context.Conte
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"id", "exchange", "name", "apiKey", "apiSecret", "passphrase", "tags", "status", "algorithm", "accountType"}
+	fieldsInOrder := [...]string{"id", "exchange", "name", "apiKey", "apiSecret", "passphrase", "tags", "status", "algorithm", "accountType", "multiBotMode"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -40558,7 +40915,7 @@ func (ec *executionContext) unmarshalInputMutationAccountInput(ctx context.Conte
 			it.ID = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40600,25 +40957,32 @@ func (ec *executionContext) unmarshalInputMutationAccountInput(ctx context.Conte
 			it.Tags = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx, v)
+			data, err := ec.unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Status = data
 		case "algorithm":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("algorithm"))
-			data, err := ec.unmarshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx, v)
+			data, err := ec.unmarshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Algorithm = data
 		case "accountType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("accountType"))
-			data, err := ec.unmarshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx, v)
+			data, err := ec.unmarshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.AccountType = data
+		case "multiBotMode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("multiBotMode"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MultiBotMode = data
 		}
 	}
 	return it, nil
@@ -40658,7 +41022,7 @@ func (ec *executionContext) unmarshalInputPlaceOrderInput(ctx context.Context, o
 			it.Symbol = data
 		case "side":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("side"))
-			data, err := ec.unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx, v)
+			data, err := ec.unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40672,7 +41036,7 @@ func (ec *executionContext) unmarshalInputPlaceOrderInput(ctx context.Context, o
 			it.IsBuy = data
 		case "orderType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderType"))
-			data, err := ec.unmarshalNOrderType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
+			data, err := ec.unmarshalNOrderType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40744,7 +41108,7 @@ func (ec *executionContext) unmarshalInputQueryAccountEventFlowInput(ctx context
 			it.AccountID = data
 		case "stream":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stream"))
-			data, err := ec.unmarshalNEventFlowStream2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventFlowStream(ctx, v)
+			data, err := ec.unmarshalNEventFlowStream2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventFlowStream(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40832,7 +41196,7 @@ func (ec *executionContext) unmarshalInputQueryAccountMetricsInput(ctx context.C
 			it.AccountID = data
 		case "dimension":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dimension"))
-			data, err := ec.unmarshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx, v)
+			data, err := ec.unmarshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40911,7 +41275,7 @@ func (ec *executionContext) unmarshalInputQueryAccountsInput(ctx context.Context
 			it.Name = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40925,7 +41289,7 @@ func (ec *executionContext) unmarshalInputQueryAccountsInput(ctx context.Context
 			it.Tags = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx, v)
+			data, err := ec.unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40976,7 +41340,7 @@ func (ec *executionContext) unmarshalInputQueryBalanceInput(ctx context.Context,
 			it.AccountID = data
 		case "walletType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("walletType"))
-			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
+			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -40997,7 +41361,7 @@ func (ec *executionContext) unmarshalInputQueryBalanceInput(ctx context.Context,
 			it.WithNotional = data
 		case "source":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
-			data, err := ec.unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx, v)
+			data, err := ec.unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41034,7 +41398,7 @@ func (ec *executionContext) unmarshalInputQueryBotBalanceInput(ctx context.Conte
 			it.BotID = data
 		case "walletType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("walletType"))
-			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
+			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41085,7 +41449,7 @@ func (ec *executionContext) unmarshalInputQueryBotLedgersInput(ctx context.Conte
 			it.BotID = data
 		case "walletType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("walletType"))
-			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
+			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41222,7 +41586,7 @@ func (ec *executionContext) unmarshalInputQueryBotMetricsInput(ctx context.Conte
 			it.BotID = data
 		case "dimension":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dimension"))
-			data, err := ec.unmarshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx, v)
+			data, err := ec.unmarshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41287,14 +41651,14 @@ func (ec *executionContext) unmarshalInputQueryBotOrdersInput(ctx context.Contex
 			it.Symbol = data
 		case "orderType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderType"))
-			data, err := ec.unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
+			data, err := ec.unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.OrderType = data
 		case "orderSource":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderSource"))
-			data, err := ec.unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx, v)
+			data, err := ec.unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41352,7 +41716,7 @@ func (ec *executionContext) unmarshalInputQueryBotPositionsInput(ctx context.Con
 			it.BotID = data
 		case "marketType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("marketType"))
-			data, err := ec.unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, v)
+			data, err := ec.unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41396,7 +41760,7 @@ func (ec *executionContext) unmarshalInputQueryBotSignalFlowInput(ctx context.Co
 			it.BotID = data
 		case "signalType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("signalType"))
-			data, err := ec.unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
+			data, err := ec.unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41505,21 +41869,21 @@ func (ec *executionContext) unmarshalInputQueryBotsInput(ctx context.Context, ob
 			it.StrategyID = data
 		case "mode":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
-			data, err := ec.unmarshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx, v)
+			data, err := ec.unmarshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Mode = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Exchange = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOBotStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx, v)
+			data, err := ec.unmarshalOBotStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41584,14 +41948,14 @@ func (ec *executionContext) unmarshalInputQueryCalendarsInput(ctx context.Contex
 			it.DateID = data
 		case "source":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
-			data, err := ec.unmarshalOCalendarSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx, v)
+			data, err := ec.unmarshalOCalendarSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Source = data
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalOCalendarType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx, v)
+			data, err := ec.unmarshalOCalendarType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41677,7 +42041,7 @@ func (ec *executionContext) unmarshalInputQueryChannelsInput(ctx context.Context
 			it.Source = data
 		case "catalog":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("catalog"))
-			data, err := ec.unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
+			data, err := ec.unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41728,14 +42092,14 @@ func (ec *executionContext) unmarshalInputQueryDatasourcesInput(ctx context.Cont
 			it.Offset = data
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
+			data, err := ec.unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Type = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41807,14 +42171,14 @@ func (ec *executionContext) unmarshalInputQueryDocumentsInput(ctx context.Contex
 			it.Provider = data
 		case "catalog":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("catalog"))
-			data, err := ec.unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
+			data, err := ec.unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Catalog = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalODocumentStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx, v)
+			data, err := ec.unmarshalODocumentStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41930,7 +42294,7 @@ func (ec *executionContext) unmarshalInputQueryFundingRateInput(ctx context.Cont
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -41974,7 +42338,7 @@ func (ec *executionContext) unmarshalInputQueryFundingRatesInput(ctx context.Con
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42039,7 +42403,7 @@ func (ec *executionContext) unmarshalInputQueryIndexComponentInput(ctx context.C
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42083,7 +42447,7 @@ func (ec *executionContext) unmarshalInputQueryIndexPriceInput(ctx context.Conte
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42134,7 +42498,7 @@ func (ec *executionContext) unmarshalInputQueryKlineInput(ctx context.Context, o
 			it.Symbol = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42199,7 +42563,7 @@ func (ec *executionContext) unmarshalInputQueryLedgersInput(ctx context.Context,
 			it.AccountID = data
 		case "walletType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("walletType"))
-			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
+			data, err := ec.unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42241,7 +42605,7 @@ func (ec *executionContext) unmarshalInputQueryLedgersInput(ctx context.Context,
 			it.Page = data
 		case "source":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
-			data, err := ec.unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx, v)
+			data, err := ec.unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42271,7 +42635,7 @@ func (ec *executionContext) unmarshalInputQueryLeverageBracketInput(ctx context.
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42417,7 +42781,7 @@ func (ec *executionContext) unmarshalInputQueryOpenInterestInput(ctx context.Con
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42461,7 +42825,7 @@ func (ec *executionContext) unmarshalInputQueryOrderBookInput(ctx context.Contex
 		switch k {
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42519,14 +42883,14 @@ func (ec *executionContext) unmarshalInputQueryOrdersInput(ctx context.Context, 
 			it.Symbol = data
 		case "orderType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderType"))
-			data, err := ec.unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
+			data, err := ec.unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.OrderType = data
 		case "orderSource":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("orderSource"))
-			data, err := ec.unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx, v)
+			data, err := ec.unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42598,7 +42962,7 @@ func (ec *executionContext) unmarshalInputQueryPositionsInput(ctx context.Contex
 			it.AccountID = data
 		case "marketType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("marketType"))
-			data, err := ec.unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, v)
+			data, err := ec.unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42612,7 +42976,7 @@ func (ec *executionContext) unmarshalInputQueryPositionsInput(ctx context.Contex
 			it.Symbol = data
 		case "source":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("source"))
-			data, err := ec.unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx, v)
+			data, err := ec.unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42714,7 +43078,7 @@ func (ec *executionContext) unmarshalInputQueryStrategiesInput(ctx context.Conte
 			it.Version = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx, v)
+			data, err := ec.unmarshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42765,7 +43129,7 @@ func (ec *executionContext) unmarshalInputRunBacktestInput(ctx context.Context, 
 		switch k {
 		case "strategy":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("strategy"))
-			data, err := ec.unmarshalOStrategyInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyInput(ctx, v)
+			data, err := ec.unmarshalOStrategyInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42807,7 +43171,7 @@ func (ec *executionContext) unmarshalInputRunBacktestInput(ctx context.Context, 
 			it.EndTime = data
 		case "symbols":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("symbols"))
-			data, err := ec.unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx, v)
+			data, err := ec.unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42821,7 +43185,7 @@ func (ec *executionContext) unmarshalInputRunBacktestInput(ctx context.Context, 
 			it.Params = data
 		case "signals":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("signals"))
-			data, err := ec.unmarshalOBacktestSignalInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInputᚄ(ctx, v)
+			data, err := ec.unmarshalOBacktestSignalInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42872,7 +43236,7 @@ func (ec *executionContext) unmarshalInputSceneTestInput(ctx context.Context, ob
 			it.ByPromptID = data
 		case "byPrompt":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("byPrompt"))
-			data, err := ec.unmarshalOSceneTestPromptInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestPromptInput(ctx, v)
+			data, err := ec.unmarshalOSceneTestPromptInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestPromptInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -42937,14 +43301,14 @@ func (ec *executionContext) unmarshalInputSceneTestPromptInput(ctx context.Conte
 			it.Providers = data
 		case "config":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-			data, err := ec.unmarshalNLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
+			data, err := ec.unmarshalNLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Config = data
 		case "messages":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
-			data, err := ec.unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
+			data, err := ec.unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43032,14 +43396,14 @@ func (ec *executionContext) unmarshalInputSignalDefinitionInput(ctx context.Cont
 			it.ID = data
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalNSignalType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
+			data, err := ec.unmarshalNSignalType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Type = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43060,7 +43424,7 @@ func (ec *executionContext) unmarshalInputSignalDefinitionInput(ctx context.Cont
 			it.Props = data
 		case "scope":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scope"))
-			data, err := ec.unmarshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope(ctx, v)
+			data, err := ec.unmarshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43104,14 +43468,14 @@ func (ec *executionContext) unmarshalInputStrategyInput(ctx context.Context, obj
 			it.Code = data
 		case "params":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("params"))
-			data, err := ec.unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx, v)
+			data, err := ec.unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Params = data
 		case "signals":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("signals"))
-			data, err := ec.unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx, v)
+			data, err := ec.unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43199,7 +43563,7 @@ func (ec *executionContext) unmarshalInputStreamInput(ctx context.Context, obj a
 		switch k {
 		case "type":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
-			data, err := ec.unmarshalNStreamType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType(ctx, v)
+			data, err := ec.unmarshalNStreamType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43213,7 +43577,7 @@ func (ec *executionContext) unmarshalInputStreamInput(ctx context.Context, obj a
 			it.Account = data
 		case "exchange":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
-			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			data, err := ec.unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43287,7 +43651,7 @@ func (ec *executionContext) unmarshalInputTestExtractInput(ctx context.Context, 
 		switch k {
 		case "extractCfg":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("extractCfg"))
-			data, err := ec.unmarshalNExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx, v)
+			data, err := ec.unmarshalNExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43338,14 +43702,14 @@ func (ec *executionContext) unmarshalInputUpdateAccountRiskConfigInput(ctx conte
 			it.MaxOrderSize = data
 		case "maxPositionPerSymbol":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxPositionPerSymbol"))
-			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
+			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.MaxPositionPerSymbol = data
 		case "maxDailyLoss":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxDailyLoss"))
-			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
+			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43373,14 +43737,14 @@ func (ec *executionContext) unmarshalInputUpdateAccountRiskConfigInput(ctx conte
 			it.MinMaintenanceMarginRatio = data
 		case "maxTotalNetExposure":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxTotalNetExposure"))
-			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
+			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.MaxTotalNetExposure = data
 		case "maxTotalGrossExposure":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxTotalGrossExposure"))
-			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
+			data, err := ec.unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43524,14 +43888,14 @@ func (ec *executionContext) unmarshalInputUpdateChannelInput(ctx context.Context
 			it.Source = data
 		case "catalog":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("catalog"))
-			data, err := ec.unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
+			data, err := ec.unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Catalog = data
 		case "extractCfg":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("extractCfg"))
-			data, err := ec.unmarshalOExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx, v)
+			data, err := ec.unmarshalOExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43589,7 +43953,7 @@ func (ec *executionContext) unmarshalInputUpdateLlmPromptInput(ctx context.Conte
 			it.Weight = data
 		case "variants":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variants"))
-			data, err := ec.unmarshalOStringListInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStringListInput(ctx, v)
+			data, err := ec.unmarshalOStringListInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStringListInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43705,14 +44069,14 @@ func (ec *executionContext) unmarshalInputUpdateLlmSceneInput(ctx context.Contex
 			it.Description = data
 		case "config":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("config"))
-			data, err := ec.unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
+			data, err := ec.unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Config = data
 		case "messages":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messages"))
-			data, err := ec.unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
+			data, err := ec.unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43726,7 +44090,7 @@ func (ec *executionContext) unmarshalInputUpdateLlmSceneInput(ctx context.Contex
 			it.Timeout = data
 		case "responseFormat":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("responseFormat"))
-			data, err := ec.unmarshalNLlmResponseFormatInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatInput(ctx, v)
+			data, err := ec.unmarshalNLlmResponseFormatInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatInput(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -43914,14 +44278,14 @@ func (ec *executionContext) unmarshalInputUpdateStrategyInput(ctx context.Contex
 			it.Code = data
 		case "params":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("params"))
-			data, err := ec.unmarshalOStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx, v)
+			data, err := ec.unmarshalOStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Params = data
 		case "signals":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("signals"))
-			data, err := ec.unmarshalOSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx, v)
+			data, err := ec.unmarshalOSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -44014,6 +44378,13 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "accountType":
 			out.Values[i] = ec._Account_accountType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "parentAccountId":
+			out.Values[i] = ec._Account_parentAccountId(ctx, field, obj)
+		case "multiBotMode":
+			out.Values[i] = ec._Account_multiBotMode(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -44613,6 +44984,65 @@ func (ec *executionContext) _AccountStreamAsset(ctx context.Context, sel ast.Sel
 			}
 		case "updatedTs":
 			out.Values[i] = ec._AccountStreamAsset_updatedTs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var accountUnallocatedAssetImplementors = []string{"AccountUnallocatedAsset"}
+
+func (ec *executionContext) _AccountUnallocatedAsset(ctx context.Context, sel ast.SelectionSet, obj *model.AccountUnallocatedAsset) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, accountUnallocatedAssetImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AccountUnallocatedAsset")
+		case "asset":
+			out.Values[i] = ec._AccountUnallocatedAsset_asset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "walletType":
+			out.Values[i] = ec._AccountUnallocatedAsset_walletType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "parentTotal":
+			out.Values[i] = ec._AccountUnallocatedAsset_parentTotal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subsAllocated":
+			out.Values[i] = ec._AccountUnallocatedAsset_subsAllocated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unallocated":
+			out.Values[i] = ec._AccountUnallocatedAsset_unallocated(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -50536,6 +50966,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "AccountUnallocatedAssets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_AccountUnallocatedAssets(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "Calendars":
 			field := field
 
@@ -53334,15 +53786,15 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNAccount2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount(ctx context.Context, sel ast.SelectionSet, v model.Account) graphql.Marshaler {
+func (ec *executionContext) marshalNAccount2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount(ctx context.Context, sel ast.SelectionSet, v model.Account) graphql.Marshaler {
 	return ec._Account(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Account) graphql.Marshaler {
+func (ec *executionContext) marshalNAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Account) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount(ctx, sel, v[i])
+		return ec.marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53354,7 +53806,7 @@ func (ec *executionContext) marshalNAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccount(ctx context.Context, sel ast.SelectionSet, v *model.Account) graphql.Marshaler {
+func (ec *executionContext) marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccount(ctx context.Context, sel ast.SelectionSet, v *model.Account) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53364,7 +53816,7 @@ func (ec *executionContext) marshalNAccount2ᚖgithubᚗcomᚋwangliang139ᚋllt
 	return ec._Account(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAccountConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountConfig(ctx context.Context, sel ast.SelectionSet, v *model.AccountConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountConfig(ctx context.Context, sel ast.SelectionSet, v *model.AccountConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53374,11 +53826,11 @@ func (ec *executionContext) marshalNAccountConfig2ᚖgithubᚗcomᚋwangliang139
 	return ec._AccountConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAccountEventFlowConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountEventFlowConnection(ctx context.Context, sel ast.SelectionSet, v model.AccountEventFlowConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountEventFlowConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountEventFlowConnection(ctx context.Context, sel ast.SelectionSet, v model.AccountEventFlowConnection) graphql.Marshaler {
 	return ec._AccountEventFlowConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAccountEventFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountEventFlowConnection(ctx context.Context, sel ast.SelectionSet, v *model.AccountEventFlowConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountEventFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountEventFlowConnection(ctx context.Context, sel ast.SelectionSet, v *model.AccountEventFlowConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53388,11 +53840,11 @@ func (ec *executionContext) marshalNAccountEventFlowConnection2ᚖgithubᚗcom�
 	return ec._AccountEventFlowConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNAccountMetrics2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMetrics(ctx context.Context, sel ast.SelectionSet, v model.AccountMetrics) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountMetrics2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMetrics(ctx context.Context, sel ast.SelectionSet, v model.AccountMetrics) graphql.Marshaler {
 	return ec._AccountMetrics(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAccountMetrics2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMetrics(ctx context.Context, sel ast.SelectionSet, v *model.AccountMetrics) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountMetrics2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMetrics(ctx context.Context, sel ast.SelectionSet, v *model.AccountMetrics) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53402,21 +53854,21 @@ func (ec *executionContext) marshalNAccountMetrics2ᚖgithubᚗcomᚋwangliang13
 	return ec._AccountMetrics(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNAccountStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, v any) (model.AccountStatus, error) {
+func (ec *executionContext) unmarshalNAccountStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, v any) (model.AccountStatus, error) {
 	var res model.AccountStatus
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAccountStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, sel ast.SelectionSet, v model.AccountStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, sel ast.SelectionSet, v model.AccountStatus) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AccountStreamAsset) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AccountStreamAsset) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNAccountStreamAsset2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAsset(ctx, sel, v[i])
+		return ec.marshalNAccountStreamAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAsset(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53428,7 +53880,7 @@ func (ec *executionContext) marshalNAccountStreamAsset2ᚕᚖgithubᚗcomᚋwang
 	return ret
 }
 
-func (ec *executionContext) marshalNAccountStreamAsset2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAsset(ctx context.Context, sel ast.SelectionSet, v *model.AccountStreamAsset) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountStreamAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamAsset(ctx context.Context, sel ast.SelectionSet, v *model.AccountStreamAsset) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53438,31 +53890,57 @@ func (ec *executionContext) marshalNAccountStreamAsset2ᚖgithubᚗcomᚋwanglia
 	return ec._AccountStreamAsset(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType(ctx context.Context, v any) (model.AccountStreamUpdateType, error) {
+func (ec *executionContext) unmarshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType(ctx context.Context, v any) (model.AccountStreamUpdateType, error) {
 	var res model.AccountStreamUpdateType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType(ctx context.Context, sel ast.SelectionSet, v model.AccountStreamUpdateType) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountStreamUpdateType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStreamUpdateType(ctx context.Context, sel ast.SelectionSet, v model.AccountStreamUpdateType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNAccountType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, v any) (model.AccountType, error) {
+func (ec *executionContext) unmarshalNAccountType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, v any) (model.AccountType, error) {
 	var res model.AccountType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAccountType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, sel ast.SelectionSet, v model.AccountType) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, sel ast.SelectionSet, v model.AccountType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNAccountsConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountsConnection(ctx context.Context, sel ast.SelectionSet, v model.AccountsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountUnallocatedAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountUnallocatedAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AccountUnallocatedAsset) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAccountUnallocatedAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountUnallocatedAsset(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAccountUnallocatedAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountUnallocatedAsset(ctx context.Context, sel ast.SelectionSet, v *model.AccountUnallocatedAsset) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AccountUnallocatedAsset(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAccountsConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountsConnection(ctx context.Context, sel ast.SelectionSet, v model.AccountsConnection) graphql.Marshaler {
 	return ec._AccountsConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAccountsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountsConnection(ctx context.Context, sel ast.SelectionSet, v *model.AccountsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountsConnection(ctx context.Context, sel ast.SelectionSet, v *model.AccountsConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53472,25 +53950,25 @@ func (ec *executionContext) marshalNAccountsConnection2ᚖgithubᚗcomᚋwanglia
 	return ec._AccountsConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency(ctx context.Context, v any) (model.AlertFrequency, error) {
+func (ec *executionContext) unmarshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency(ctx context.Context, v any) (model.AlertFrequency, error) {
 	var res model.AlertFrequency
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency(ctx context.Context, sel ast.SelectionSet, v model.AlertFrequency) graphql.Marshaler {
+func (ec *executionContext) marshalNAlertFrequency2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertFrequency(ctx context.Context, sel ast.SelectionSet, v model.AlertFrequency) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNAlertItem2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem(ctx context.Context, sel ast.SelectionSet, v model.AlertItem) graphql.Marshaler {
+func (ec *executionContext) marshalNAlertItem2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem(ctx context.Context, sel ast.SelectionSet, v model.AlertItem) graphql.Marshaler {
 	return ec._AlertItem(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNAlertItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AlertItem) graphql.Marshaler {
+func (ec *executionContext) marshalNAlertItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AlertItem) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem(ctx, sel, v[i])
+		return ec.marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53502,7 +53980,7 @@ func (ec *executionContext) marshalNAlertItem2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem(ctx context.Context, sel ast.SelectionSet, v *model.AlertItem) graphql.Marshaler {
+func (ec *executionContext) marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItem(ctx context.Context, sel ast.SelectionSet, v *model.AlertItem) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53512,51 +53990,51 @@ func (ec *executionContext) marshalNAlertItem2ᚖgithubᚗcomᚋwangliang139ᚋl
 	return ec._AlertItem(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNAlertItemInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemInput(ctx context.Context, v any) (model.AlertItemInput, error) {
+func (ec *executionContext) unmarshalNAlertItemInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertItemInput(ctx context.Context, v any) (model.AlertItemInput, error) {
 	res, err := ec.unmarshalInputAlertItemInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNAlertStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertStatus(ctx context.Context, v any) (model.AlertStatus, error) {
+func (ec *executionContext) unmarshalNAlertStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertStatus(ctx context.Context, v any) (model.AlertStatus, error) {
 	var res model.AlertStatus
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAlertStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertStatus(ctx context.Context, sel ast.SelectionSet, v model.AlertStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNAlertStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertStatus(ctx context.Context, sel ast.SelectionSet, v model.AlertStatus) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNAlertType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType(ctx context.Context, v any) (model.AlertType, error) {
+func (ec *executionContext) unmarshalNAlertType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType(ctx context.Context, v any) (model.AlertType, error) {
 	var res model.AlertType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAlertType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType(ctx context.Context, sel ast.SelectionSet, v model.AlertType) graphql.Marshaler {
+func (ec *executionContext) marshalNAlertType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlertType(ctx context.Context, sel ast.SelectionSet, v model.AlertType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNAlgoType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlgoType(ctx context.Context, v any) (model.AlgoType, error) {
+func (ec *executionContext) unmarshalNAlgoType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlgoType(ctx context.Context, v any) (model.AlgoType, error) {
 	var res model.AlgoType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAlgoType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAlgoType(ctx context.Context, sel ast.SelectionSet, v model.AlgoType) graphql.Marshaler {
+func (ec *executionContext) marshalNAlgoType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAlgoType(ctx context.Context, sel ast.SelectionSet, v model.AlgoType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNArchiveDocumentInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐArchiveDocumentInput(ctx context.Context, v any) (model.ArchiveDocumentInput, error) {
+func (ec *executionContext) unmarshalNArchiveDocumentInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐArchiveDocumentInput(ctx context.Context, v any) (model.ArchiveDocumentInput, error) {
 	res, err := ec.unmarshalInputArchiveDocumentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Asset) graphql.Marshaler {
+func (ec *executionContext) marshalNAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Asset) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNAsset2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAsset(ctx, sel, v[i])
+		return ec.marshalNAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAsset(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53568,7 +54046,7 @@ func (ec *executionContext) marshalNAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋll
 	return ret
 }
 
-func (ec *executionContext) marshalNAsset2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAsset(ctx context.Context, sel ast.SelectionSet, v *model.Asset) graphql.Marshaler {
+func (ec *executionContext) marshalNAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAsset(ctx context.Context, sel ast.SelectionSet, v *model.Asset) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53578,22 +54056,22 @@ func (ec *executionContext) marshalNAsset2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._Asset(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, v any) (model.AuthAlgorithm, error) {
+func (ec *executionContext) unmarshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, v any) (model.AuthAlgorithm, error) {
 	var res model.AuthAlgorithm
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, sel ast.SelectionSet, v model.AuthAlgorithm) graphql.Marshaler {
+func (ec *executionContext) marshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, sel ast.SelectionSet, v model.AuthAlgorithm) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNBacktestAssetInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInput(ctx context.Context, v any) (*model.BacktestAssetInput, error) {
+func (ec *executionContext) unmarshalNBacktestAssetInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInput(ctx context.Context, v any) (*model.BacktestAssetInput, error) {
 	res, err := ec.unmarshalInputBacktestAssetInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNBacktestResultData2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestResultData(ctx context.Context, sel ast.SelectionSet, v *model.BacktestResultData) graphql.Marshaler {
+func (ec *executionContext) marshalNBacktestResultData2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestResultData(ctx context.Context, sel ast.SelectionSet, v *model.BacktestResultData) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53603,19 +54081,19 @@ func (ec *executionContext) marshalNBacktestResultData2ᚖgithubᚗcomᚋwanglia
 	return ec._BacktestResultData(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNBacktestSignalInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInput(ctx context.Context, v any) (*model.BacktestSignalInput, error) {
+func (ec *executionContext) unmarshalNBacktestSignalInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInput(ctx context.Context, v any) (*model.BacktestSignalInput, error) {
 	res, err := ec.unmarshalInputBacktestSignalInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx context.Context, v any) ([]*model.BacktestSymbolInput, error) {
+func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx context.Context, v any) ([]*model.BacktestSymbolInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]*model.BacktestSymbolInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNBacktestSymbolInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNBacktestSymbolInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -53623,7 +54101,7 @@ func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋw
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInput(ctx context.Context, v any) (*model.BacktestSymbolInput, error) {
+func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInput(ctx context.Context, v any) (*model.BacktestSymbolInput, error) {
 	res, err := ec.unmarshalInputBacktestSymbolInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
@@ -53644,15 +54122,15 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalNBot2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx context.Context, sel ast.SelectionSet, v model.Bot) graphql.Marshaler {
+func (ec *executionContext) marshalNBot2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx context.Context, sel ast.SelectionSet, v model.Bot) graphql.Marshaler {
 	return ec._Bot(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBot2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Bot) graphql.Marshaler {
+func (ec *executionContext) marshalNBot2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Bot) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx, sel, v[i])
+		return ec.marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53664,7 +54142,7 @@ func (ec *executionContext) marshalNBot2ᚕᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ret
 }
 
-func (ec *executionContext) marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx context.Context, sel ast.SelectionSet, v *model.Bot) graphql.Marshaler {
+func (ec *executionContext) marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx context.Context, sel ast.SelectionSet, v *model.Bot) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53674,11 +54152,11 @@ func (ec *executionContext) marshalNBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑt
 	return ec._Bot(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotEquityConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotEquityConnection(ctx context.Context, sel ast.SelectionSet, v model.BotEquityConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotEquityConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotEquityConnection(ctx context.Context, sel ast.SelectionSet, v model.BotEquityConnection) graphql.Marshaler {
 	return ec._BotEquityConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotEquityConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotEquityConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotEquityConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotEquityConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotEquityConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotEquityConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53688,11 +54166,11 @@ func (ec *executionContext) marshalNBotEquityConnection2ᚖgithubᚗcomᚋwangli
 	return ec._BotEquityConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotLedgerConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLedgerConnection(ctx context.Context, sel ast.SelectionSet, v model.BotLedgerConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotLedgerConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLedgerConnection(ctx context.Context, sel ast.SelectionSet, v model.BotLedgerConnection) graphql.Marshaler {
 	return ec._BotLedgerConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotLedgerConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLedgerConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotLedgerConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotLedgerConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLedgerConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotLedgerConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53702,11 +54180,11 @@ func (ec *executionContext) marshalNBotLedgerConnection2ᚖgithubᚗcomᚋwangli
 	return ec._BotLedgerConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotLog) graphql.Marshaler {
+func (ec *executionContext) marshalNBotLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotLog) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBotLog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLog(ctx, sel, v[i])
+		return ec.marshalNBotLog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLog(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53718,7 +54196,7 @@ func (ec *executionContext) marshalNBotLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋl
 	return ret
 }
 
-func (ec *executionContext) marshalNBotLog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLog(ctx context.Context, sel ast.SelectionSet, v *model.BotLog) graphql.Marshaler {
+func (ec *executionContext) marshalNBotLog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLog(ctx context.Context, sel ast.SelectionSet, v *model.BotLog) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53728,11 +54206,11 @@ func (ec *executionContext) marshalNBotLog2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._BotLog(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotLogsConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogsConnection(ctx context.Context, sel ast.SelectionSet, v model.BotLogsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotLogsConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogsConnection(ctx context.Context, sel ast.SelectionSet, v model.BotLogsConnection) graphql.Marshaler {
 	return ec._BotLogsConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotLogsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogsConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotLogsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotLogsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotLogsConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotLogsConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53742,11 +54220,11 @@ func (ec *executionContext) marshalNBotLogsConnection2ᚖgithubᚗcomᚋwanglian
 	return ec._BotLogsConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotMetrics2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMetrics(ctx context.Context, sel ast.SelectionSet, v model.BotMetrics) graphql.Marshaler {
+func (ec *executionContext) marshalNBotMetrics2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMetrics(ctx context.Context, sel ast.SelectionSet, v model.BotMetrics) graphql.Marshaler {
 	return ec._BotMetrics(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotMetrics2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMetrics(ctx context.Context, sel ast.SelectionSet, v *model.BotMetrics) graphql.Marshaler {
+func (ec *executionContext) marshalNBotMetrics2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMetrics(ctx context.Context, sel ast.SelectionSet, v *model.BotMetrics) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53756,21 +54234,21 @@ func (ec *executionContext) marshalNBotMetrics2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._BotMetrics(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNBotMode2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, v any) (model.BotMode, error) {
+func (ec *executionContext) unmarshalNBotMode2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, v any) (model.BotMode, error) {
 	var res model.BotMode
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNBotMode2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, sel ast.SelectionSet, v model.BotMode) graphql.Marshaler {
+func (ec *executionContext) marshalNBotMode2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, sel ast.SelectionSet, v model.BotMode) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNBotOrdersConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotOrdersConnection(ctx context.Context, sel ast.SelectionSet, v model.BotOrdersConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotOrdersConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotOrdersConnection(ctx context.Context, sel ast.SelectionSet, v model.BotOrdersConnection) graphql.Marshaler {
 	return ec._BotOrdersConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotOrdersConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotOrdersConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotOrdersConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotOrdersConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53780,11 +54258,11 @@ func (ec *executionContext) marshalNBotOrdersConnection2ᚖgithubᚗcomᚋwangli
 	return ec._BotOrdersConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotPortfolioAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotPortfolioAsset) graphql.Marshaler {
+func (ec *executionContext) marshalNBotPortfolioAsset2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotPortfolioAsset) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBotPortfolioAsset2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAsset(ctx, sel, v[i])
+		return ec.marshalNBotPortfolioAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAsset(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53796,7 +54274,7 @@ func (ec *executionContext) marshalNBotPortfolioAsset2ᚕᚖgithubᚗcomᚋwangl
 	return ret
 }
 
-func (ec *executionContext) marshalNBotPortfolioAsset2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAsset(ctx context.Context, sel ast.SelectionSet, v *model.BotPortfolioAsset) graphql.Marshaler {
+func (ec *executionContext) marshalNBotPortfolioAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioAsset(ctx context.Context, sel ast.SelectionSet, v *model.BotPortfolioAsset) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53806,11 +54284,11 @@ func (ec *executionContext) marshalNBotPortfolioAsset2ᚖgithubᚗcomᚋwanglian
 	return ec._BotPortfolioAsset(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotPortfolioPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPositionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotPortfolioPosition) graphql.Marshaler {
+func (ec *executionContext) marshalNBotPortfolioPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPositionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotPortfolioPosition) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBotPortfolioPosition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPosition(ctx, sel, v[i])
+		return ec.marshalNBotPortfolioPosition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPosition(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53822,7 +54300,7 @@ func (ec *executionContext) marshalNBotPortfolioPosition2ᚕᚖgithubᚗcomᚋwa
 	return ret
 }
 
-func (ec *executionContext) marshalNBotPortfolioPosition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPosition(ctx context.Context, sel ast.SelectionSet, v *model.BotPortfolioPosition) graphql.Marshaler {
+func (ec *executionContext) marshalNBotPortfolioPosition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolioPosition(ctx context.Context, sel ast.SelectionSet, v *model.BotPortfolioPosition) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53832,11 +54310,11 @@ func (ec *executionContext) marshalNBotPortfolioPosition2ᚖgithubᚗcomᚋwangl
 	return ec._BotPortfolioPosition(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotSignalFlowConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalFlowConnection(ctx context.Context, sel ast.SelectionSet, v model.BotSignalFlowConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalFlowConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalFlowConnection(ctx context.Context, sel ast.SelectionSet, v model.BotSignalFlowConnection) graphql.Marshaler {
 	return ec._BotSignalFlowConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotSignalFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalFlowConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalFlowConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalFlowConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalFlowConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalFlowConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53846,11 +54324,11 @@ func (ec *executionContext) marshalNBotSignalFlowConnection2ᚖgithubᚗcomᚋwa
 	return ec._BotSignalFlowConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotSignalRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecordᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotSignalRecord) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecordᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotSignalRecord) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBotSignalRecord2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecord(ctx, sel, v[i])
+		return ec.marshalNBotSignalRecord2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecord(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53862,7 +54340,7 @@ func (ec *executionContext) marshalNBotSignalRecord2ᚕᚖgithubᚗcomᚋwanglia
 	return ret
 }
 
-func (ec *executionContext) marshalNBotSignalRecord2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecord(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalRecord) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalRecord2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalRecord(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalRecord) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53872,11 +54350,11 @@ func (ec *executionContext) marshalNBotSignalRecord2ᚖgithubᚗcomᚋwangliang1
 	return ec._BotSignalRecord(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotSignalStat2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStatᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotSignalStat) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalStat2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStatᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BotSignalStat) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBotSignalStat2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStat(ctx, sel, v[i])
+		return ec.marshalNBotSignalStat2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStat(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53888,7 +54366,7 @@ func (ec *executionContext) marshalNBotSignalStat2ᚕᚖgithubᚗcomᚋwangliang
 	return ret
 }
 
-func (ec *executionContext) marshalNBotSignalStat2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStat(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalStat) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalStat2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStat(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalStat) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53898,11 +54376,11 @@ func (ec *executionContext) marshalNBotSignalStat2ᚖgithubᚗcomᚋwangliang139
 	return ec._BotSignalStat(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBotSignalStats2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStats(ctx context.Context, sel ast.SelectionSet, v model.BotSignalStats) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalStats2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStats(ctx context.Context, sel ast.SelectionSet, v model.BotSignalStats) graphql.Marshaler {
 	return ec._BotSignalStats(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotSignalStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStats(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalStats) graphql.Marshaler {
+func (ec *executionContext) marshalNBotSignalStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotSignalStats(ctx context.Context, sel ast.SelectionSet, v *model.BotSignalStats) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53912,21 +54390,21 @@ func (ec *executionContext) marshalNBotSignalStats2ᚖgithubᚗcomᚋwangliang13
 	return ec._BotSignalStats(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNBotStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, v any) (model.BotStatus, error) {
+func (ec *executionContext) unmarshalNBotStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, v any) (model.BotStatus, error) {
 	var res model.BotStatus
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNBotStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, sel ast.SelectionSet, v model.BotStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNBotStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, sel ast.SelectionSet, v model.BotStatus) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNBotsConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotsConnection(ctx context.Context, sel ast.SelectionSet, v model.BotsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotsConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotsConnection(ctx context.Context, sel ast.SelectionSet, v model.BotsConnection) graphql.Marshaler {
 	return ec._BotsConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNBotsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotsConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNBotsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotsConnection(ctx context.Context, sel ast.SelectionSet, v *model.BotsConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53936,11 +54414,11 @@ func (ec *executionContext) marshalNBotsConnection2ᚖgithubᚗcomᚋwangliang13
 	return ec._BotsConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNBracket2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBracketᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Bracket) graphql.Marshaler {
+func (ec *executionContext) marshalNBracket2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBracketᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Bracket) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNBracket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBracket(ctx, sel, v[i])
+		return ec.marshalNBracket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBracket(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53952,7 +54430,7 @@ func (ec *executionContext) marshalNBracket2ᚕᚖgithubᚗcomᚋwangliang139ᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNBracket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBracket(ctx context.Context, sel ast.SelectionSet, v *model.Bracket) graphql.Marshaler {
+func (ec *executionContext) marshalNBracket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBracket(ctx context.Context, sel ast.SelectionSet, v *model.Bracket) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53962,11 +54440,11 @@ func (ec *executionContext) marshalNBracket2ᚖgithubᚗcomᚋwangliang139ᚋllt
 	return ec._Bracket(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNCalendar2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Calendar) graphql.Marshaler {
+func (ec *executionContext) marshalNCalendar2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Calendar) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNCalendar2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendar(ctx, sel, v[i])
+		return ec.marshalNCalendar2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendar(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -53978,7 +54456,7 @@ func (ec *executionContext) marshalNCalendar2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNCalendar2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendar(ctx context.Context, sel ast.SelectionSet, v *model.Calendar) graphql.Marshaler {
+func (ec *executionContext) marshalNCalendar2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendar(ctx context.Context, sel ast.SelectionSet, v *model.Calendar) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -53988,40 +54466,40 @@ func (ec *executionContext) marshalNCalendar2ᚖgithubᚗcomᚋwangliang139ᚋll
 	return ec._Calendar(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNCalendarSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, v any) (model.CalendarSource, error) {
+func (ec *executionContext) unmarshalNCalendarSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, v any) (model.CalendarSource, error) {
 	var res model.CalendarSource
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNCalendarSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, sel ast.SelectionSet, v model.CalendarSource) graphql.Marshaler {
+func (ec *executionContext) marshalNCalendarSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, sel ast.SelectionSet, v model.CalendarSource) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNCalendarType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, v any) (model.CalendarType, error) {
+func (ec *executionContext) unmarshalNCalendarType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, v any) (model.CalendarType, error) {
 	var res model.CalendarType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNCalendarType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, sel ast.SelectionSet, v model.CalendarType) graphql.Marshaler {
+func (ec *executionContext) marshalNCalendarType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, sel ast.SelectionSet, v model.CalendarType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNCancelOrderInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCancelOrderInput(ctx context.Context, v any) (model.CancelOrderInput, error) {
+func (ec *executionContext) unmarshalNCancelOrderInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCancelOrderInput(ctx context.Context, v any) (model.CancelOrderInput, error) {
 	res, err := ec.unmarshalInputCancelOrderInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNChannel2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannel(ctx context.Context, sel ast.SelectionSet, v model.Channel) graphql.Marshaler {
+func (ec *executionContext) marshalNChannel2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannel(ctx context.Context, sel ast.SelectionSet, v model.Channel) graphql.Marshaler {
 	return ec._Channel(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNChannel2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Channel) graphql.Marshaler {
+func (ec *executionContext) marshalNChannel2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Channel) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannel(ctx, sel, v[i])
+		return ec.marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannel(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54033,7 +54511,7 @@ func (ec *executionContext) marshalNChannel2ᚕᚖgithubᚗcomᚋwangliang139ᚋ
 	return ret
 }
 
-func (ec *executionContext) marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannel(ctx context.Context, sel ast.SelectionSet, v *model.Channel) graphql.Marshaler {
+func (ec *executionContext) marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannel(ctx context.Context, sel ast.SelectionSet, v *model.Channel) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54043,11 +54521,11 @@ func (ec *executionContext) marshalNChannel2ᚖgithubᚗcomᚋwangliang139ᚋllt
 	return ec._Channel(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNChannelDocumentCount2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ChannelDocumentCount) graphql.Marshaler {
+func (ec *executionContext) marshalNChannelDocumentCount2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ChannelDocumentCount) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNChannelDocumentCount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCount(ctx, sel, v[i])
+		return ec.marshalNChannelDocumentCount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCount(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54059,7 +54537,7 @@ func (ec *executionContext) marshalNChannelDocumentCount2ᚕᚖgithubᚗcomᚋwa
 	return ret
 }
 
-func (ec *executionContext) marshalNChannelDocumentCount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCount(ctx context.Context, sel ast.SelectionSet, v *model.ChannelDocumentCount) graphql.Marshaler {
+func (ec *executionContext) marshalNChannelDocumentCount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelDocumentCount(ctx context.Context, sel ast.SelectionSet, v *model.ChannelDocumentCount) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54069,11 +54547,11 @@ func (ec *executionContext) marshalNChannelDocumentCount2ᚖgithubᚗcomᚋwangl
 	return ec._ChannelDocumentCount(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNChannelsConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelsConnection(ctx context.Context, sel ast.SelectionSet, v model.ChannelsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNChannelsConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelsConnection(ctx context.Context, sel ast.SelectionSet, v model.ChannelsConnection) graphql.Marshaler {
 	return ec._ChannelsConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNChannelsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐChannelsConnection(ctx context.Context, sel ast.SelectionSet, v *model.ChannelsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNChannelsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐChannelsConnection(ctx context.Context, sel ast.SelectionSet, v *model.ChannelsConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54083,11 +54561,11 @@ func (ec *executionContext) marshalNChannelsConnection2ᚖgithubᚗcomᚋwanglia
 	return ec._ChannelsConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNConsoleLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLogᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ConsoleLog) graphql.Marshaler {
+func (ec *executionContext) marshalNConsoleLog2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLogᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ConsoleLog) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNConsoleLog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLog(ctx, sel, v[i])
+		return ec.marshalNConsoleLog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLog(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54099,7 +54577,7 @@ func (ec *executionContext) marshalNConsoleLog2ᚕᚖgithubᚗcomᚋwangliang139
 	return ret
 }
 
-func (ec *executionContext) marshalNConsoleLog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLog(ctx context.Context, sel ast.SelectionSet, v *model.ConsoleLog) graphql.Marshaler {
+func (ec *executionContext) marshalNConsoleLog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐConsoleLog(ctx context.Context, sel ast.SelectionSet, v *model.ConsoleLog) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54109,41 +54587,41 @@ func (ec *executionContext) marshalNConsoleLog2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._ConsoleLog(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNCreateBotInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateBotInput(ctx context.Context, v any) (model.CreateBotInput, error) {
+func (ec *executionContext) unmarshalNCreateBotInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateBotInput(ctx context.Context, v any) (model.CreateBotInput, error) {
 	res, err := ec.unmarshalInputCreateBotInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNCreateChannelInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateChannelInput(ctx context.Context, v any) (model.CreateChannelInput, error) {
+func (ec *executionContext) unmarshalNCreateChannelInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateChannelInput(ctx context.Context, v any) (model.CreateChannelInput, error) {
 	res, err := ec.unmarshalInputCreateChannelInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNCreateDatasourceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateDatasourceInput(ctx context.Context, v any) (model.CreateDatasourceInput, error) {
+func (ec *executionContext) unmarshalNCreateDatasourceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateDatasourceInput(ctx context.Context, v any) (model.CreateDatasourceInput, error) {
 	res, err := ec.unmarshalInputCreateDatasourceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNCreateLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmPromptInput(ctx context.Context, v any) (model.CreateLlmPromptInput, error) {
+func (ec *executionContext) unmarshalNCreateLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmPromptInput(ctx context.Context, v any) (model.CreateLlmPromptInput, error) {
 	res, err := ec.unmarshalInputCreateLlmPromptInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNCreateLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmSceneInput(ctx context.Context, v any) (model.CreateLlmSceneInput, error) {
+func (ec *executionContext) unmarshalNCreateLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateLlmSceneInput(ctx context.Context, v any) (model.CreateLlmSceneInput, error) {
 	res, err := ec.unmarshalInputCreateLlmSceneInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNCreateStrategyInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateStrategyInput(ctx context.Context, v any) (model.CreateStrategyInput, error) {
+func (ec *executionContext) unmarshalNCreateStrategyInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateStrategyInput(ctx context.Context, v any) (model.CreateStrategyInput, error) {
 	res, err := ec.unmarshalInputCreateStrategyInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNCreateUserApiKeyPayload2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateUserAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, v model.CreateUserAPIKeyPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNCreateUserApiKeyPayload2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateUserAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, v model.CreateUserAPIKeyPayload) graphql.Marshaler {
 	return ec._CreateUserApiKeyPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNCreateUserApiKeyPayload2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCreateUserAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, v *model.CreateUserAPIKeyPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNCreateUserApiKeyPayload2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCreateUserAPIKeyPayload(ctx context.Context, sel ast.SelectionSet, v *model.CreateUserAPIKeyPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54153,11 +54631,11 @@ func (ec *executionContext) marshalNCreateUserApiKeyPayload2ᚖgithubᚗcomᚋwa
 	return ec._CreateUserApiKeyPayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNDashboardOverview2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDashboardOverview(ctx context.Context, sel ast.SelectionSet, v model.DashboardOverview) graphql.Marshaler {
+func (ec *executionContext) marshalNDashboardOverview2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDashboardOverview(ctx context.Context, sel ast.SelectionSet, v model.DashboardOverview) graphql.Marshaler {
 	return ec._DashboardOverview(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDashboardOverview2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDashboardOverview(ctx context.Context, sel ast.SelectionSet, v *model.DashboardOverview) graphql.Marshaler {
+func (ec *executionContext) marshalNDashboardOverview2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDashboardOverview(ctx context.Context, sel ast.SelectionSet, v *model.DashboardOverview) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54167,15 +54645,15 @@ func (ec *executionContext) marshalNDashboardOverview2ᚖgithubᚗcomᚋwanglian
 	return ec._DashboardOverview(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNDataSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx context.Context, sel ast.SelectionSet, v model.DataSource) graphql.Marshaler {
+func (ec *executionContext) marshalNDataSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx context.Context, sel ast.SelectionSet, v model.DataSource) graphql.Marshaler {
 	return ec._DataSource(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDataSource2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSourceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DataSource) graphql.Marshaler {
+func (ec *executionContext) marshalNDataSource2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSourceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DataSource) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx, sel, v[i])
+		return ec.marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54187,7 +54665,7 @@ func (ec *executionContext) marshalNDataSource2ᚕᚖgithubᚗcomᚋwangliang139
 	return ret
 }
 
-func (ec *executionContext) marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx context.Context, sel ast.SelectionSet, v *model.DataSource) graphql.Marshaler {
+func (ec *executionContext) marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx context.Context, sel ast.SelectionSet, v *model.DataSource) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54197,11 +54675,11 @@ func (ec *executionContext) marshalNDataSource2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._DataSource(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNDatasourcesConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDatasourcesConnection(ctx context.Context, sel ast.SelectionSet, v model.DatasourcesConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNDatasourcesConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDatasourcesConnection(ctx context.Context, sel ast.SelectionSet, v model.DatasourcesConnection) graphql.Marshaler {
 	return ec._DatasourcesConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDatasourcesConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDatasourcesConnection(ctx context.Context, sel ast.SelectionSet, v *model.DatasourcesConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNDatasourcesConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDatasourcesConnection(ctx context.Context, sel ast.SelectionSet, v *model.DatasourcesConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54211,21 +54689,21 @@ func (ec *executionContext) marshalNDatasourcesConnection2ᚖgithubᚗcomᚋwang
 	return ec._DatasourcesConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNDeleteLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmPromptInput(ctx context.Context, v any) (model.DeleteLlmPromptInput, error) {
+func (ec *executionContext) unmarshalNDeleteLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmPromptInput(ctx context.Context, v any) (model.DeleteLlmPromptInput, error) {
 	res, err := ec.unmarshalInputDeleteLlmPromptInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNDeleteLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmSceneInput(ctx context.Context, v any) (model.DeleteLlmSceneInput, error) {
+func (ec *executionContext) unmarshalNDeleteLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDeleteLlmSceneInput(ctx context.Context, v any) (model.DeleteLlmSceneInput, error) {
 	res, err := ec.unmarshalInputDeleteLlmSceneInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDocument2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Document) graphql.Marshaler {
+func (ec *executionContext) marshalNDocument2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Document) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNDocument2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocument(ctx, sel, v[i])
+		return ec.marshalNDocument2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocument(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54237,7 +54715,7 @@ func (ec *executionContext) marshalNDocument2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNDocument2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocument(ctx context.Context, sel ast.SelectionSet, v *model.Document) graphql.Marshaler {
+func (ec *executionContext) marshalNDocument2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocument(ctx context.Context, sel ast.SelectionSet, v *model.Document) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54247,31 +54725,31 @@ func (ec *executionContext) marshalNDocument2ᚖgithubᚗcomᚋwangliang139ᚋll
 	return ec._Document(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, v any) (model.DocumentCatalog, error) {
+func (ec *executionContext) unmarshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, v any) (model.DocumentCatalog, error) {
 	var res model.DocumentCatalog
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, sel ast.SelectionSet, v model.DocumentCatalog) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentCatalog2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, sel ast.SelectionSet, v model.DocumentCatalog) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNDocumentFormat2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentFormat(ctx context.Context, v any) (model.DocumentFormat, error) {
+func (ec *executionContext) unmarshalNDocumentFormat2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentFormat(ctx context.Context, v any) (model.DocumentFormat, error) {
 	var res model.DocumentFormat
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDocumentFormat2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentFormat(ctx context.Context, sel ast.SelectionSet, v model.DocumentFormat) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentFormat2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentFormat(ctx context.Context, sel ast.SelectionSet, v model.DocumentFormat) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNDocumentSimilarity2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarity(ctx context.Context, sel ast.SelectionSet, v model.DocumentSimilarity) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentSimilarity2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarity(ctx context.Context, sel ast.SelectionSet, v model.DocumentSimilarity) graphql.Marshaler {
 	return ec._DocumentSimilarity(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDocumentSimilarity2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarity(ctx context.Context, sel ast.SelectionSet, v *model.DocumentSimilarity) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentSimilarity2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarity(ctx context.Context, sel ast.SelectionSet, v *model.DocumentSimilarity) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54281,16 +54759,16 @@ func (ec *executionContext) marshalNDocumentSimilarity2ᚖgithubᚗcomᚋwanglia
 	return ec._DocumentSimilarity(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNDocumentSimilarityInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarityInput(ctx context.Context, v any) (model.DocumentSimilarityInput, error) {
+func (ec *executionContext) unmarshalNDocumentSimilarityInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentSimilarityInput(ctx context.Context, v any) (model.DocumentSimilarityInput, error) {
 	res, err := ec.unmarshalInputDocumentSimilarityInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDocumentStats2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStats(ctx context.Context, sel ast.SelectionSet, v model.DocumentStats) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentStats2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStats(ctx context.Context, sel ast.SelectionSet, v model.DocumentStats) graphql.Marshaler {
 	return ec._DocumentStats(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDocumentStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStats(ctx context.Context, sel ast.SelectionSet, v *model.DocumentStats) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStats(ctx context.Context, sel ast.SelectionSet, v *model.DocumentStats) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54300,7 +54778,7 @@ func (ec *executionContext) marshalNDocumentStats2ᚖgithubᚗcomᚋwangliang139
 	return ec._DocumentStats(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNDocumentStatsSummary2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatsSummary(ctx context.Context, sel ast.SelectionSet, v *model.DocumentStatsSummary) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentStatsSummary2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatsSummary(ctx context.Context, sel ast.SelectionSet, v *model.DocumentStatsSummary) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54310,21 +54788,21 @@ func (ec *executionContext) marshalNDocumentStatsSummary2ᚖgithubᚗcomᚋwangl
 	return ec._DocumentStatsSummary(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNDocumentStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, v any) (model.DocumentStatus, error) {
+func (ec *executionContext) unmarshalNDocumentStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, v any) (model.DocumentStatus, error) {
 	var res model.DocumentStatus
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNDocumentStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, sel ast.SelectionSet, v model.DocumentStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, sel ast.SelectionSet, v model.DocumentStatus) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNDocumentsConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentsConnection(ctx context.Context, sel ast.SelectionSet, v model.DocumentsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentsConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentsConnection(ctx context.Context, sel ast.SelectionSet, v model.DocumentsConnection) graphql.Marshaler {
 	return ec._DocumentsConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNDocumentsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentsConnection(ctx context.Context, sel ast.SelectionSet, v *model.DocumentsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNDocumentsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentsConnection(ctx context.Context, sel ast.SelectionSet, v *model.DocumentsConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54334,11 +54812,11 @@ func (ec *executionContext) marshalNDocumentsConnection2ᚖgithubᚗcomᚋwangli
 	return ec._DocumentsConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Equity) graphql.Marshaler {
+func (ec *executionContext) marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Equity) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNEquity2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEquity(ctx, sel, v[i])
+		return ec.marshalNEquity2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquity(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54350,7 +54828,7 @@ func (ec *executionContext) marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋl
 	return ret
 }
 
-func (ec *executionContext) marshalNEquity2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEquity(ctx context.Context, sel ast.SelectionSet, v *model.Equity) graphql.Marshaler {
+func (ec *executionContext) marshalNEquity2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquity(ctx context.Context, sel ast.SelectionSet, v *model.Equity) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54360,16 +54838,16 @@ func (ec *executionContext) marshalNEquity2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._Equity(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEstimateOrderInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderInput(ctx context.Context, v any) (model.EstimateOrderInput, error) {
+func (ec *executionContext) unmarshalNEstimateOrderInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderInput(ctx context.Context, v any) (model.EstimateOrderInput, error) {
 	res, err := ec.unmarshalInputEstimateOrderInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNEstimateOrderResult2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderResult(ctx context.Context, sel ast.SelectionSet, v model.EstimateOrderResult) graphql.Marshaler {
+func (ec *executionContext) marshalNEstimateOrderResult2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderResult(ctx context.Context, sel ast.SelectionSet, v model.EstimateOrderResult) graphql.Marshaler {
 	return ec._EstimateOrderResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNEstimateOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderResult(ctx context.Context, sel ast.SelectionSet, v *model.EstimateOrderResult) graphql.Marshaler {
+func (ec *executionContext) marshalNEstimateOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEstimateOrderResult(ctx context.Context, sel ast.SelectionSet, v *model.EstimateOrderResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54379,21 +54857,21 @@ func (ec *executionContext) marshalNEstimateOrderResult2ᚖgithubᚗcomᚋwangli
 	return ec._EstimateOrderResult(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNEventFlowStream2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventFlowStream(ctx context.Context, v any) (model.EventFlowStream, error) {
+func (ec *executionContext) unmarshalNEventFlowStream2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventFlowStream(ctx context.Context, v any) (model.EventFlowStream, error) {
 	var res model.EventFlowStream
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNEventFlowStream2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventFlowStream(ctx context.Context, sel ast.SelectionSet, v model.EventFlowStream) graphql.Marshaler {
+func (ec *executionContext) marshalNEventFlowStream2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventFlowStream(ctx context.Context, sel ast.SelectionSet, v model.EventFlowStream) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNEventRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecordᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EventRecord) graphql.Marshaler {
+func (ec *executionContext) marshalNEventRecord2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecordᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.EventRecord) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNEventRecord2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecord(ctx, sel, v[i])
+		return ec.marshalNEventRecord2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecord(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54405,7 +54883,7 @@ func (ec *executionContext) marshalNEventRecord2ᚕᚖgithubᚗcomᚋwangliang13
 	return ret
 }
 
-func (ec *executionContext) marshalNEventRecord2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecord(ctx context.Context, sel ast.SelectionSet, v *model.EventRecord) graphql.Marshaler {
+func (ec *executionContext) marshalNEventRecord2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEventRecord(ctx context.Context, sel ast.SelectionSet, v *model.EventRecord) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54415,13 +54893,13 @@ func (ec *executionContext) marshalNEventRecord2ᚖgithubᚗcomᚋwangliang139�
 	return ec._EventRecord(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, v any) (types.Exchange, error) {
+func (ec *executionContext) unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, v any) (types.Exchange, error) {
 	tmp, err := graphql.UnmarshalString(v)
 	res := types.Exchange(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNExchange2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, sel ast.SelectionSet, v types.Exchange) graphql.Marshaler {
+func (ec *executionContext) marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, sel ast.SelectionSet, v types.Exchange) graphql.Marshaler {
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
@@ -54432,7 +54910,7 @@ func (ec *executionContext) marshalNExchange2githubᚗcomᚋwangliang139ᚋllt�
 	return res
 }
 
-func (ec *executionContext) marshalNExtractCfg2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfg(ctx context.Context, sel ast.SelectionSet, v *model.ExtractCfg) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractCfg2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfg(ctx context.Context, sel ast.SelectionSet, v *model.ExtractCfg) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54442,16 +54920,16 @@ func (ec *executionContext) marshalNExtractCfg2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._ExtractCfg(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx context.Context, v any) (*model.ExtractCfgInput, error) {
+func (ec *executionContext) unmarshalNExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx context.Context, v any) (*model.ExtractCfgInput, error) {
 	res, err := ec.unmarshalInputExtractCfgInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNExtractField2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ExtractField) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractField2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ExtractField) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNExtractField2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractField(ctx, sel, v[i])
+		return ec.marshalNExtractField2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractField(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54463,7 +54941,7 @@ func (ec *executionContext) marshalNExtractField2ᚕᚖgithubᚗcomᚋwangliang1
 	return ret
 }
 
-func (ec *executionContext) marshalNExtractField2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractField(ctx context.Context, sel ast.SelectionSet, v *model.ExtractField) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractField2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractField(ctx context.Context, sel ast.SelectionSet, v *model.ExtractField) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54473,14 +54951,14 @@ func (ec *executionContext) marshalNExtractField2ᚖgithubᚗcomᚋwangliang139�
 	return ec._ExtractField(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNExtractFieldInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInputᚄ(ctx context.Context, v any) ([]*model.ExtractFieldInput, error) {
+func (ec *executionContext) unmarshalNExtractFieldInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInputᚄ(ctx context.Context, v any) ([]*model.ExtractFieldInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]*model.ExtractFieldInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNExtractFieldInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNExtractFieldInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -54488,16 +54966,16 @@ func (ec *executionContext) unmarshalNExtractFieldInput2ᚕᚖgithubᚗcomᚋwan
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNExtractFieldInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInput(ctx context.Context, v any) (*model.ExtractFieldInput, error) {
+func (ec *executionContext) unmarshalNExtractFieldInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractFieldInput(ctx context.Context, v any) (*model.ExtractFieldInput, error) {
 	res, err := ec.unmarshalInputExtractFieldInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNExtractPlan2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ExtractPlan) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractPlan2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ExtractPlan) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNExtractPlan2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlan(ctx, sel, v[i])
+		return ec.marshalNExtractPlan2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlan(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54509,7 +54987,7 @@ func (ec *executionContext) marshalNExtractPlan2ᚕᚖgithubᚗcomᚋwangliang13
 	return ret
 }
 
-func (ec *executionContext) marshalNExtractPlan2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlan(ctx context.Context, sel ast.SelectionSet, v *model.ExtractPlan) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractPlan2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlan(ctx context.Context, sel ast.SelectionSet, v *model.ExtractPlan) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54519,14 +54997,14 @@ func (ec *executionContext) marshalNExtractPlan2ᚖgithubᚗcomᚋwangliang139�
 	return ec._ExtractPlan(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNExtractPlanInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInputᚄ(ctx context.Context, v any) ([]*model.ExtractPlanInput, error) {
+func (ec *executionContext) unmarshalNExtractPlanInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInputᚄ(ctx context.Context, v any) ([]*model.ExtractPlanInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]*model.ExtractPlanInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNExtractPlanInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNExtractPlanInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -54534,12 +55012,12 @@ func (ec *executionContext) unmarshalNExtractPlanInput2ᚕᚖgithubᚗcomᚋwang
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNExtractPlanInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInput(ctx context.Context, v any) (*model.ExtractPlanInput, error) {
+func (ec *executionContext) unmarshalNExtractPlanInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractPlanInput(ctx context.Context, v any) (*model.ExtractPlanInput, error) {
 	res, err := ec.unmarshalInputExtractPlanInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNExtractRule2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRule(ctx context.Context, sel ast.SelectionSet, v *model.ExtractRule) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractRule2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRule(ctx context.Context, sel ast.SelectionSet, v *model.ExtractRule) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54549,22 +55027,22 @@ func (ec *executionContext) marshalNExtractRule2ᚖgithubᚗcomᚋwangliang139�
 	return ec._ExtractRule(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNExtractRuleInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleInput(ctx context.Context, v any) (*model.ExtractRuleInput, error) {
+func (ec *executionContext) unmarshalNExtractRuleInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleInput(ctx context.Context, v any) (*model.ExtractRuleInput, error) {
 	res, err := ec.unmarshalInputExtractRuleInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType(ctx context.Context, v any) (model.ExtractRuleType, error) {
+func (ec *executionContext) unmarshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType(ctx context.Context, v any) (model.ExtractRuleType, error) {
 	var res model.ExtractRuleType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType(ctx context.Context, sel ast.SelectionSet, v model.ExtractRuleType) graphql.Marshaler {
+func (ec *executionContext) marshalNExtractRuleType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractRuleType(ctx context.Context, sel ast.SelectionSet, v model.ExtractRuleType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNFill2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFill(ctx context.Context, sel ast.SelectionSet, v *model.Fill) graphql.Marshaler {
+func (ec *executionContext) marshalNFill2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFill(ctx context.Context, sel ast.SelectionSet, v *model.Fill) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54590,11 +55068,11 @@ func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.S
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
-func (ec *executionContext) marshalNFundingRate2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FundingRate) graphql.Marshaler {
+func (ec *executionContext) marshalNFundingRate2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRateᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.FundingRate) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate(ctx, sel, v[i])
+		return ec.marshalNFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54606,7 +55084,7 @@ func (ec *executionContext) marshalNFundingRate2ᚕᚖgithubᚗcomᚋwangliang13
 	return ret
 }
 
-func (ec *executionContext) marshalNFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate(ctx context.Context, sel ast.SelectionSet, v *model.FundingRate) graphql.Marshaler {
+func (ec *executionContext) marshalNFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate(ctx context.Context, sel ast.SelectionSet, v *model.FundingRate) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54616,16 +55094,16 @@ func (ec *executionContext) marshalNFundingRate2ᚖgithubᚗcomᚋwangliang139�
 	return ec._FundingRate(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNGenerateStrategyInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyInput(ctx context.Context, v any) (model.GenerateStrategyInput, error) {
+func (ec *executionContext) unmarshalNGenerateStrategyInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyInput(ctx context.Context, v any) (model.GenerateStrategyInput, error) {
 	res, err := ec.unmarshalInputGenerateStrategyInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNGenerateStrategyResponse2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyResponse(ctx context.Context, sel ast.SelectionSet, v model.GenerateStrategyResponse) graphql.Marshaler {
+func (ec *executionContext) marshalNGenerateStrategyResponse2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyResponse(ctx context.Context, sel ast.SelectionSet, v model.GenerateStrategyResponse) graphql.Marshaler {
 	return ec._GenerateStrategyResponse(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNGenerateStrategyResponse2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyResponse(ctx context.Context, sel ast.SelectionSet, v *model.GenerateStrategyResponse) graphql.Marshaler {
+func (ec *executionContext) marshalNGenerateStrategyResponse2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGenerateStrategyResponse(ctx context.Context, sel ast.SelectionSet, v *model.GenerateStrategyResponse) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54635,41 +55113,41 @@ func (ec *executionContext) marshalNGenerateStrategyResponse2ᚖgithubᚗcomᚋw
 	return ec._GenerateStrategyResponse(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNGetDocumentInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetDocumentInput(ctx context.Context, v any) (model.GetDocumentInput, error) {
+func (ec *executionContext) unmarshalNGetDocumentInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetDocumentInput(ctx context.Context, v any) (model.GetDocumentInput, error) {
 	res, err := ec.unmarshalInputGetDocumentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNGetLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmPromptInput(ctx context.Context, v any) (model.GetLlmPromptInput, error) {
+func (ec *executionContext) unmarshalNGetLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmPromptInput(ctx context.Context, v any) (model.GetLlmPromptInput, error) {
 	res, err := ec.unmarshalInputGetLlmPromptInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNGetLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmSceneInput(ctx context.Context, v any) (model.GetLlmSceneInput, error) {
+func (ec *executionContext) unmarshalNGetLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetLlmSceneInput(ctx context.Context, v any) (model.GetLlmSceneInput, error) {
 	res, err := ec.unmarshalInputGetLlmSceneInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNGetMarketInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketInput(ctx context.Context, v any) (model.GetMarketInput, error) {
+func (ec *executionContext) unmarshalNGetMarketInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketInput(ctx context.Context, v any) (model.GetMarketInput, error) {
 	res, err := ec.unmarshalInputGetMarketInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNGetMarketsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketsInput(ctx context.Context, v any) (model.GetMarketsInput, error) {
+func (ec *executionContext) unmarshalNGetMarketsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetMarketsInput(ctx context.Context, v any) (model.GetMarketsInput, error) {
 	res, err := ec.unmarshalInputGetMarketsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNGetTelegramSessionInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionInput(ctx context.Context, v any) (model.GetTelegramSessionInput, error) {
+func (ec *executionContext) unmarshalNGetTelegramSessionInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionInput(ctx context.Context, v any) (model.GetTelegramSessionInput, error) {
 	res, err := ec.unmarshalInputGetTelegramSessionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNGetTelegramSessionPayload2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionPayload(ctx context.Context, sel ast.SelectionSet, v model.GetTelegramSessionPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNGetTelegramSessionPayload2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionPayload(ctx context.Context, sel ast.SelectionSet, v model.GetTelegramSessionPayload) graphql.Marshaler {
 	return ec._GetTelegramSessionPayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNGetTelegramSessionPayload2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionPayload(ctx context.Context, sel ast.SelectionSet, v *model.GetTelegramSessionPayload) graphql.Marshaler {
+func (ec *executionContext) marshalNGetTelegramSessionPayload2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐGetTelegramSessionPayload(ctx context.Context, sel ast.SelectionSet, v *model.GetTelegramSessionPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54695,11 +55173,11 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
-func (ec *executionContext) marshalNIndexComponentItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.IndexComponentItem) graphql.Marshaler {
+func (ec *executionContext) marshalNIndexComponentItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.IndexComponentItem) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNIndexComponentItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItem(ctx, sel, v[i])
+		return ec.marshalNIndexComponentItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItem(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54711,7 +55189,7 @@ func (ec *executionContext) marshalNIndexComponentItem2ᚕᚖgithubᚗcomᚋwang
 	return ret
 }
 
-func (ec *executionContext) marshalNIndexComponentItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItem(ctx context.Context, sel ast.SelectionSet, v *model.IndexComponentItem) graphql.Marshaler {
+func (ec *executionContext) marshalNIndexComponentItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponentItem(ctx context.Context, sel ast.SelectionSet, v *model.IndexComponentItem) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54737,11 +55215,11 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNKline2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐKlineᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Kline) graphql.Marshaler {
+func (ec *executionContext) marshalNKline2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐKlineᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Kline) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNKline2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐKline(ctx, sel, v[i])
+		return ec.marshalNKline2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐKline(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54753,7 +55231,7 @@ func (ec *executionContext) marshalNKline2ᚕᚖgithubᚗcomᚋwangliang139ᚋll
 	return ret
 }
 
-func (ec *executionContext) marshalNKline2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐKline(ctx context.Context, sel ast.SelectionSet, v *model.Kline) graphql.Marshaler {
+func (ec *executionContext) marshalNKline2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐKline(ctx context.Context, sel ast.SelectionSet, v *model.Kline) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54763,11 +55241,11 @@ func (ec *executionContext) marshalNKline2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._Kline(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Ledger) graphql.Marshaler {
+func (ec *executionContext) marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Ledger) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNLedger2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedger(ctx, sel, v[i])
+		return ec.marshalNLedger2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedger(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54779,7 +55257,7 @@ func (ec *executionContext) marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋl
 	return ret
 }
 
-func (ec *executionContext) marshalNLedger2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedger(ctx context.Context, sel ast.SelectionSet, v *model.Ledger) graphql.Marshaler {
+func (ec *executionContext) marshalNLedger2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedger(ctx context.Context, sel ast.SelectionSet, v *model.Ledger) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54789,11 +55267,11 @@ func (ec *executionContext) marshalNLedger2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._Ledger(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLedgersConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedgersConnection(ctx context.Context, sel ast.SelectionSet, v model.LedgersConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNLedgersConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgersConnection(ctx context.Context, sel ast.SelectionSet, v model.LedgersConnection) graphql.Marshaler {
 	return ec._LedgersConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLedgersConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLedgersConnection(ctx context.Context, sel ast.SelectionSet, v *model.LedgersConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNLedgersConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgersConnection(ctx context.Context, sel ast.SelectionSet, v *model.LedgersConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54803,11 +55281,11 @@ func (ec *executionContext) marshalNLedgersConnection2ᚖgithubᚗcomᚋwanglian
 	return ec._LedgersConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmCompletionStats2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmCompletionStats(ctx context.Context, sel ast.SelectionSet, v model.LlmCompletionStats) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmCompletionStats2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmCompletionStats(ctx context.Context, sel ast.SelectionSet, v model.LlmCompletionStats) graphql.Marshaler {
 	return ec._LlmCompletionStats(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLlmCompletionStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmCompletionStats(ctx context.Context, sel ast.SelectionSet, v *model.LlmCompletionStats) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmCompletionStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmCompletionStats(ctx context.Context, sel ast.SelectionSet, v *model.LlmCompletionStats) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54817,7 +55295,7 @@ func (ec *executionContext) marshalNLlmCompletionStats2ᚖgithubᚗcomᚋwanglia
 	return ec._LlmCompletionStats(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfig(ctx context.Context, sel ast.SelectionSet, v *model.LlmConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfig(ctx context.Context, sel ast.SelectionSet, v *model.LlmConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54827,16 +55305,16 @@ func (ec *executionContext) marshalNLlmConfig2ᚖgithubᚗcomᚋwangliang139ᚋl
 	return ec._LlmConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx context.Context, v any) (*model.LlmConfigInput, error) {
+func (ec *executionContext) unmarshalNLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx context.Context, v any) (*model.LlmConfigInput, error) {
 	res, err := ec.unmarshalInputLlmConfigInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmMessage) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmMessage) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNLlmMessage2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessage(ctx, sel, v[i])
+		return ec.marshalNLlmMessage2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessage(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54848,7 +55326,7 @@ func (ec *executionContext) marshalNLlmMessage2ᚕᚖgithubᚗcomᚋwangliang139
 	return ret
 }
 
-func (ec *executionContext) marshalNLlmMessage2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessage(ctx context.Context, sel ast.SelectionSet, v *model.LlmMessage) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmMessage2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessage(ctx context.Context, sel ast.SelectionSet, v *model.LlmMessage) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54858,14 +55336,14 @@ func (ec *executionContext) marshalNLlmMessage2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._LlmMessage(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx context.Context, v any) ([]*model.LlmMessageInput, error) {
+func (ec *executionContext) unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx context.Context, v any) ([]*model.LlmMessageInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]*model.LlmMessageInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNLlmMessageInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNLlmMessageInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -54873,20 +55351,20 @@ func (ec *executionContext) unmarshalNLlmMessageInput2ᚕᚖgithubᚗcomᚋwangl
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNLlmMessageInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInput(ctx context.Context, v any) (*model.LlmMessageInput, error) {
+func (ec *executionContext) unmarshalNLlmMessageInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInput(ctx context.Context, v any) (*model.LlmMessageInput, error) {
 	res, err := ec.unmarshalInputLlmMessageInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNLlmPrompt2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx context.Context, sel ast.SelectionSet, v model.LlmPrompt) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmPrompt2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx context.Context, sel ast.SelectionSet, v model.LlmPrompt) graphql.Marshaler {
 	return ec._LlmPrompt(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmPrompt) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmPrompt) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx, sel, v[i])
+		return ec.marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54898,7 +55376,7 @@ func (ec *executionContext) marshalNLlmPrompt2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx context.Context, sel ast.SelectionSet, v *model.LlmPrompt) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx context.Context, sel ast.SelectionSet, v *model.LlmPrompt) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54908,11 +55386,11 @@ func (ec *executionContext) marshalNLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋl
 	return ec._LlmPrompt(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmPromptsConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptsConnection(ctx context.Context, sel ast.SelectionSet, v model.LlmPromptsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmPromptsConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptsConnection(ctx context.Context, sel ast.SelectionSet, v model.LlmPromptsConnection) graphql.Marshaler {
 	return ec._LlmPromptsConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLlmPromptsConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptsConnection(ctx context.Context, sel ast.SelectionSet, v *model.LlmPromptsConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmPromptsConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPromptsConnection(ctx context.Context, sel ast.SelectionSet, v *model.LlmPromptsConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54922,11 +55400,11 @@ func (ec *executionContext) marshalNLlmPromptsConnection2ᚖgithubᚗcomᚋwangl
 	return ec._LlmPromptsConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmProviderConfig2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig(ctx context.Context, sel ast.SelectionSet, v model.LlmProviderConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmProviderConfig2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig(ctx context.Context, sel ast.SelectionSet, v model.LlmProviderConfig) graphql.Marshaler {
 	return ec._LlmProviderConfig(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig(ctx context.Context, sel ast.SelectionSet, v *model.LlmProviderConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmProviderConfig(ctx context.Context, sel ast.SelectionSet, v *model.LlmProviderConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54936,7 +55414,7 @@ func (ec *executionContext) marshalNLlmProviderConfig2ᚖgithubᚗcomᚋwanglian
 	return ec._LlmProviderConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmResponseFormat2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormat(ctx context.Context, sel ast.SelectionSet, v *model.LlmResponseFormat) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmResponseFormat2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormat(ctx context.Context, sel ast.SelectionSet, v *model.LlmResponseFormat) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54946,20 +55424,20 @@ func (ec *executionContext) marshalNLlmResponseFormat2ᚖgithubᚗcomᚋwanglian
 	return ec._LlmResponseFormat(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNLlmResponseFormatInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatInput(ctx context.Context, v any) (*model.LlmResponseFormatInput, error) {
+func (ec *executionContext) unmarshalNLlmResponseFormatInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatInput(ctx context.Context, v any) (*model.LlmResponseFormatInput, error) {
 	res, err := ec.unmarshalInputLlmResponseFormatInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNLlmScene2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene(ctx context.Context, sel ast.SelectionSet, v model.LlmScene) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmScene2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene(ctx context.Context, sel ast.SelectionSet, v model.LlmScene) graphql.Marshaler {
 	return ec._LlmScene(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLlmScene2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmScene) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmScene2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmScene) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene(ctx, sel, v[i])
+		return ec.marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54971,7 +55449,7 @@ func (ec *executionContext) marshalNLlmScene2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene(ctx context.Context, sel ast.SelectionSet, v *model.LlmScene) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScene(ctx context.Context, sel ast.SelectionSet, v *model.LlmScene) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -54981,11 +55459,11 @@ func (ec *executionContext) marshalNLlmScene2ᚖgithubᚗcomᚋwangliang139ᚋll
 	return ec._LlmScene(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmSceneStats2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStatsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmSceneStats) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmSceneStats2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStatsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.LlmSceneStats) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNLlmSceneStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStats(ctx, sel, v[i])
+		return ec.marshalNLlmSceneStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStats(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -54997,7 +55475,7 @@ func (ec *executionContext) marshalNLlmSceneStats2ᚕᚖgithubᚗcomᚋwangliang
 	return ret
 }
 
-func (ec *executionContext) marshalNLlmSceneStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStats(ctx context.Context, sel ast.SelectionSet, v *model.LlmSceneStats) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmSceneStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneStats(ctx context.Context, sel ast.SelectionSet, v *model.LlmSceneStats) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55007,11 +55485,11 @@ func (ec *executionContext) marshalNLlmSceneStats2ᚖgithubᚗcomᚋwangliang139
 	return ec._LlmSceneStats(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNLlmScenesConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScenesConnection(ctx context.Context, sel ast.SelectionSet, v model.LlmScenesConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmScenesConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScenesConnection(ctx context.Context, sel ast.SelectionSet, v model.LlmScenesConnection) graphql.Marshaler {
 	return ec._LlmScenesConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNLlmScenesConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScenesConnection(ctx context.Context, sel ast.SelectionSet, v *model.LlmScenesConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNLlmScenesConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmScenesConnection(ctx context.Context, sel ast.SelectionSet, v *model.LlmScenesConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55021,11 +55499,11 @@ func (ec *executionContext) marshalNLlmScenesConnection2ᚖgithubᚗcomᚋwangli
 	return ec._LlmScenesConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNMarket2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Market) graphql.Marshaler {
+func (ec *executionContext) marshalNMarket2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Market) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNMarket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarket(ctx, sel, v[i])
+		return ec.marshalNMarket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarket(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55037,7 +55515,7 @@ func (ec *executionContext) marshalNMarket2ᚕᚖgithubᚗcomᚋwangliang139ᚋl
 	return ret
 }
 
-func (ec *executionContext) marshalNMarket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarket(ctx context.Context, sel ast.SelectionSet, v *model.Market) graphql.Marshaler {
+func (ec *executionContext) marshalNMarket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarket(ctx context.Context, sel ast.SelectionSet, v *model.Market) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55047,7 +55525,7 @@ func (ec *executionContext) marshalNMarket2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._Market(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNMarketOrderType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderType(ctx context.Context, sel ast.SelectionSet, v *model.MarketOrderType) graphql.Marshaler {
+func (ec *executionContext) marshalNMarketOrderType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderType(ctx context.Context, sel ast.SelectionSet, v *model.MarketOrderType) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55057,36 +55535,36 @@ func (ec *executionContext) marshalNMarketOrderType2ᚖgithubᚗcomᚋwangliang1
 	return ec._MarketOrderType(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNMarketType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, v any) (model.MarketType, error) {
+func (ec *executionContext) unmarshalNMarketType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, v any) (model.MarketType, error) {
 	var res model.MarketType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNMarketType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, sel ast.SelectionSet, v model.MarketType) graphql.Marshaler {
+func (ec *executionContext) marshalNMarketType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, sel ast.SelectionSet, v model.MarketType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx context.Context, v any) (model.MetricsDimension, error) {
+func (ec *executionContext) unmarshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx context.Context, v any) (model.MetricsDimension, error) {
 	var res model.MetricsDimension
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx context.Context, sel ast.SelectionSet, v model.MetricsDimension) graphql.Marshaler {
+func (ec *executionContext) marshalNMetricsDimension2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMetricsDimension(ctx context.Context, sel ast.SelectionSet, v model.MetricsDimension) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput(ctx context.Context, v any) (model.MutationAccountInput, error) {
+func (ec *executionContext) unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput(ctx context.Context, v any) (model.MutationAccountInput, error) {
 	res, err := ec.unmarshalInputMutationAccountInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNNetworkProxyConfig2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig(ctx context.Context, sel ast.SelectionSet, v model.NetworkProxyConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNNetworkProxyConfig2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig(ctx context.Context, sel ast.SelectionSet, v model.NetworkProxyConfig) graphql.Marshaler {
 	return ec._NetworkProxyConfig(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig(ctx context.Context, sel ast.SelectionSet, v *model.NetworkProxyConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐNetworkProxyConfig(ctx context.Context, sel ast.SelectionSet, v *model.NetworkProxyConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55096,11 +55574,11 @@ func (ec *executionContext) marshalNNetworkProxyConfig2ᚖgithubᚗcomᚋwanglia
 	return ec._NetworkProxyConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx, sel, v[i])
+		return ec.marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55112,7 +55590,7 @@ func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋll
 	return ret
 }
 
-func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55122,11 +55600,11 @@ func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋllt�
 	return ec._Order(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrderCondition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderConditionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderCondition) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderCondition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderConditionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderCondition) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNOrderCondition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderCondition(ctx, sel, v[i])
+		return ec.marshalNOrderCondition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderCondition(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55138,7 +55616,7 @@ func (ec *executionContext) marshalNOrderCondition2ᚕᚖgithubᚗcomᚋwanglian
 	return ret
 }
 
-func (ec *executionContext) marshalNOrderCondition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderCondition(ctx context.Context, sel ast.SelectionSet, v *model.OrderCondition) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderCondition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderCondition(ctx context.Context, sel ast.SelectionSet, v *model.OrderCondition) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55148,11 +55626,11 @@ func (ec *executionContext) marshalNOrderCondition2ᚖgithubᚗcomᚋwangliang13
 	return ec._OrderCondition(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderPriceLevel) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevelᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderPriceLevel) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNOrderPriceLevel2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevel(ctx, sel, v[i])
+		return ec.marshalNOrderPriceLevel2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevel(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55164,7 +55642,7 @@ func (ec *executionContext) marshalNOrderPriceLevel2ᚕᚖgithubᚗcomᚋwanglia
 	return ret
 }
 
-func (ec *executionContext) marshalNOrderPriceLevel2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevel(ctx context.Context, sel ast.SelectionSet, v *model.OrderPriceLevel) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderPriceLevel2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderPriceLevel(ctx context.Context, sel ast.SelectionSet, v *model.OrderPriceLevel) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55174,41 +55652,41 @@ func (ec *executionContext) marshalNOrderPriceLevel2ᚖgithubᚗcomᚋwangliang1
 	return ec._OrderPriceLevel(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNOrderSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, v any) (model.OrderSource, error) {
+func (ec *executionContext) unmarshalNOrderSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, v any) (model.OrderSource, error) {
 	var res model.OrderSource
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNOrderSource2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, sel ast.SelectionSet, v model.OrderSource) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderSource2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, sel ast.SelectionSet, v model.OrderSource) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNOrderStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderStatus(ctx context.Context, v any) (model.OrderStatus, error) {
+func (ec *executionContext) unmarshalNOrderStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderStatus(ctx context.Context, v any) (model.OrderStatus, error) {
 	var res model.OrderStatus
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNOrderStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderStatus(ctx context.Context, sel ast.SelectionSet, v model.OrderStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderStatus(ctx context.Context, sel ast.SelectionSet, v model.OrderStatus) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNOrderType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, v any) (model.OrderType, error) {
+func (ec *executionContext) unmarshalNOrderType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, v any) (model.OrderType, error) {
 	var res model.OrderType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNOrderType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, sel ast.SelectionSet, v model.OrderType) graphql.Marshaler {
+func (ec *executionContext) marshalNOrderType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, sel ast.SelectionSet, v model.OrderType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNOrdersConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrdersConnection(ctx context.Context, sel ast.SelectionSet, v model.OrdersConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNOrdersConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrdersConnection(ctx context.Context, sel ast.SelectionSet, v model.OrdersConnection) graphql.Marshaler {
 	return ec._OrdersConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrdersConnection(ctx context.Context, sel ast.SelectionSet, v *model.OrdersConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNOrdersConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrdersConnection(ctx context.Context, sel ast.SelectionSet, v *model.OrdersConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55218,16 +55696,16 @@ func (ec *executionContext) marshalNOrdersConnection2ᚖgithubᚗcomᚋwangliang
 	return ec._OrdersConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNPlaceOrderInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderInput(ctx context.Context, v any) (model.PlaceOrderInput, error) {
+func (ec *executionContext) unmarshalNPlaceOrderInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderInput(ctx context.Context, v any) (model.PlaceOrderInput, error) {
 	res, err := ec.unmarshalInputPlaceOrderInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNPlaceOrderResult2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderResult(ctx context.Context, sel ast.SelectionSet, v model.PlaceOrderResult) graphql.Marshaler {
+func (ec *executionContext) marshalNPlaceOrderResult2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderResult(ctx context.Context, sel ast.SelectionSet, v model.PlaceOrderResult) graphql.Marshaler {
 	return ec._PlaceOrderResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNPlaceOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderResult(ctx context.Context, sel ast.SelectionSet, v *model.PlaceOrderResult) graphql.Marshaler {
+func (ec *executionContext) marshalNPlaceOrderResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPlaceOrderResult(ctx context.Context, sel ast.SelectionSet, v *model.PlaceOrderResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55237,11 +55715,11 @@ func (ec *executionContext) marshalNPlaceOrderResult2ᚖgithubᚗcomᚋwangliang
 	return ec._PlaceOrderResult(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Position) graphql.Marshaler {
+func (ec *executionContext) marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Position) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNPosition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPosition(ctx, sel, v[i])
+		return ec.marshalNPosition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPosition(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55253,7 +55731,7 @@ func (ec *executionContext) marshalNPosition2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNPosition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPosition(ctx context.Context, sel ast.SelectionSet, v *model.Position) graphql.Marshaler {
+func (ec *executionContext) marshalNPosition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPosition(ctx context.Context, sel ast.SelectionSet, v *model.Position) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55263,21 +55741,21 @@ func (ec *executionContext) marshalNPosition2ᚖgithubᚗcomᚋwangliang139ᚋll
 	return ec._Position(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx context.Context, v any) (model.PositionSide, error) {
+func (ec *executionContext) unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx context.Context, v any) (model.PositionSide, error) {
 	var res model.PositionSide
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNPositionSide2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx context.Context, sel ast.SelectionSet, v model.PositionSide) graphql.Marshaler {
+func (ec *executionContext) marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx context.Context, sel ast.SelectionSet, v model.PositionSide) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNPushConfig2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig(ctx context.Context, sel ast.SelectionSet, v model.PushConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNPushConfig2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig(ctx context.Context, sel ast.SelectionSet, v model.PushConfig) graphql.Marshaler {
 	return ec._PushConfig(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig(ctx context.Context, sel ast.SelectionSet, v *model.PushConfig) graphql.Marshaler {
+func (ec *executionContext) marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig(ctx context.Context, sel ast.SelectionSet, v *model.PushConfig) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55287,181 +55765,181 @@ func (ec *executionContext) marshalNPushConfig2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._PushConfig(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNQueryAccountEventFlowInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountEventFlowInput(ctx context.Context, v any) (model.QueryAccountEventFlowInput, error) {
+func (ec *executionContext) unmarshalNQueryAccountEventFlowInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountEventFlowInput(ctx context.Context, v any) (model.QueryAccountEventFlowInput, error) {
 	res, err := ec.unmarshalInputQueryAccountEventFlowInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryAccountInfoInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountInfoInput(ctx context.Context, v any) (model.QueryAccountInfoInput, error) {
+func (ec *executionContext) unmarshalNQueryAccountInfoInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountInfoInput(ctx context.Context, v any) (model.QueryAccountInfoInput, error) {
 	res, err := ec.unmarshalInputQueryAccountInfoInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryAccountMetricsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountMetricsInput(ctx context.Context, v any) (model.QueryAccountMetricsInput, error) {
+func (ec *executionContext) unmarshalNQueryAccountMetricsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountMetricsInput(ctx context.Context, v any) (model.QueryAccountMetricsInput, error) {
 	res, err := ec.unmarshalInputQueryAccountMetricsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryAccountsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountsInput(ctx context.Context, v any) (model.QueryAccountsInput, error) {
+func (ec *executionContext) unmarshalNQueryAccountsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountsInput(ctx context.Context, v any) (model.QueryAccountsInput, error) {
 	res, err := ec.unmarshalInputQueryAccountsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBalanceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBalanceInput(ctx context.Context, v any) (model.QueryBalanceInput, error) {
+func (ec *executionContext) unmarshalNQueryBalanceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBalanceInput(ctx context.Context, v any) (model.QueryBalanceInput, error) {
 	res, err := ec.unmarshalInputQueryBalanceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotBalanceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotBalanceInput(ctx context.Context, v any) (model.QueryBotBalanceInput, error) {
+func (ec *executionContext) unmarshalNQueryBotBalanceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotBalanceInput(ctx context.Context, v any) (model.QueryBotBalanceInput, error) {
 	res, err := ec.unmarshalInputQueryBotBalanceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotLedgersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLedgersInput(ctx context.Context, v any) (model.QueryBotLedgersInput, error) {
+func (ec *executionContext) unmarshalNQueryBotLedgersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLedgersInput(ctx context.Context, v any) (model.QueryBotLedgersInput, error) {
 	res, err := ec.unmarshalInputQueryBotLedgersInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotLogsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLogsInput(ctx context.Context, v any) (model.QueryBotLogsInput, error) {
+func (ec *executionContext) unmarshalNQueryBotLogsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotLogsInput(ctx context.Context, v any) (model.QueryBotLogsInput, error) {
 	res, err := ec.unmarshalInputQueryBotLogsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotMetricsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotMetricsInput(ctx context.Context, v any) (model.QueryBotMetricsInput, error) {
+func (ec *executionContext) unmarshalNQueryBotMetricsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotMetricsInput(ctx context.Context, v any) (model.QueryBotMetricsInput, error) {
 	res, err := ec.unmarshalInputQueryBotMetricsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotOrdersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotOrdersInput(ctx context.Context, v any) (model.QueryBotOrdersInput, error) {
+func (ec *executionContext) unmarshalNQueryBotOrdersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotOrdersInput(ctx context.Context, v any) (model.QueryBotOrdersInput, error) {
 	res, err := ec.unmarshalInputQueryBotOrdersInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotPositionsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotPositionsInput(ctx context.Context, v any) (model.QueryBotPositionsInput, error) {
+func (ec *executionContext) unmarshalNQueryBotPositionsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotPositionsInput(ctx context.Context, v any) (model.QueryBotPositionsInput, error) {
 	res, err := ec.unmarshalInputQueryBotPositionsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotSignalFlowInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotSignalFlowInput(ctx context.Context, v any) (model.QueryBotSignalFlowInput, error) {
+func (ec *executionContext) unmarshalNQueryBotSignalFlowInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotSignalFlowInput(ctx context.Context, v any) (model.QueryBotSignalFlowInput, error) {
 	res, err := ec.unmarshalInputQueryBotSignalFlowInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotStateInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotStateInput(ctx context.Context, v any) (model.QueryBotStateInput, error) {
+func (ec *executionContext) unmarshalNQueryBotStateInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotStateInput(ctx context.Context, v any) (model.QueryBotStateInput, error) {
 	res, err := ec.unmarshalInputQueryBotStateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryBotsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotsInput(ctx context.Context, v any) (model.QueryBotsInput, error) {
+func (ec *executionContext) unmarshalNQueryBotsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryBotsInput(ctx context.Context, v any) (model.QueryBotsInput, error) {
 	res, err := ec.unmarshalInputQueryBotsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryCalendarsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryCalendarsInput(ctx context.Context, v any) (model.QueryCalendarsInput, error) {
+func (ec *executionContext) unmarshalNQueryCalendarsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryCalendarsInput(ctx context.Context, v any) (model.QueryCalendarsInput, error) {
 	res, err := ec.unmarshalInputQueryCalendarsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryChannelsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryChannelsInput(ctx context.Context, v any) (model.QueryChannelsInput, error) {
+func (ec *executionContext) unmarshalNQueryChannelsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryChannelsInput(ctx context.Context, v any) (model.QueryChannelsInput, error) {
 	res, err := ec.unmarshalInputQueryChannelsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryDatasourcesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDatasourcesInput(ctx context.Context, v any) (model.QueryDatasourcesInput, error) {
+func (ec *executionContext) unmarshalNQueryDatasourcesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDatasourcesInput(ctx context.Context, v any) (model.QueryDatasourcesInput, error) {
 	res, err := ec.unmarshalInputQueryDatasourcesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryDocumentsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDocumentsInput(ctx context.Context, v any) (model.QueryDocumentsInput, error) {
+func (ec *executionContext) unmarshalNQueryDocumentsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryDocumentsInput(ctx context.Context, v any) (model.QueryDocumentsInput, error) {
 	res, err := ec.unmarshalInputQueryDocumentsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryEquitysInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryEquitysInput(ctx context.Context, v any) (model.QueryEquitysInput, error) {
+func (ec *executionContext) unmarshalNQueryEquitysInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryEquitysInput(ctx context.Context, v any) (model.QueryEquitysInput, error) {
 	res, err := ec.unmarshalInputQueryEquitysInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryFundingRateInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRateInput(ctx context.Context, v any) (model.QueryFundingRateInput, error) {
+func (ec *executionContext) unmarshalNQueryFundingRateInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRateInput(ctx context.Context, v any) (model.QueryFundingRateInput, error) {
 	res, err := ec.unmarshalInputQueryFundingRateInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryFundingRatesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRatesInput(ctx context.Context, v any) (model.QueryFundingRatesInput, error) {
+func (ec *executionContext) unmarshalNQueryFundingRatesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryFundingRatesInput(ctx context.Context, v any) (model.QueryFundingRatesInput, error) {
 	res, err := ec.unmarshalInputQueryFundingRatesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryIndexComponentInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexComponentInput(ctx context.Context, v any) (model.QueryIndexComponentInput, error) {
+func (ec *executionContext) unmarshalNQueryIndexComponentInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexComponentInput(ctx context.Context, v any) (model.QueryIndexComponentInput, error) {
 	res, err := ec.unmarshalInputQueryIndexComponentInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryIndexPriceInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexPriceInput(ctx context.Context, v any) (model.QueryIndexPriceInput, error) {
+func (ec *executionContext) unmarshalNQueryIndexPriceInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryIndexPriceInput(ctx context.Context, v any) (model.QueryIndexPriceInput, error) {
 	res, err := ec.unmarshalInputQueryIndexPriceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryKlineInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryKlineInput(ctx context.Context, v any) (model.QueryKlineInput, error) {
+func (ec *executionContext) unmarshalNQueryKlineInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryKlineInput(ctx context.Context, v any) (model.QueryKlineInput, error) {
 	res, err := ec.unmarshalInputQueryKlineInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryLedgersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLedgersInput(ctx context.Context, v any) (model.QueryLedgersInput, error) {
+func (ec *executionContext) unmarshalNQueryLedgersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLedgersInput(ctx context.Context, v any) (model.QueryLedgersInput, error) {
 	res, err := ec.unmarshalInputQueryLedgersInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryLeverageBracketInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLeverageBracketInput(ctx context.Context, v any) (model.QueryLeverageBracketInput, error) {
+func (ec *executionContext) unmarshalNQueryLeverageBracketInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLeverageBracketInput(ctx context.Context, v any) (model.QueryLeverageBracketInput, error) {
 	res, err := ec.unmarshalInputQueryLeverageBracketInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryLlmPromptsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmPromptsInput(ctx context.Context, v any) (model.QueryLlmPromptsInput, error) {
+func (ec *executionContext) unmarshalNQueryLlmPromptsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmPromptsInput(ctx context.Context, v any) (model.QueryLlmPromptsInput, error) {
 	res, err := ec.unmarshalInputQueryLlmPromptsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryLlmScenesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmScenesInput(ctx context.Context, v any) (model.QueryLlmScenesInput, error) {
+func (ec *executionContext) unmarshalNQueryLlmScenesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryLlmScenesInput(ctx context.Context, v any) (model.QueryLlmScenesInput, error) {
 	res, err := ec.unmarshalInputQueryLlmScenesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryOpenInterestInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOpenInterestInput(ctx context.Context, v any) (model.QueryOpenInterestInput, error) {
+func (ec *executionContext) unmarshalNQueryOpenInterestInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOpenInterestInput(ctx context.Context, v any) (model.QueryOpenInterestInput, error) {
 	res, err := ec.unmarshalInputQueryOpenInterestInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryOrderBookInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrderBookInput(ctx context.Context, v any) (model.QueryOrderBookInput, error) {
+func (ec *executionContext) unmarshalNQueryOrderBookInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrderBookInput(ctx context.Context, v any) (model.QueryOrderBookInput, error) {
 	res, err := ec.unmarshalInputQueryOrderBookInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryOrdersInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrdersInput(ctx context.Context, v any) (model.QueryOrdersInput, error) {
+func (ec *executionContext) unmarshalNQueryOrdersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrdersInput(ctx context.Context, v any) (model.QueryOrdersInput, error) {
 	res, err := ec.unmarshalInputQueryOrdersInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryPositionsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryPositionsInput(ctx context.Context, v any) (model.QueryPositionsInput, error) {
+func (ec *executionContext) unmarshalNQueryPositionsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryPositionsInput(ctx context.Context, v any) (model.QueryPositionsInput, error) {
 	res, err := ec.unmarshalInputQueryPositionsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryRiskEventsInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryRiskEventsInput(ctx context.Context, v any) (model.QueryRiskEventsInput, error) {
+func (ec *executionContext) unmarshalNQueryRiskEventsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryRiskEventsInput(ctx context.Context, v any) (model.QueryRiskEventsInput, error) {
 	res, err := ec.unmarshalInputQueryRiskEventsInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNQueryStrategiesInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐQueryStrategiesInput(ctx context.Context, v any) (model.QueryStrategiesInput, error) {
+func (ec *executionContext) unmarshalNQueryStrategiesInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryStrategiesInput(ctx context.Context, v any) (model.QueryStrategiesInput, error) {
 	res, err := ec.unmarshalInputQueryStrategiesInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNRiskEvent2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RiskEvent) graphql.Marshaler {
+func (ec *executionContext) marshalNRiskEvent2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEventᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.RiskEvent) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNRiskEvent2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEvent(ctx, sel, v[i])
+		return ec.marshalNRiskEvent2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEvent(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55473,7 +55951,7 @@ func (ec *executionContext) marshalNRiskEvent2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNRiskEvent2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEvent(ctx context.Context, sel ast.SelectionSet, v *model.RiskEvent) graphql.Marshaler {
+func (ec *executionContext) marshalNRiskEvent2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRiskEvent(ctx context.Context, sel ast.SelectionSet, v *model.RiskEvent) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55483,16 +55961,16 @@ func (ec *executionContext) marshalNRiskEvent2ᚖgithubᚗcomᚋwangliang139ᚋl
 	return ec._RiskEvent(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNRunBacktestInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestInput(ctx context.Context, v any) (model.RunBacktestInput, error) {
+func (ec *executionContext) unmarshalNRunBacktestInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestInput(ctx context.Context, v any) (model.RunBacktestInput, error) {
 	res, err := ec.unmarshalInputRunBacktestInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNRunBacktestResponse2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestResponse(ctx context.Context, sel ast.SelectionSet, v model.RunBacktestResponse) graphql.Marshaler {
+func (ec *executionContext) marshalNRunBacktestResponse2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestResponse(ctx context.Context, sel ast.SelectionSet, v model.RunBacktestResponse) graphql.Marshaler {
 	return ec._RunBacktestResponse(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNRunBacktestResponse2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestResponse(ctx context.Context, sel ast.SelectionSet, v *model.RunBacktestResponse) graphql.Marshaler {
+func (ec *executionContext) marshalNRunBacktestResponse2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐRunBacktestResponse(ctx context.Context, sel ast.SelectionSet, v *model.RunBacktestResponse) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55502,16 +55980,16 @@ func (ec *executionContext) marshalNRunBacktestResponse2ᚖgithubᚗcomᚋwangli
 	return ec._RunBacktestResponse(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSceneTestInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestInput(ctx context.Context, v any) (model.SceneTestInput, error) {
+func (ec *executionContext) unmarshalNSceneTestInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestInput(ctx context.Context, v any) (model.SceneTestInput, error) {
 	res, err := ec.unmarshalInputSceneTestInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSceneTestResult2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestResult(ctx context.Context, sel ast.SelectionSet, v model.SceneTestResult) graphql.Marshaler {
+func (ec *executionContext) marshalNSceneTestResult2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestResult(ctx context.Context, sel ast.SelectionSet, v model.SceneTestResult) graphql.Marshaler {
 	return ec._SceneTestResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNSceneTestResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestResult(ctx context.Context, sel ast.SelectionSet, v *model.SceneTestResult) graphql.Marshaler {
+func (ec *executionContext) marshalNSceneTestResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestResult(ctx context.Context, sel ast.SelectionSet, v *model.SceneTestResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55521,16 +55999,16 @@ func (ec *executionContext) marshalNSceneTestResult2ᚖgithubᚗcomᚋwangliang1
 	return ec._SceneTestResult(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSendTelegramCodeInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodeInput(ctx context.Context, v any) (model.SendTelegramCodeInput, error) {
+func (ec *executionContext) unmarshalNSendTelegramCodeInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodeInput(ctx context.Context, v any) (model.SendTelegramCodeInput, error) {
 	res, err := ec.unmarshalInputSendTelegramCodeInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSendTelegramCodePayload2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodePayload(ctx context.Context, sel ast.SelectionSet, v model.SendTelegramCodePayload) graphql.Marshaler {
+func (ec *executionContext) marshalNSendTelegramCodePayload2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodePayload(ctx context.Context, sel ast.SelectionSet, v model.SendTelegramCodePayload) graphql.Marshaler {
 	return ec._SendTelegramCodePayload(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNSendTelegramCodePayload2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodePayload(ctx context.Context, sel ast.SelectionSet, v *model.SendTelegramCodePayload) graphql.Marshaler {
+func (ec *executionContext) marshalNSendTelegramCodePayload2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSendTelegramCodePayload(ctx context.Context, sel ast.SelectionSet, v *model.SendTelegramCodePayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55540,11 +56018,11 @@ func (ec *executionContext) marshalNSendTelegramCodePayload2ᚖgithubᚗcomᚋwa
 	return ec._SendTelegramCodePayload(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNSignalDefinition2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SignalDefinition) graphql.Marshaler {
+func (ec *executionContext) marshalNSignalDefinition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SignalDefinition) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNSignalDefinition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinition(ctx, sel, v[i])
+		return ec.marshalNSignalDefinition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinition(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55556,7 +56034,7 @@ func (ec *executionContext) marshalNSignalDefinition2ᚕᚖgithubᚗcomᚋwangli
 	return ret
 }
 
-func (ec *executionContext) marshalNSignalDefinition2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinition(ctx context.Context, sel ast.SelectionSet, v *model.SignalDefinition) graphql.Marshaler {
+func (ec *executionContext) marshalNSignalDefinition2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinition(ctx context.Context, sel ast.SelectionSet, v *model.SignalDefinition) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55566,14 +56044,14 @@ func (ec *executionContext) marshalNSignalDefinition2ᚖgithubᚗcomᚋwangliang
 	return ec._SignalDefinition(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx context.Context, v any) ([]*model.SignalDefinitionInput, error) {
+func (ec *executionContext) unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx context.Context, v any) ([]*model.SignalDefinitionInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]*model.SignalDefinitionInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNSignalDefinitionInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNSignalDefinitionInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -55581,26 +56059,26 @@ func (ec *executionContext) unmarshalNSignalDefinitionInput2ᚕᚖgithubᚗcom�
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNSignalDefinitionInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInput(ctx context.Context, v any) (*model.SignalDefinitionInput, error) {
+func (ec *executionContext) unmarshalNSignalDefinitionInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInput(ctx context.Context, v any) (*model.SignalDefinitionInput, error) {
 	res, err := ec.unmarshalInputSignalDefinitionInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNSignalType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, v any) (model.SignalType, error) {
+func (ec *executionContext) unmarshalNSignalType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, v any) (model.SignalType, error) {
 	var res model.SignalType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSignalType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, sel ast.SelectionSet, v model.SignalType) graphql.Marshaler {
+func (ec *executionContext) marshalNSignalType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, sel ast.SelectionSet, v model.SignalType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNStrategiesConnection2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategiesConnection(ctx context.Context, sel ast.SelectionSet, v model.StrategiesConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategiesConnection2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategiesConnection(ctx context.Context, sel ast.SelectionSet, v model.StrategiesConnection) graphql.Marshaler {
 	return ec._StrategiesConnection(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNStrategiesConnection2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategiesConnection(ctx context.Context, sel ast.SelectionSet, v *model.StrategiesConnection) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategiesConnection2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategiesConnection(ctx context.Context, sel ast.SelectionSet, v *model.StrategiesConnection) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55610,15 +56088,15 @@ func (ec *executionContext) marshalNStrategiesConnection2ᚖgithubᚗcomᚋwangl
 	return ec._StrategiesConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNStrategy2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx context.Context, sel ast.SelectionSet, v model.Strategy) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategy2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx context.Context, sel ast.SelectionSet, v model.Strategy) graphql.Marshaler {
 	return ec._Strategy(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNStrategy2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Strategy) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategy2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Strategy) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx, sel, v[i])
+		return ec.marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55630,7 +56108,7 @@ func (ec *executionContext) marshalNStrategy2ᚕᚖgithubᚗcomᚋwangliang139�
 	return ret
 }
 
-func (ec *executionContext) marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx context.Context, sel ast.SelectionSet, v *model.Strategy) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx context.Context, sel ast.SelectionSet, v *model.Strategy) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55640,11 +56118,11 @@ func (ec *executionContext) marshalNStrategy2ᚖgithubᚗcomᚋwangliang139ᚋll
 	return ec._Strategy(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNStrategyParam2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StrategyParam) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategyParam2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StrategyParam) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNStrategyParam2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParam(ctx, sel, v[i])
+		return ec.marshalNStrategyParam2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParam(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55656,7 +56134,7 @@ func (ec *executionContext) marshalNStrategyParam2ᚕᚖgithubᚗcomᚋwangliang
 	return ret
 }
 
-func (ec *executionContext) marshalNStrategyParam2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParam(ctx context.Context, sel ast.SelectionSet, v *model.StrategyParam) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategyParam2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParam(ctx context.Context, sel ast.SelectionSet, v *model.StrategyParam) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55666,14 +56144,14 @@ func (ec *executionContext) marshalNStrategyParam2ᚖgithubᚗcomᚋwangliang139
 	return ec._StrategyParam(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx context.Context, v any) ([]*model.StrategyParamInput, error) {
+func (ec *executionContext) unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx context.Context, v any) ([]*model.StrategyParamInput, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]*model.StrategyParamInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNStrategyParamInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNStrategyParamInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -55681,26 +56159,26 @@ func (ec *executionContext) unmarshalNStrategyParamInput2ᚕᚖgithubᚗcomᚋwa
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalNStrategyParamInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInput(ctx context.Context, v any) (*model.StrategyParamInput, error) {
+func (ec *executionContext) unmarshalNStrategyParamInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInput(ctx context.Context, v any) (*model.StrategyParamInput, error) {
 	res, err := ec.unmarshalInputStrategyParamInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNStrategyStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, v any) (model.StrategyStatus, error) {
+func (ec *executionContext) unmarshalNStrategyStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, v any) (model.StrategyStatus, error) {
 	var res model.StrategyStatus
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNStrategyStatus2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, sel ast.SelectionSet, v model.StrategyStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNStrategyStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, sel ast.SelectionSet, v model.StrategyStatus) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) marshalNStreamEvent2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamEvent(ctx context.Context, sel ast.SelectionSet, v model.StreamEvent) graphql.Marshaler {
+func (ec *executionContext) marshalNStreamEvent2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamEvent(ctx context.Context, sel ast.SelectionSet, v model.StreamEvent) graphql.Marshaler {
 	return ec._StreamEvent(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNStreamEvent2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamEvent(ctx context.Context, sel ast.SelectionSet, v *model.StreamEvent) graphql.Marshaler {
+func (ec *executionContext) marshalNStreamEvent2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamEvent(ctx context.Context, sel ast.SelectionSet, v *model.StreamEvent) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55710,16 +56188,16 @@ func (ec *executionContext) marshalNStreamEvent2ᚖgithubᚗcomᚋwangliang139�
 	return ec._StreamEvent(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNStreamInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamInput(ctx context.Context, v any) (model.StreamInput, error) {
+func (ec *executionContext) unmarshalNStreamInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamInput(ctx context.Context, v any) (model.StreamInput, error) {
 	res, err := ec.unmarshalInputStreamInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNStreamStatsItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamStatsItem) graphql.Marshaler {
+func (ec *executionContext) marshalNStreamStatsItem2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StreamStatsItem) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNStreamStatsItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItem(ctx, sel, v[i])
+		return ec.marshalNStreamStatsItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItem(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55731,7 +56209,7 @@ func (ec *executionContext) marshalNStreamStatsItem2ᚕᚖgithubᚗcomᚋwanglia
 	return ret
 }
 
-func (ec *executionContext) marshalNStreamStatsItem2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItem(ctx context.Context, sel ast.SelectionSet, v *model.StreamStatsItem) graphql.Marshaler {
+func (ec *executionContext) marshalNStreamStatsItem2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamStatsItem(ctx context.Context, sel ast.SelectionSet, v *model.StreamStatsItem) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55741,13 +56219,13 @@ func (ec *executionContext) marshalNStreamStatsItem2ᚖgithubᚗcomᚋwangliang1
 	return ec._StreamStatsItem(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNStreamType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType(ctx context.Context, v any) (model.StreamType, error) {
+func (ec *executionContext) unmarshalNStreamType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType(ctx context.Context, v any) (model.StreamType, error) {
 	var res model.StreamType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNStreamType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType(ctx context.Context, sel ast.SelectionSet, v model.StreamType) graphql.Marshaler {
+func (ec *executionContext) marshalNStreamType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStreamType(ctx context.Context, sel ast.SelectionSet, v model.StreamType) graphql.Marshaler {
 	return v
 }
 
@@ -55797,11 +56275,11 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	return ret
 }
 
-func (ec *executionContext) marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetricsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SymbolMetrics) graphql.Marshaler {
+func (ec *executionContext) marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetricsᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SymbolMetrics) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNSymbolMetrics2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetrics(ctx, sel, v[i])
+		return ec.marshalNSymbolMetrics2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetrics(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55813,7 +56291,7 @@ func (ec *executionContext) marshalNSymbolMetrics2ᚕᚖgithubᚗcomᚋwangliang
 	return ret
 }
 
-func (ec *executionContext) marshalNSymbolMetrics2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetrics(ctx context.Context, sel ast.SelectionSet, v *model.SymbolMetrics) graphql.Marshaler {
+func (ec *executionContext) marshalNSymbolMetrics2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolMetrics(ctx context.Context, sel ast.SelectionSet, v *model.SymbolMetrics) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55823,11 +56301,11 @@ func (ec *executionContext) marshalNSymbolMetrics2ᚖgithubᚗcomᚋwangliang139
 	return ec._SymbolMetrics(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNSymbolSummary2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummaryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SymbolSummary) graphql.Marshaler {
+func (ec *executionContext) marshalNSymbolSummary2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummaryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SymbolSummary) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNSymbolSummary2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummary(ctx, sel, v[i])
+		return ec.marshalNSymbolSummary2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummary(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55839,7 +56317,7 @@ func (ec *executionContext) marshalNSymbolSummary2ᚕᚖgithubᚗcomᚋwangliang
 	return ret
 }
 
-func (ec *executionContext) marshalNSymbolSummary2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummary(ctx context.Context, sel ast.SelectionSet, v *model.SymbolSummary) graphql.Marshaler {
+func (ec *executionContext) marshalNSymbolSummary2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolSummary(ctx context.Context, sel ast.SelectionSet, v *model.SymbolSummary) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55849,16 +56327,16 @@ func (ec *executionContext) marshalNSymbolSummary2ᚖgithubᚗcomᚋwangliang139
 	return ec._SymbolSummary(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNTestExtractInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractInput(ctx context.Context, v any) (model.TestExtractInput, error) {
+func (ec *executionContext) unmarshalNTestExtractInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractInput(ctx context.Context, v any) (model.TestExtractInput, error) {
 	res, err := ec.unmarshalInputTestExtractInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNTestExtractResult2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractResult(ctx context.Context, sel ast.SelectionSet, v model.TestExtractResult) graphql.Marshaler {
+func (ec *executionContext) marshalNTestExtractResult2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractResult(ctx context.Context, sel ast.SelectionSet, v model.TestExtractResult) graphql.Marshaler {
 	return ec._TestExtractResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNTestExtractResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractResult(ctx context.Context, sel ast.SelectionSet, v *model.TestExtractResult) graphql.Marshaler {
+func (ec *executionContext) marshalNTestExtractResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTestExtractResult(ctx context.Context, sel ast.SelectionSet, v *model.TestExtractResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55868,56 +56346,56 @@ func (ec *executionContext) marshalNTestExtractResult2ᚖgithubᚗcomᚋwanglian
 	return ec._TestExtractResult(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNUpdateAccountRiskConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateAccountRiskConfigInput(ctx context.Context, v any) (model.UpdateAccountRiskConfigInput, error) {
+func (ec *executionContext) unmarshalNUpdateAccountRiskConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateAccountRiskConfigInput(ctx context.Context, v any) (model.UpdateAccountRiskConfigInput, error) {
 	res, err := ec.unmarshalInputUpdateAccountRiskConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateBotInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateBotInput(ctx context.Context, v any) (model.UpdateBotInput, error) {
+func (ec *executionContext) unmarshalNUpdateBotInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateBotInput(ctx context.Context, v any) (model.UpdateBotInput, error) {
 	res, err := ec.unmarshalInputUpdateBotInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateChannelInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateChannelInput(ctx context.Context, v any) (model.UpdateChannelInput, error) {
+func (ec *executionContext) unmarshalNUpdateChannelInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateChannelInput(ctx context.Context, v any) (model.UpdateChannelInput, error) {
 	res, err := ec.unmarshalInputUpdateChannelInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateLlmPromptInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmPromptInput(ctx context.Context, v any) (model.UpdateLlmPromptInput, error) {
+func (ec *executionContext) unmarshalNUpdateLlmPromptInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmPromptInput(ctx context.Context, v any) (model.UpdateLlmPromptInput, error) {
 	res, err := ec.unmarshalInputUpdateLlmPromptInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateLlmProviderConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmProviderConfigInput(ctx context.Context, v any) (model.UpdateLlmProviderConfigInput, error) {
+func (ec *executionContext) unmarshalNUpdateLlmProviderConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmProviderConfigInput(ctx context.Context, v any) (model.UpdateLlmProviderConfigInput, error) {
 	res, err := ec.unmarshalInputUpdateLlmProviderConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateLlmSceneInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmSceneInput(ctx context.Context, v any) (model.UpdateLlmSceneInput, error) {
+func (ec *executionContext) unmarshalNUpdateLlmSceneInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateLlmSceneInput(ctx context.Context, v any) (model.UpdateLlmSceneInput, error) {
 	res, err := ec.unmarshalInputUpdateLlmSceneInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateNetworkProxyConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateNetworkProxyConfigInput(ctx context.Context, v any) (model.UpdateNetworkProxyConfigInput, error) {
+func (ec *executionContext) unmarshalNUpdateNetworkProxyConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateNetworkProxyConfigInput(ctx context.Context, v any) (model.UpdateNetworkProxyConfigInput, error) {
 	res, err := ec.unmarshalInputUpdateNetworkProxyConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdatePushConfigInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdatePushConfigInput(ctx context.Context, v any) (model.UpdatePushConfigInput, error) {
+func (ec *executionContext) unmarshalNUpdatePushConfigInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdatePushConfigInput(ctx context.Context, v any) (model.UpdatePushConfigInput, error) {
 	res, err := ec.unmarshalInputUpdatePushConfigInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNUpdateStrategyInput2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateStrategyInput(ctx context.Context, v any) (model.UpdateStrategyInput, error) {
+func (ec *executionContext) unmarshalNUpdateStrategyInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpdateStrategyInput(ctx context.Context, v any) (model.UpdateStrategyInput, error) {
 	res, err := ec.unmarshalInputUpdateStrategyInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUpgradeBotResult2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpgradeBotResult(ctx context.Context, sel ast.SelectionSet, v model.UpgradeBotResult) graphql.Marshaler {
+func (ec *executionContext) marshalNUpgradeBotResult2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpgradeBotResult(ctx context.Context, sel ast.SelectionSet, v model.UpgradeBotResult) graphql.Marshaler {
 	return ec._UpgradeBotResult(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNUpgradeBotResult2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUpgradeBotResult(ctx context.Context, sel ast.SelectionSet, v *model.UpgradeBotResult) graphql.Marshaler {
+func (ec *executionContext) marshalNUpgradeBotResult2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUpgradeBotResult(ctx context.Context, sel ast.SelectionSet, v *model.UpgradeBotResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55927,11 +56405,11 @@ func (ec *executionContext) marshalNUpgradeBotResult2ᚖgithubᚗcomᚋwangliang
 	return ec._UpgradeBotResult(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNUserApiKey2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserAPIKey) graphql.Marshaler {
+func (ec *executionContext) marshalNUserApiKey2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserAPIKey) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKey(ctx, sel, v[i])
+		return ec.marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKey(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55943,7 +56421,7 @@ func (ec *executionContext) marshalNUserApiKey2ᚕᚖgithubᚗcomᚋwangliang139
 	return ret
 }
 
-func (ec *executionContext) marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKey(ctx context.Context, sel ast.SelectionSet, v *model.UserAPIKey) graphql.Marshaler {
+func (ec *executionContext) marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKey(ctx context.Context, sel ast.SelectionSet, v *model.UserAPIKey) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -55953,24 +56431,24 @@ func (ec *executionContext) marshalNUserApiKey2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return ec._UserApiKey(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx context.Context, v any) (model.UserAPIKeyPermission, error) {
+func (ec *executionContext) unmarshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx context.Context, v any) (model.UserAPIKeyPermission, error) {
 	var res model.UserAPIKeyPermission
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx context.Context, sel ast.SelectionSet, v model.UserAPIKeyPermission) graphql.Marshaler {
+func (ec *executionContext) marshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx context.Context, sel ast.SelectionSet, v model.UserAPIKeyPermission) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ(ctx context.Context, v any) ([]model.UserAPIKeyPermission, error) {
+func (ec *executionContext) unmarshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ(ctx context.Context, v any) ([]model.UserAPIKeyPermission, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]model.UserAPIKeyPermission, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -55978,11 +56456,11 @@ func (ec *executionContext) unmarshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwan
 	return res, nil
 }
 
-func (ec *executionContext) marshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ(ctx context.Context, sel ast.SelectionSet, v []model.UserAPIKeyPermission) graphql.Marshaler {
+func (ec *executionContext) marshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermissionᚄ(ctx context.Context, sel ast.SelectionSet, v []model.UserAPIKeyPermission) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx, sel, v[i])
+		return ec.marshalNUserApiKeyPermission2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserAPIKeyPermission(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -55994,11 +56472,11 @@ func (ec *executionContext) marshalNUserApiKeyPermission2ᚕgithubᚗcomᚋwangl
 	return ret
 }
 
-func (ec *executionContext) marshalNUserSettingEntry2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserSettingEntry) graphql.Marshaler {
+func (ec *executionContext) marshalNUserSettingEntry2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UserSettingEntry) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNUserSettingEntry2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntry(ctx, sel, v[i])
+		return ec.marshalNUserSettingEntry2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntry(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -56010,7 +56488,7 @@ func (ec *executionContext) marshalNUserSettingEntry2ᚕᚖgithubᚗcomᚋwangli
 	return ret
 }
 
-func (ec *executionContext) marshalNUserSettingEntry2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntry(ctx context.Context, sel ast.SelectionSet, v *model.UserSettingEntry) graphql.Marshaler {
+func (ec *executionContext) marshalNUserSettingEntry2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐUserSettingEntry(ctx context.Context, sel ast.SelectionSet, v *model.UserSettingEntry) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
@@ -56020,24 +56498,24 @@ func (ec *executionContext) marshalNUserSettingEntry2ᚖgithubᚗcomᚋwangliang
 	return ec._UserSettingEntry(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, v any) (model.WalletType, error) {
+func (ec *executionContext) unmarshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, v any) (model.WalletType, error) {
 	var res model.WalletType
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, sel ast.SelectionSet, v model.WalletType) graphql.Marshaler {
+func (ec *executionContext) marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, sel ast.SelectionSet, v model.WalletType) graphql.Marshaler {
 	return v
 }
 
-func (ec *executionContext) unmarshalNWalletType2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletTypeᚄ(ctx context.Context, v any) ([]model.WalletType, error) {
+func (ec *executionContext) unmarshalNWalletType2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletTypeᚄ(ctx context.Context, v any) ([]model.WalletType, error) {
 	var vSlice []any
 	vSlice = graphql.CoerceList(v)
 	var err error
 	res := make([]model.WalletType, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -56045,11 +56523,11 @@ func (ec *executionContext) unmarshalNWalletType2ᚕgithubᚗcomᚋwangliang139�
 	return res, nil
 }
 
-func (ec *executionContext) marshalNWalletType2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.WalletType) graphql.Marshaler {
+func (ec *executionContext) marshalNWalletType2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.WalletType) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, sel, v[i])
+		return ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -56202,42 +56680,42 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 	return res
 }
 
-func (ec *executionContext) marshalOAccountBalanceSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceSnapshot(ctx context.Context, sel ast.SelectionSet, v *model.AccountBalanceSnapshot) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountBalanceSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceSnapshot(ctx context.Context, sel ast.SelectionSet, v *model.AccountBalanceSnapshot) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._AccountBalanceSnapshot(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOAccountBalanceUpdate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceUpdate(ctx context.Context, sel ast.SelectionSet, v *model.AccountBalanceUpdate) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountBalanceUpdate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountBalanceUpdate(ctx context.Context, sel ast.SelectionSet, v *model.AccountBalanceUpdate) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._AccountBalanceUpdate(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOAccountPositionSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionSnapshot(ctx context.Context, sel ast.SelectionSet, v *model.AccountPositionSnapshot) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountPositionSnapshot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionSnapshot(ctx context.Context, sel ast.SelectionSet, v *model.AccountPositionSnapshot) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._AccountPositionSnapshot(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOAccountPositionsUpdate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionsUpdate(ctx context.Context, sel ast.SelectionSet, v *model.AccountPositionsUpdate) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountPositionsUpdate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountPositionsUpdate(ctx context.Context, sel ast.SelectionSet, v *model.AccountPositionsUpdate) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._AccountPositionsUpdate(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOAccountStats2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStats(ctx context.Context, sel ast.SelectionSet, v *model.AccountStats) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountStats2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStats(ctx context.Context, sel ast.SelectionSet, v *model.AccountStats) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._AccountStats(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, v any) (*model.AccountStatus, error) {
+func (ec *executionContext) unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, v any) (*model.AccountStatus, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56246,14 +56724,14 @@ func (ec *executionContext) unmarshalOAccountStatus2ᚖgithubᚗcomᚋwangliang1
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, sel ast.SelectionSet, v *model.AccountStatus) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, sel ast.SelectionSet, v *model.AccountStatus) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, v any) (*model.AccountType, error) {
+func (ec *executionContext) unmarshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, v any) (*model.AccountType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56262,21 +56740,21 @@ func (ec *executionContext) unmarshalOAccountType2ᚖgithubᚗcomᚋwangliang139
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, sel ast.SelectionSet, v *model.AccountType) graphql.Marshaler {
+func (ec *executionContext) marshalOAccountType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountType(ctx context.Context, sel ast.SelectionSet, v *model.AccountType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit(ctx context.Context, sel ast.SelectionSet, v *model.AmountLimit) graphql.Marshaler {
+func (ec *executionContext) marshalOAmountLimit2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimit(ctx context.Context, sel ast.SelectionSet, v *model.AmountLimit) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._AmountLimit(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx context.Context, v any) (*model.AmountLimitInput, error) {
+func (ec *executionContext) unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAmountLimitInput(ctx context.Context, v any) (*model.AmountLimitInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56284,7 +56762,7 @@ func (ec *executionContext) unmarshalOAmountLimitInput2ᚖgithubᚗcomᚋwanglia
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, v any) (*model.AuthAlgorithm, error) {
+func (ec *executionContext) unmarshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, v any) (*model.AuthAlgorithm, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56293,14 +56771,14 @@ func (ec *executionContext) unmarshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang1
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, sel ast.SelectionSet, v *model.AuthAlgorithm) graphql.Marshaler {
+func (ec *executionContext) marshalOAuthAlgorithm2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, sel ast.SelectionSet, v *model.AuthAlgorithm) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOBacktestAssetInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInputᚄ(ctx context.Context, v any) ([]*model.BacktestAssetInput, error) {
+func (ec *executionContext) unmarshalOBacktestAssetInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInputᚄ(ctx context.Context, v any) ([]*model.BacktestAssetInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56310,7 +56788,7 @@ func (ec *executionContext) unmarshalOBacktestAssetInput2ᚕᚖgithubᚗcomᚋwa
 	res := make([]*model.BacktestAssetInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNBacktestAssetInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNBacktestAssetInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -56318,7 +56796,7 @@ func (ec *executionContext) unmarshalOBacktestAssetInput2ᚕᚖgithubᚗcomᚋwa
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalOBacktestSignalInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInputᚄ(ctx context.Context, v any) ([]*model.BacktestSignalInput, error) {
+func (ec *executionContext) unmarshalOBacktestSignalInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInputᚄ(ctx context.Context, v any) ([]*model.BacktestSignalInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56328,7 +56806,7 @@ func (ec *executionContext) unmarshalOBacktestSignalInput2ᚕᚖgithubᚗcomᚋw
 	res := make([]*model.BacktestSignalInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNBacktestSignalInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNBacktestSignalInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSignalInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -56336,7 +56814,7 @@ func (ec *executionContext) unmarshalOBacktestSignalInput2ᚕᚖgithubᚗcomᚋw
 	return res, nil
 }
 
-func (ec *executionContext) marshalOBalance2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBalance(ctx context.Context, sel ast.SelectionSet, v *model.Balance) graphql.Marshaler {
+func (ec *executionContext) marshalOBalance2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBalance(ctx context.Context, sel ast.SelectionSet, v *model.Balance) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -56373,14 +56851,14 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
-func (ec *executionContext) marshalOBot2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx context.Context, sel ast.SelectionSet, v *model.Bot) graphql.Marshaler {
+func (ec *executionContext) marshalOBot2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBot(ctx context.Context, sel ast.SelectionSet, v *model.Bot) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Bot(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, v any) (*model.BotMode, error) {
+func (ec *executionContext) unmarshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, v any) (*model.BotMode, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56389,28 +56867,28 @@ func (ec *executionContext) unmarshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋl
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, sel ast.SelectionSet, v *model.BotMode) graphql.Marshaler {
+func (ec *executionContext) marshalOBotMode2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotMode(ctx context.Context, sel ast.SelectionSet, v *model.BotMode) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) marshalOBotPortfolio2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolio(ctx context.Context, sel ast.SelectionSet, v *model.BotPortfolio) graphql.Marshaler {
+func (ec *executionContext) marshalOBotPortfolio2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotPortfolio(ctx context.Context, sel ast.SelectionSet, v *model.BotPortfolio) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._BotPortfolio(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOBotState2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotState(ctx context.Context, sel ast.SelectionSet, v *model.BotState) graphql.Marshaler {
+func (ec *executionContext) marshalOBotState2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotState(ctx context.Context, sel ast.SelectionSet, v *model.BotState) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._BotState(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOBotStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, v any) (*model.BotStatus, error) {
+func (ec *executionContext) unmarshalOBotStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, v any) (*model.BotStatus, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56419,21 +56897,21 @@ func (ec *executionContext) unmarshalOBotStatus2ᚖgithubᚗcomᚋwangliang139�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOBotStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, sel ast.SelectionSet, v *model.BotStatus) graphql.Marshaler {
+func (ec *executionContext) marshalOBotStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBotStatus(ctx context.Context, sel ast.SelectionSet, v *model.BotStatus) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) marshalOCalendarExtention2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarExtention(ctx context.Context, sel ast.SelectionSet, v model.CalendarExtention) graphql.Marshaler {
+func (ec *executionContext) marshalOCalendarExtention2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarExtention(ctx context.Context, sel ast.SelectionSet, v model.CalendarExtention) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._CalendarExtention(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOCalendarSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, v any) (*model.CalendarSource, error) {
+func (ec *executionContext) unmarshalOCalendarSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, v any) (*model.CalendarSource, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56442,14 +56920,14 @@ func (ec *executionContext) unmarshalOCalendarSource2ᚖgithubᚗcomᚋwangliang
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOCalendarSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, sel ast.SelectionSet, v *model.CalendarSource) graphql.Marshaler {
+func (ec *executionContext) marshalOCalendarSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarSource(ctx context.Context, sel ast.SelectionSet, v *model.CalendarSource) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOCalendarType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, v any) (*model.CalendarType, error) {
+func (ec *executionContext) unmarshalOCalendarType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, v any) (*model.CalendarType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56458,42 +56936,42 @@ func (ec *executionContext) unmarshalOCalendarType2ᚖgithubᚗcomᚋwangliang13
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOCalendarType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, sel ast.SelectionSet, v *model.CalendarType) graphql.Marshaler {
+func (ec *executionContext) marshalOCalendarType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCalendarType(ctx context.Context, sel ast.SelectionSet, v *model.CalendarType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) marshalOCompletionMetadata2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionMetadata(ctx context.Context, sel ast.SelectionSet, v *model.CompletionMetadata) graphql.Marshaler {
+func (ec *executionContext) marshalOCompletionMetadata2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionMetadata(ctx context.Context, sel ast.SelectionSet, v *model.CompletionMetadata) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._CompletionMetadata(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOCompletionUsage2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionUsage(ctx context.Context, sel ast.SelectionSet, v *model.CompletionUsage) graphql.Marshaler {
+func (ec *executionContext) marshalOCompletionUsage2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐCompletionUsage(ctx context.Context, sel ast.SelectionSet, v *model.CompletionUsage) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._CompletionUsage(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalODataSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx context.Context, sel ast.SelectionSet, v *model.DataSource) graphql.Marshaler {
+func (ec *executionContext) marshalODataSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDataSource(ctx context.Context, sel ast.SelectionSet, v *model.DataSource) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._DataSource(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalODocument2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocument(ctx context.Context, sel ast.SelectionSet, v *model.Document) graphql.Marshaler {
+func (ec *executionContext) marshalODocument2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocument(ctx context.Context, sel ast.SelectionSet, v *model.Document) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Document(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, v any) (*model.DocumentCatalog, error) {
+func (ec *executionContext) unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, v any) (*model.DocumentCatalog, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56502,14 +56980,14 @@ func (ec *executionContext) unmarshalODocumentCatalog2ᚖgithubᚗcomᚋwanglian
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, sel ast.SelectionSet, v *model.DocumentCatalog) graphql.Marshaler {
+func (ec *executionContext) marshalODocumentCatalog2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentCatalog(ctx context.Context, sel ast.SelectionSet, v *model.DocumentCatalog) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalODocumentStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, v any) (*model.DocumentStatus, error) {
+func (ec *executionContext) unmarshalODocumentStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, v any) (*model.DocumentStatus, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56518,14 +56996,14 @@ func (ec *executionContext) unmarshalODocumentStatus2ᚖgithubᚗcomᚋwangliang
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalODocumentStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, sel ast.SelectionSet, v *model.DocumentStatus) graphql.Marshaler {
+func (ec *executionContext) marshalODocumentStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐDocumentStatus(ctx context.Context, sel ast.SelectionSet, v *model.DocumentStatus) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, v any) (*types.Exchange, error) {
+func (ec *executionContext) unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, v any) (*types.Exchange, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56534,7 +57012,7 @@ func (ec *executionContext) unmarshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋ
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, sel ast.SelectionSet, v *types.Exchange) graphql.Marshaler {
+func (ec *executionContext) marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx context.Context, sel ast.SelectionSet, v *types.Exchange) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -56544,7 +57022,7 @@ func (ec *executionContext) marshalOExchange2ᚖgithubᚗcomᚋwangliang139ᚋll
 	return res
 }
 
-func (ec *executionContext) unmarshalOExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx context.Context, v any) (*model.ExtractCfgInput, error) {
+func (ec *executionContext) unmarshalOExtractCfgInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐExtractCfgInput(ctx context.Context, v any) (*model.ExtractCfgInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56552,14 +57030,14 @@ func (ec *executionContext) unmarshalOExtractCfgInput2ᚖgithubᚗcomᚋwanglian
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOFill2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFillᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Fill) graphql.Marshaler {
+func (ec *executionContext) marshalOFill2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFillᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Fill) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNFill2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFill(ctx, sel, v[i])
+		return ec.marshalNFill2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFill(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -56571,7 +57049,7 @@ func (ec *executionContext) marshalOFill2ᚕᚖgithubᚗcomᚋwangliang139ᚋllt
 	return ret
 }
 
-func (ec *executionContext) marshalOFill2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFill(ctx context.Context, sel ast.SelectionSet, v *model.Fill) graphql.Marshaler {
+func (ec *executionContext) marshalOFill2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFill(ctx context.Context, sel ast.SelectionSet, v *model.Fill) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -56595,7 +57073,7 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	return graphql.WrapContextMarshaler(ctx, res)
 }
 
-func (ec *executionContext) marshalOFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate(ctx context.Context, sel ast.SelectionSet, v *model.FundingRate) graphql.Marshaler {
+func (ec *executionContext) marshalOFundingRate2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐFundingRate(ctx context.Context, sel ast.SelectionSet, v *model.FundingRate) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -56620,14 +57098,14 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) marshalOIndexComponent2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponent(ctx context.Context, sel ast.SelectionSet, v *model.IndexComponent) graphql.Marshaler {
+func (ec *executionContext) marshalOIndexComponent2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexComponent(ctx context.Context, sel ast.SelectionSet, v *model.IndexComponent) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._IndexComponent(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOIndexPrice2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐIndexPrice(ctx context.Context, sel ast.SelectionSet, v *model.IndexPrice) graphql.Marshaler {
+func (ec *executionContext) marshalOIndexPrice2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐIndexPrice(ctx context.Context, sel ast.SelectionSet, v *model.IndexPrice) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -56652,21 +57130,21 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
-func (ec *executionContext) marshalOKline2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐKline(ctx context.Context, sel ast.SelectionSet, v *model.Kline) graphql.Marshaler {
+func (ec *executionContext) marshalOKline2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐKline(ctx context.Context, sel ast.SelectionSet, v *model.Kline) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Kline(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOLeverageBracket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLeverageBracket(ctx context.Context, sel ast.SelectionSet, v *model.LeverageBracket) graphql.Marshaler {
+func (ec *executionContext) marshalOLeverageBracket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLeverageBracket(ctx context.Context, sel ast.SelectionSet, v *model.LeverageBracket) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._LeverageBracket(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx context.Context, v any) (*model.LlmConfigInput, error) {
+func (ec *executionContext) unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmConfigInput(ctx context.Context, v any) (*model.LlmConfigInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56674,7 +57152,7 @@ func (ec *executionContext) unmarshalOLlmConfigInput2ᚖgithubᚗcomᚋwangliang
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx context.Context, v any) ([]*model.LlmMessageInput, error) {
+func (ec *executionContext) unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInputᚄ(ctx context.Context, v any) ([]*model.LlmMessageInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56684,7 +57162,7 @@ func (ec *executionContext) unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangl
 	res := make([]*model.LlmMessageInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNLlmMessageInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNLlmMessageInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmMessageInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -56692,21 +57170,21 @@ func (ec *executionContext) unmarshalOLlmMessageInput2ᚕᚖgithubᚗcomᚋwangl
 	return res, nil
 }
 
-func (ec *executionContext) marshalOLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx context.Context, sel ast.SelectionSet, v *model.LlmPrompt) graphql.Marshaler {
+func (ec *executionContext) marshalOLlmPrompt2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmPrompt(ctx context.Context, sel ast.SelectionSet, v *model.LlmPrompt) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._LlmPrompt(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOLlmResponseFormatJsonSchema2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchema(ctx context.Context, sel ast.SelectionSet, v *model.LlmResponseFormatJSONSchema) graphql.Marshaler {
+func (ec *executionContext) marshalOLlmResponseFormatJsonSchema2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchema(ctx context.Context, sel ast.SelectionSet, v *model.LlmResponseFormatJSONSchema) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._LlmResponseFormatJsonSchema(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOLlmResponseFormatJsonSchemaInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchemaInput(ctx context.Context, v any) (*model.LlmResponseFormatJSONSchemaInput, error) {
+func (ec *executionContext) unmarshalOLlmResponseFormatJsonSchemaInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmResponseFormatJSONSchemaInput(ctx context.Context, v any) (*model.LlmResponseFormatJSONSchemaInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56714,42 +57192,42 @@ func (ec *executionContext) unmarshalOLlmResponseFormatJsonSchemaInput2ᚖgithub
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOLlmSceneWithPrompts2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneWithPrompts(ctx context.Context, sel ast.SelectionSet, v *model.LlmSceneWithPrompts) graphql.Marshaler {
+func (ec *executionContext) marshalOLlmSceneWithPrompts2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLlmSceneWithPrompts(ctx context.Context, sel ast.SelectionSet, v *model.LlmSceneWithPrompts) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._LlmSceneWithPrompts(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOMarkPrice2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarkPrice(ctx context.Context, sel ast.SelectionSet, v *model.MarkPrice) graphql.Marshaler {
+func (ec *executionContext) marshalOMarkPrice2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarkPrice(ctx context.Context, sel ast.SelectionSet, v *model.MarkPrice) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._MarkPrice(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOMarket2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarket(ctx context.Context, sel ast.SelectionSet, v *model.Market) graphql.Marshaler {
+func (ec *executionContext) marshalOMarket2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarket(ctx context.Context, sel ast.SelectionSet, v *model.Market) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Market(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOMarketAccount2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketAccount(ctx context.Context, sel ast.SelectionSet, v *model.MarketAccount) graphql.Marshaler {
+func (ec *executionContext) marshalOMarketAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketAccount(ctx context.Context, sel ast.SelectionSet, v *model.MarketAccount) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._MarketAccount(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOMarketOrderType2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MarketOrderType) graphql.Marshaler {
+func (ec *executionContext) marshalOMarketOrderType2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MarketOrderType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNMarketOrderType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderType(ctx, sel, v[i])
+		return ec.marshalNMarketOrderType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketOrderType(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -56761,14 +57239,14 @@ func (ec *executionContext) marshalOMarketOrderType2ᚕᚖgithubᚗcomᚋwanglia
 	return ret
 }
 
-func (ec *executionContext) marshalOMarketRules2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketRules(ctx context.Context, sel ast.SelectionSet, v *model.MarketRules) graphql.Marshaler {
+func (ec *executionContext) marshalOMarketRules2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketRules(ctx context.Context, sel ast.SelectionSet, v *model.MarketRules) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._MarketRules(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx context.Context, v any) (*model.MarketSource, error) {
+func (ec *executionContext) unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx context.Context, v any) (*model.MarketSource, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56777,14 +57255,14 @@ func (ec *executionContext) unmarshalOMarketSource2ᚖgithubᚗcomᚋwangliang13
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx context.Context, sel ast.SelectionSet, v *model.MarketSource) graphql.Marshaler {
+func (ec *executionContext) marshalOMarketSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketSource(ctx context.Context, sel ast.SelectionSet, v *model.MarketSource) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketTypeᚄ(ctx context.Context, v any) ([]model.MarketType, error) {
+func (ec *executionContext) unmarshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketTypeᚄ(ctx context.Context, v any) ([]model.MarketType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56794,7 +57272,7 @@ func (ec *executionContext) unmarshalOMarketType2ᚕgithubᚗcomᚋwangliang139�
 	res := make([]model.MarketType, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNMarketType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNMarketType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -56802,14 +57280,14 @@ func (ec *executionContext) unmarshalOMarketType2ᚕgithubᚗcomᚋwangliang139�
 	return res, nil
 }
 
-func (ec *executionContext) marshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MarketType) graphql.Marshaler {
+func (ec *executionContext) marshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketTypeᚄ(ctx context.Context, sel ast.SelectionSet, v []model.MarketType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNMarketType2githubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, sel, v[i])
+		return ec.marshalNMarketType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -56821,7 +57299,7 @@ func (ec *executionContext) marshalOMarketType2ᚕgithubᚗcomᚋwangliang139ᚋ
 	return ret
 }
 
-func (ec *executionContext) unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, v any) (*model.MarketType, error) {
+func (ec *executionContext) unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, v any) (*model.MarketType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56830,28 +57308,28 @@ func (ec *executionContext) unmarshalOMarketType2ᚖgithubᚗcomᚋwangliang139�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, sel ast.SelectionSet, v *model.MarketType) graphql.Marshaler {
+func (ec *executionContext) marshalOMarketType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMarketType(ctx context.Context, sel ast.SelectionSet, v *model.MarketType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) marshalOOpenInterest2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOpenInterest(ctx context.Context, sel ast.SelectionSet, v *model.OpenInterest) graphql.Marshaler {
+func (ec *executionContext) marshalOOpenInterest2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOpenInterest(ctx context.Context, sel ast.SelectionSet, v *model.OpenInterest) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._OpenInterest(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalOOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
-		return ec.marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx, sel, v[i])
+		return ec.marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {
@@ -56863,21 +57341,21 @@ func (ec *executionContext) marshalOOrder2ᚕᚖgithubᚗcomᚋwangliang139ᚋll
 	return ret
 }
 
-func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Order(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook(ctx context.Context, sel ast.SelectionSet, v *model.OrderBook) graphql.Marshaler {
+func (ec *executionContext) marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook(ctx context.Context, sel ast.SelectionSet, v *model.OrderBook) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._OrderBook(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, v any) (*model.OrderSource, error) {
+func (ec *executionContext) unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, v any) (*model.OrderSource, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56886,14 +57364,14 @@ func (ec *executionContext) unmarshalOOrderSource2ᚖgithubᚗcomᚋwangliang139
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, sel ast.SelectionSet, v *model.OrderSource) graphql.Marshaler {
+func (ec *executionContext) marshalOOrderSource2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderSource(ctx context.Context, sel ast.SelectionSet, v *model.OrderSource) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, v any) (*model.OrderType, error) {
+func (ec *executionContext) unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, v any) (*model.OrderType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56902,14 +57380,14 @@ func (ec *executionContext) unmarshalOOrderType2ᚖgithubᚗcomᚋwangliang139�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, sel ast.SelectionSet, v *model.OrderType) graphql.Marshaler {
+func (ec *executionContext) marshalOOrderType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderType(ctx context.Context, sel ast.SelectionSet, v *model.OrderType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOSceneTestPromptInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestPromptInput(ctx context.Context, v any) (*model.SceneTestPromptInput, error) {
+func (ec *executionContext) unmarshalOSceneTestPromptInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSceneTestPromptInput(ctx context.Context, v any) (*model.SceneTestPromptInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56917,7 +57395,7 @@ func (ec *executionContext) unmarshalOSceneTestPromptInput2ᚖgithubᚗcomᚋwan
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalOSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx context.Context, v any) ([]*model.SignalDefinitionInput, error) {
+func (ec *executionContext) unmarshalOSignalDefinitionInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInputᚄ(ctx context.Context, v any) ([]*model.SignalDefinitionInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56927,7 +57405,7 @@ func (ec *executionContext) unmarshalOSignalDefinitionInput2ᚕᚖgithubᚗcom�
 	res := make([]*model.SignalDefinitionInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNSignalDefinitionInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNSignalDefinitionInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalDefinitionInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -56935,7 +57413,7 @@ func (ec *executionContext) unmarshalOSignalDefinitionInput2ᚕᚖgithubᚗcom�
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope(ctx context.Context, v any) (*model.SignalScope, error) {
+func (ec *executionContext) unmarshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope(ctx context.Context, v any) (*model.SignalScope, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56944,14 +57422,14 @@ func (ec *executionContext) unmarshalOSignalScope2ᚖgithubᚗcomᚋwangliang139
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope(ctx context.Context, sel ast.SelectionSet, v *model.SignalScope) graphql.Marshaler {
+func (ec *executionContext) marshalOSignalScope2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalScope(ctx context.Context, sel ast.SelectionSet, v *model.SignalScope) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, v any) (*model.SignalType, error) {
+func (ec *executionContext) unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, v any) (*model.SignalType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56960,21 +57438,21 @@ func (ec *executionContext) unmarshalOSignalType2ᚖgithubᚗcomᚋwangliang139�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, sel ast.SelectionSet, v *model.SignalType) graphql.Marshaler {
+func (ec *executionContext) marshalOSignalType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSignalType(ctx context.Context, sel ast.SelectionSet, v *model.SignalType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return v
 }
 
-func (ec *executionContext) marshalOStrategy2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx context.Context, sel ast.SelectionSet, v *model.Strategy) graphql.Marshaler {
+func (ec *executionContext) marshalOStrategy2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategy(ctx context.Context, sel ast.SelectionSet, v *model.Strategy) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Strategy(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOStrategyInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyInput(ctx context.Context, v any) (*model.StrategyInput, error) {
+func (ec *executionContext) unmarshalOStrategyInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyInput(ctx context.Context, v any) (*model.StrategyInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56982,7 +57460,7 @@ func (ec *executionContext) unmarshalOStrategyInput2ᚖgithubᚗcomᚋwangliang1
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalOStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx context.Context, v any) ([]*model.StrategyParamInput, error) {
+func (ec *executionContext) unmarshalOStrategyParamInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInputᚄ(ctx context.Context, v any) ([]*model.StrategyParamInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -56992,7 +57470,7 @@ func (ec *executionContext) unmarshalOStrategyParamInput2ᚕᚖgithubᚗcomᚋwa
 	res := make([]*model.StrategyParamInput, len(vSlice))
 	for i := range vSlice {
 		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNStrategyParamInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInput(ctx, vSlice[i])
+		res[i], err = ec.unmarshalNStrategyParamInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyParamInput(ctx, vSlice[i])
 		if err != nil {
 			return nil, err
 		}
@@ -57000,7 +57478,7 @@ func (ec *executionContext) unmarshalOStrategyParamInput2ᚕᚖgithubᚗcomᚋwa
 	return res, nil
 }
 
-func (ec *executionContext) unmarshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, v any) (*model.StrategyStatus, error) {
+func (ec *executionContext) unmarshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, v any) (*model.StrategyStatus, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -57009,7 +57487,7 @@ func (ec *executionContext) unmarshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, sel ast.SelectionSet, v *model.StrategyStatus) graphql.Marshaler {
+func (ec *executionContext) marshalOStrategyStatus2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStrategyStatus(ctx context.Context, sel ast.SelectionSet, v *model.StrategyStatus) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
@@ -57070,7 +57548,7 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return res
 }
 
-func (ec *executionContext) unmarshalOStringListInput2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐStringListInput(ctx context.Context, v any) (*model.StringListInput, error) {
+func (ec *executionContext) unmarshalOStringListInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐStringListInput(ctx context.Context, v any) (*model.StringListInput, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -57078,28 +57556,28 @@ func (ec *executionContext) unmarshalOStringListInput2ᚖgithubᚗcomᚋwanglian
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOSymbolLeverage2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolLeverage(ctx context.Context, sel ast.SelectionSet, v *model.SymbolLeverage) graphql.Marshaler {
+func (ec *executionContext) marshalOSymbolLeverage2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐSymbolLeverage(ctx context.Context, sel ast.SelectionSet, v *model.SymbolLeverage) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._SymbolLeverage(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOTicker2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTicker(ctx context.Context, sel ast.SelectionSet, v *model.Ticker) graphql.Marshaler {
+func (ec *executionContext) marshalOTicker2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTicker(ctx context.Context, sel ast.SelectionSet, v *model.Ticker) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Ticker(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalOTrade2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐTrade(ctx context.Context, sel ast.SelectionSet, v *model.Trade) graphql.Marshaler {
+func (ec *executionContext) marshalOTrade2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐTrade(ctx context.Context, sel ast.SelectionSet, v *model.Trade) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	return ec._Trade(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, v any) (*model.WalletType, error) {
+func (ec *executionContext) unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, v any) (*model.WalletType, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -57108,7 +57586,7 @@ func (ec *executionContext) unmarshalOWalletType2ᚖgithubᚗcomᚋwangliang139�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋlltᚑtradeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, sel ast.SelectionSet, v *model.WalletType) graphql.Marshaler {
+func (ec *executionContext) marshalOWalletType2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx context.Context, sel ast.SelectionSet, v *model.WalletType) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}

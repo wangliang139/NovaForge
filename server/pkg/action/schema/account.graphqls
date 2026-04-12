@@ -22,6 +22,7 @@ enum AccountType {
   unspecified
   real
   virtual
+  virtual_sub
 }
 
 type AmountLimit {
@@ -40,6 +41,8 @@ type Account {
   status: AccountStatus!
   algorithm: AuthAlgorithm!
   accountType: AccountType!
+  parentAccountId: ID
+  multiBotMode: Boolean!
   config: AccountConfig!
   createdAt: Int!
   updatedAt: Int!
@@ -161,6 +164,8 @@ input MutationAccountInput {
   status: AccountStatus
   algorithm: AuthAlgorithm
   accountType: AccountType
+  """仅创建/更新父实盘账户时可选；virtual_sub 不可通过此接口更新"""
+  multiBotMode: Boolean
 }
 
 input AmountLimitInput {
@@ -240,6 +245,14 @@ input QueryAccountMetricsInput {
   endTs: Int
 }
 
+type AccountUnallocatedAsset {
+  asset: String!
+  walletType: WalletType!
+  parentTotal: String!
+  subsAllocated: String!
+  unallocated: String!
+}
+
 extend type Query {
   Accounts(input: QueryAccountsInput!): AccountsConnection!
   Equitys(input: QueryEquitysInput!): [Equity!]!
@@ -247,6 +260,8 @@ extend type Query {
   Leverage(accountId: ID!, symbol: String!): Int!
   AccountMetrics(input: QueryAccountMetricsInput!): AccountMetrics!
   RiskEvents(input: QueryRiskEventsInput!): [RiskEvent!]!
+  """父账户 multi_bot_mode 下各资产未分配数量（父余额 − 子账已登记分配）"""
+  AccountUnallocatedAssets(accountId: ID!): [AccountUnallocatedAsset!]!
 }
 
 extend type Mutation {

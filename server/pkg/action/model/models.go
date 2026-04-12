@@ -16,21 +16,23 @@ type CalendarExtention interface {
 }
 
 type Account struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Exchange    types.Exchange `json:"exchange"`
-	APIKey      string         `json:"apiKey"`
-	APISecret   string         `json:"apiSecret"`
-	Passphrase  string         `json:"passphrase"`
-	Tags        []string       `json:"tags,omitempty"`
-	Status      AccountStatus  `json:"status"`
-	Algorithm   AuthAlgorithm  `json:"algorithm"`
-	AccountType AccountType    `json:"accountType"`
-	Config      *AccountConfig `json:"config"`
-	CreatedAt   int            `json:"createdAt"`
-	UpdatedAt   int            `json:"updatedAt"`
-	Stats       *AccountStats  `json:"stats,omitempty"`
-	RiskIndex   *string        `json:"riskIndex,omitempty"`
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Exchange        types.Exchange `json:"exchange"`
+	APIKey          string         `json:"apiKey"`
+	APISecret       string         `json:"apiSecret"`
+	Passphrase      string         `json:"passphrase"`
+	Tags            []string       `json:"tags,omitempty"`
+	Status          AccountStatus  `json:"status"`
+	Algorithm       AuthAlgorithm  `json:"algorithm"`
+	AccountType     AccountType    `json:"accountType"`
+	ParentAccountID *string        `json:"parentAccountId,omitempty"`
+	MultiBotMode    bool           `json:"multiBotMode"`
+	Config          *AccountConfig `json:"config"`
+	CreatedAt       int            `json:"createdAt"`
+	UpdatedAt       int            `json:"updatedAt"`
+	Stats           *AccountStats  `json:"stats,omitempty"`
+	RiskIndex       *string        `json:"riskIndex,omitempty"`
 }
 
 type AccountBalanceSnapshot struct {
@@ -108,6 +110,14 @@ type AccountStreamAsset struct {
 	Balance    string     `json:"balance"`
 	Locked     string     `json:"locked"`
 	UpdatedTs  int        `json:"updatedTs"`
+}
+
+type AccountUnallocatedAsset struct {
+	Asset         string     `json:"asset"`
+	WalletType    WalletType `json:"walletType"`
+	ParentTotal   string     `json:"parentTotal"`
+	SubsAllocated string     `json:"subsAllocated"`
+	Unallocated   string     `json:"unallocated"`
 }
 
 type AccountsConnection struct {
@@ -1030,6 +1040,8 @@ type MutationAccountInput struct {
 	Status      *AccountStatus `json:"status,omitempty"`
 	Algorithm   *AuthAlgorithm `json:"algorithm,omitempty"`
 	AccountType *AccountType   `json:"accountType,omitempty"`
+	// 仅创建/更新父实盘账户时可选；virtual_sub 不可通过此接口更新
+	MultiBotMode *bool `json:"multiBotMode,omitempty"`
 }
 
 type NetworkProxyConfig struct {
@@ -1948,17 +1960,19 @@ const (
 	AccountTypeUnspecified AccountType = "unspecified"
 	AccountTypeReal        AccountType = "real"
 	AccountTypeVirtual     AccountType = "virtual"
+	AccountTypeVirtualSub  AccountType = "virtual_sub"
 )
 
 var AllAccountType = []AccountType{
 	AccountTypeUnspecified,
 	AccountTypeReal,
 	AccountTypeVirtual,
+	AccountTypeVirtualSub,
 }
 
 func (e AccountType) IsValid() bool {
 	switch e {
-	case AccountTypeUnspecified, AccountTypeReal, AccountTypeVirtual:
+	case AccountTypeUnspecified, AccountTypeReal, AccountTypeVirtual, AccountTypeVirtualSub:
 		return true
 	}
 	return false

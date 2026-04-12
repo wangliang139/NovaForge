@@ -25,19 +25,21 @@ func AccountTypes2Gql(a *ctypes.Account) *model.Account {
 		return nil
 	}
 	return &model.Account{
-		ID:          a.ID,
-		Name:        a.Name,
-		Exchange:    a.Exchange,
-		APIKey:      a.ApiKey,
-		APISecret:   a.ApiSecret,
-		Passphrase:  a.Passphrase,
-		Tags:        a.Tags,
-		Status:      model.AccountStatus(a.Status),
-		Algorithm:   model.AuthAlgorithm(a.Algorithm),
-		AccountType: model.AccountType(a.AccountType),
-		Config:      RiskConfigTypes2Gql(a.Config),
-		CreatedAt:   int(a.CreatedAt.Unix()),
-		UpdatedAt:   int(a.UpdatedAt.Unix()),
+		ID:               a.ID,
+		Name:             a.Name,
+		Exchange:         a.Exchange,
+		APIKey:           a.ApiKey,
+		APISecret:        a.ApiSecret,
+		Passphrase:       a.Passphrase,
+		Tags:             a.Tags,
+		Status:           model.AccountStatus(a.Status),
+		Algorithm:        model.AuthAlgorithm(a.Algorithm),
+		AccountType:      model.AccountType(a.AccountType),
+		ParentAccountID:  a.ParentAccountID,
+		MultiBotMode:     a.MultiBotMode,
+		Config:           RiskConfigTypes2Gql(a.Config),
+		CreatedAt:        int(a.CreatedAt.Unix()),
+		UpdatedAt:        int(a.UpdatedAt.Unix()),
 	}
 }
 
@@ -406,6 +408,8 @@ func AccountTypeTypes2Gql(accountType types.AccountType) model.AccountType {
 		return model.AccountTypeReal
 	case types.AccountTypeVirtual:
 		return model.AccountTypeVirtual
+	case types.AccountTypeVirtualSub:
+		return model.AccountTypeVirtualSub
 	default:
 		return model.AccountTypeUnspecified
 	}

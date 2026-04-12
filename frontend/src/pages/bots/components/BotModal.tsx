@@ -1,6 +1,13 @@
 import { Exchange, MarketType } from '@/global.types';
+import {
+  Account,
+  AccountType,
+  AccountUnallocatedAsset,
+  queryAccounts,
+  queryAccountUnallocatedAssets,
+  WalletType,
+} from '@/services/gateway/account';
 import * as api from '@/services/gateway/api';
-import { Account, AccountType, queryAccounts, WalletType } from '@/services/gateway/account';
 import {
   Bot,
   BotMode,
@@ -19,7 +26,14 @@ import {
   UpdateBotInput,
 } from '@/services/gateway/strategy';
 import { getExchangeLogo, getExchangeTitle, parseSymbol } from '@/utils/market';
-import { DeleteOutlined, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  InfoCircleOutlined,
+  PartitionOutlined,
+  PlusOutlined,
+  UsergroupAddOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
 import {
   ModalForm,
   ProForm,
@@ -40,6 +54,7 @@ import {
   Row,
   Select,
   Space,
+  Table,
   Tag,
   Tooltip,
 } from 'antd';
@@ -64,6 +79,8 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     Record<string, { label: string; value: string }[]>
   >({});
   const [loadingSymbols, setLoadingSymbols] = useState<Record<string, boolean>>({});
+  const [unallocatedRows, setUnallocatedRows] = useState<AccountUnallocatedAsset[]>([]);
+  const [loadingUnallocated, setLoadingUnallocated] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -74,14 +91,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           mode: BotMode.Live,
           exchange: 'binance',
           symbols: [],
-          initialAssets: [
-            {
-              asset: 'USDT',
-              total: '10000',
-              frozen: '0',
-              walletType: MarketType.Spot,
-            },
-          ],
+          initialAssets: [{ asset: '', walletType: undefined, total: undefined, frozen: '0' }],
         });
       } else {
         form.resetFields();
@@ -192,8 +202,12 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   // 监听 symbols 变化，更新信号绑定结构
   const symbolsValue = Form.useWatch('symbols', form);
   const modeValue = Form.useWatch('mode', form);
+  const accountIdWatch = Form.useWatch('accountId', form);
+  const needsLiveSubAllocation =
+    modeValue === BotMode.Live &&
+    !!(accounts.find((a) => a.id === accountIdWatch)?.multiBotMode);
   const prevExchangeRef = useRef<string | undefined>(exchangeValue);
-  const emptyInitialAsset = { asset: '', walletType: undefined, total: undefined };
+  const emptyInitialAsset = { asset: '', walletType: undefined, total: undefined, frozen: '0' };
   const getAllowedWalletTypes = (exchange?: string) => {
     if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
       return [WalletType.Spot, WalletType.Future];
@@ -280,9 +294,66 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
         acc.accountType === AccountType.Real && (!exchangeValue || acc.exchange === exchangeValue),
     )
     .map((acc) => ({
-      label: `${acc.name} (${getExchangeTitle(acc.exchange)})`,
       value: acc.id,
+      label: (
+        <Space
+          size={6}
+          style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}
+        >
+          <span>
+            {acc.name} ({getExchangeTitle(acc.exchange)})
+          </span>
+          {acc.multiBotMode ? (
+            <Tooltip title="多 Bot 共享">
+              <UsergroupAddOutlined style={{ color: '#1677ff', fontSize: 14 }} aria-hidden />
+            </Tooltip>
+          ) : (
+            <Tooltip title="单Bot独享">
+              <UserOutlined style={{ color: '#1677ff', fontSize: 14 }} aria-hidden />
+            </Tooltip>
+          )}
+        </Space>
+      ),
     }));
+
+  useEffect(() => {
+    if (!needsLiveSubAllocation || !accountIdWatch) {
+      setUnallocatedRows([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingUnallocated(true);
+    queryAccountUnallocatedAssets(accountIdWatch)
+      .then((rows) => {
+        if (!cancelled) {
+          setUnallocatedRows(rows || []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUnallocatedRows([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingUnallocated(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsLiveSubAllocation, accountIdWatch]);
+
+  useEffect(() => {
+    if (!open || isEdit || !needsLiveSubAllocation || !accountIdWatch) {
+      return;
+    }
+    form.setFieldsValue({
+      initialAssets: [
+        { asset: 'USDT', walletType: WalletType.Trade, total: '', frozen: '0' },
+      ],
+    });
+  }, [accountIdWatch, needsLiveSubAllocation, open, isEdit, form]);
 
   const paperAccountOptions = accounts
     .filter(
@@ -475,6 +546,21 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
         return false;
       }
       configMap.initialAssets = initialAssets;
+    }
+    if (values.mode === BotMode.Live) {
+      const acc = accounts.find((a) => a.id === values.accountId);
+      if (acc?.multiBotMode) {
+        const initialAssets = values.initialAssets || [];
+        if (!initialAssets.length) {
+          message.error('多 Bot 共享父账户需配置子账户初始资产');
+          return false;
+        }
+        if (!validateInitialAssetsAgainstSymbols(initialAssets)) {
+          message.error('初始资产和交易对不匹配，缺失相关资产，请检查');
+          return false;
+        }
+        configMap.initialAssets = initialAssets;
+      }
     }
     configMap.params = values.params;
 
@@ -910,8 +996,13 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
               showSearch: true,
               loading: loadingAccounts,
               placeholder: '请选择真实或测试网账户',
-              filterOption: (input, option) =>
-                ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase()),
+              filterOption: (input, option) => {
+                const id = String(option?.value ?? '');
+                const acc = accounts.find((a) => a.id === id);
+                if (!acc) return false;
+                const hay = `${acc.name} ${getExchangeTitle(acc.exchange)}`.toLowerCase();
+                return hay.includes(String(input || '').toLowerCase().trim());
+              },
             }}
           />
         )}
@@ -934,8 +1025,34 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           />
         )}
 
-        {modeValue === BotMode.Paper && (
-          <ProForm.Item label="初始资产配置" required>
+        {needsLiveSubAllocation && (
+          <Card
+            size="small"
+            title="父账户资产分配"
+            loading={loadingUnallocated}
+            style={{ marginBottom: 12 }}
+          >
+            <Table<AccountUnallocatedAsset>
+              size="small"
+              pagination={false}
+              rowKey={(r) => `${r.asset}-${r.walletType}`}
+              dataSource={unallocatedRows}
+              columns={[
+                { title: '资产', dataIndex: 'asset' },
+                { title: '钱包', dataIndex: 'walletType' },
+                { title: '父账户可用', dataIndex: 'parentTotal' },
+                { title: '已分配', dataIndex: 'subsAllocated' },
+                { title: '未分配', dataIndex: 'unallocated' },
+              ]}
+            />
+          </Card>
+        )}
+
+        {(modeValue === BotMode.Paper || needsLiveSubAllocation) && (
+          <ProForm.Item
+            label={needsLiveSubAllocation ? '子账户初始分配（实盘共享）' : '初始资产配置'}
+            required
+          >
             <Card>
               <Row gutter={16}>
                 <Col span={6}>资产：</Col>

@@ -19,7 +19,8 @@ create type public.algorithm as enum (
 
 create type public.account_type as enum (
     'real',
-    'virtual'
+    'virtual',
+    'virtual_sub'
     );
 
 create table public.account
@@ -35,6 +36,8 @@ create table public.account
     tags       varchar(64)[],
     status     public.account_status                  not null,
     account_type public.account_type                  not null default 'real',
+    parent_account_id varchar(32),
+    multi_bot_mode boolean                            not null default false,
     deleted_at timestamp with time zone,            -- 逻辑删除时间
     created_at timestamp with time zone default now() not null,
     updated_at timestamp with time zone default now() not null
@@ -45,3 +48,4 @@ create index idx_account_deleted_at on public.account (deleted_at);
 create index idx_account_status on public.account (status);
 create index idx_account_account_type on public.account (account_type);
 create index idx_account_created_at on public.account (created_at);
+create index idx_account_parent_account_id on public.account (parent_account_id) where deleted_at is null;

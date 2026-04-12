@@ -71,8 +71,9 @@ func AllAccountStatusValues() []AccountStatus {
 type AccountType string
 
 const (
-	AccountTypeReal    AccountType = "real"
-	AccountTypeVirtual AccountType = "virtual"
+	AccountTypeReal       AccountType = "real"
+	AccountTypeVirtual    AccountType = "virtual"
+	AccountTypeVirtualSub AccountType = "virtual_sub"
 )
 
 func (e *AccountType) Scan(src interface{}) error {
@@ -113,7 +114,8 @@ func (ns NullAccountType) Value() (driver.Value, error) {
 func (e AccountType) Valid() bool {
 	switch e {
 	case AccountTypeReal,
-		AccountTypeVirtual:
+		AccountTypeVirtual,
+		AccountTypeVirtualSub:
 		return true
 	}
 	return false
@@ -123,6 +125,7 @@ func AllAccountTypeValues() []AccountType {
 	return []AccountType{
 		AccountTypeReal,
 		AccountTypeVirtual,
+		AccountTypeVirtualSub,
 	}
 }
 
@@ -255,18 +258,20 @@ func AllExchangeValues() []Exchange {
 }
 
 type Account struct {
-	ID          string        `json:"id"`
-	Name        string        `json:"name"`
-	Exchange    Exchange      `json:"exchange"`
-	Config      []byte        `json:"config"`
-	ApiKey      string        `json:"api_key"`
-	ApiSecret   string        `json:"api_secret"`
-	Passphrase  string        `json:"passphrase"`
-	Algorithm   Algorithm     `json:"algorithm"`
-	Tags        []string      `json:"tags"`
-	Status      AccountStatus `json:"status"`
-	AccountType AccountType   `json:"account_type"`
-	DeletedAt   *time.Time    `json:"deleted_at"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	ID              string        `json:"id"`
+	Name            string        `json:"name"`
+	Exchange        Exchange      `json:"exchange"`
+	Config          []byte        `json:"config"`
+	ApiKey          string        `json:"api_key"`
+	ApiSecret       string        `json:"api_secret"`
+	Passphrase      string        `json:"passphrase"`
+	Algorithm       Algorithm     `json:"algorithm"`
+	Tags            []string      `json:"tags"`
+	Status          AccountStatus `json:"status"`
+	AccountType     AccountType   `json:"account_type"`
+	ParentAccountID *string       `json:"parent_account_id"`
+	MultiBotMode    bool          `json:"multi_bot_mode"`
+	DeletedAt       *time.Time    `json:"deleted_at"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
 }

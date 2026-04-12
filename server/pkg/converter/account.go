@@ -16,18 +16,20 @@ func AccountRepo2Types(a *accountrepo.Account) *types.Account {
 		accountType = types.AccountType(a.AccountType)
 	}
 	acc := &types.Account{
-		ID:          a.ID,
-		Name:        a.Name,
-		Exchange:    ctypes.Exchange(a.Exchange),
-		ApiKey:      a.ApiKey,
-		ApiSecret:   a.ApiSecret,
-		Passphrase:  a.Passphrase,
-		Tags:        a.Tags,
-		Status:      types.AccountStatus(a.Status),
-		Algorithm:   types.AuthAlgorithm(a.Algorithm),
-		AccountType: accountType,
-		CreatedAt:   a.CreatedAt,
-		UpdatedAt:   a.UpdatedAt,
+		ID:               a.ID,
+		Name:             a.Name,
+		Exchange:         ctypes.Exchange(a.Exchange),
+		ApiKey:           a.ApiKey,
+		ApiSecret:        a.ApiSecret,
+		Passphrase:       a.Passphrase,
+		Tags:             a.Tags,
+		Status:           types.AccountStatus(a.Status),
+		Algorithm:        types.AuthAlgorithm(a.Algorithm),
+		AccountType:      accountType,
+		ParentAccountID:  a.ParentAccountID,
+		MultiBotMode:     a.MultiBotMode,
+		CreatedAt:        a.CreatedAt,
+		UpdatedAt:        a.UpdatedAt,
 	}
 
 	// 解析 config.risk 为风控配置

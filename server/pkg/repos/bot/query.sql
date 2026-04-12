@@ -50,6 +50,23 @@ WHERE (sqlc.narg('id')::INT IS NULL OR id = sqlc.narg('id'))
   AND (sqlc.narg('created_at_end')::TIMESTAMPTZ IS NULL OR created_at <= sqlc.narg('created_at_end'))
   AND deleted_at IS NULL;
 
+-- name: CountActiveBotsForParentAccount :one
+-- -- timeout: 1s
+SELECT COUNT(*)::bigint
+FROM bots b
+WHERE b.deleted_at IS NULL
+  AND (
+    b.account_id = $1
+    OR EXISTS (
+      SELECT 1
+      FROM public.account a
+      WHERE a.id = b.account_id
+        AND a.parent_account_id = $1
+        AND a.deleted_at IS NULL
+        AND a.account_type = 'virtual_sub'
+    )
+  );
+
 -- name: UpdateBotStatus :one
 -- -- timeout: 1s
 UPDATE bots

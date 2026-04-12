@@ -58,6 +58,20 @@ SELECT * FROM orders
 WHERE account_id = $1
   AND order_id = $2;
 
+-- name: GetOrderByClientOrderIdUnderParent :one
+-- -- timeout: 1s
+SELECT o.*
+FROM orders o
+LEFT JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
+WHERE o.client_order_id = $1
+  AND o.exchange = $2
+  AND (
+    o.account_id = $3
+    OR a.parent_account_id = $3
+  )
+ORDER BY o.updated_at DESC NULLS LAST, o.id DESC
+LIMIT 1;
+
 -- name: ListOrders :many
 -- -- timeout: 1s
 SELECT * FROM orders

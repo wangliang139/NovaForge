@@ -19,6 +19,7 @@ export enum AccountType {
   Unspecified = 'unspecified',
   Real = 'real',
   Virtual = 'virtual',
+  VirtualSub = 'virtual_sub',
 }
 
 export type AccountStats = {
@@ -52,11 +53,21 @@ export type Account = {
   status: string;
   algorithm: AuthAlgorithm;
   accountType: AccountType;
+  parentAccountId?: string | null;
+  multiBotMode?: boolean;
   config?: AccountConfig | null;
   createdAt: number;
   updatedAt: number;
   stats?: AccountStats;
   riskIndex?: string | null;
+};
+
+export type AccountUnallocatedAsset = {
+  asset: string;
+  walletType: WalletType;
+  parentTotal: string;
+  subsAllocated: string;
+  unallocated: string;
 };
 
 export type AmountLimit = {
@@ -262,6 +273,8 @@ const QUERY_ACCOUNTS = `
         status
         algorithm
         accountType
+        parentAccountId
+        multiBotMode
         createdAt
         updatedAt
         config {
@@ -314,6 +327,8 @@ const QUERY_ACCOUNT = `
         status
         algorithm
         accountType
+        parentAccountId
+        multiBotMode
         createdAt
         updatedAt
         config {
@@ -365,8 +380,22 @@ const CREATE_ACCOUNT = `
       status
       algorithm
       accountType
+      parentAccountId
+      multiBotMode
       createdAt
       updatedAt
+    }
+  }
+`;
+
+const QUERY_ACCOUNT_UNALLOCATED = `
+  query AccountUnallocatedAssets($accountId: ID!) {
+    Result: AccountUnallocatedAssets(accountId: $accountId) {
+      asset
+      walletType
+      parentTotal
+      subsAllocated
+      unallocated
     }
   }
 `;
@@ -384,6 +413,8 @@ const UPDATE_ACCOUNT = `
       status
       algorithm
       accountType
+      parentAccountId
+      multiBotMode
       createdAt
       updatedAt
     }
@@ -482,10 +513,30 @@ export async function queryAccount(id: string) {
   return response.data?.Result;
 }
 
+export async function queryAccountUnallocatedAssets(
+  accountId: string,
+): Promise<AccountUnallocatedAsset[]> {
+  const response = await request('/query', {
+    method: 'POST',
+    data: JSON.stringify({
+      query: QUERY_ACCOUNT_UNALLOCATED,
+      variables: { accountId },
+    }),
+  });
+  return (response.data?.Result || []) as AccountUnallocatedAsset[];
+}
+
 export async function createAccount(params: Account) {
   if (!params.passphrase) {
     params.passphrase = '';
   }
+  // MutationAccountInput 不含查询结果中的只读字段，避免 GraphQL unknown field
+  delete (params as any).parentAccountId;
+  delete (params as any).config;
+  delete (params as any).riskIndex;
+  delete (params as any).stats;
+  delete (params as any).createdAt;
+  delete (params as any).updatedAt;
   return await request('/query', {
     method: 'POST',
     data: JSON.stringify({
@@ -501,6 +552,9 @@ export async function updateAccount(params: any) {
   delete params.createdAt;
   delete params.updatedAt;
   delete params.stats;
+  delete params.parentAccountId;
+  delete params.config;
+  delete params.riskIndex;
   if (!params.passphrase) {
     params.passphrase = '';
   }

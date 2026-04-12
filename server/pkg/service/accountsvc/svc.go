@@ -30,6 +30,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
+	"github.com/wangliang139/mow/snowflake"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -113,6 +114,9 @@ func (s *Service) CreateAccount(ctx context.Context, input types.CreateAccountIn
 	if len(input.Name) == 0 {
 		return nil, errors.New(errors.InvalidArgument, "name is required")
 	}
+	if input.AccountType == types.AccountTypeVirtualSub {
+		return nil, errors.New(errors.InvalidArgument, "virtual_sub accounts cannot be created via this API")
+	}
 
 	// 虚拟账户不需要校验 apikey/apiSecret
 	if input.AccountType == types.AccountTypeVirtual {
@@ -165,6 +169,17 @@ func (s *Service) UpdateAccount(ctx context.Context, request *types.UpdateAccoun
 	}
 	if len(request.Name) == 0 {
 		return nil, errors.New(errors.InvalidArgument, "name is required")
+	}
+
+	existingMeta, err := s.getAccount(ctx, request.ID)
+	if err != nil {
+		return nil, err
+	}
+	if existingMeta == nil {
+		return nil, errors.New(errors.NotFound, "account not found")
+	}
+	if existingMeta.AccountType == types.AccountTypeVirtualSub {
+		return nil, errors.New(errors.InvalidArgument, "virtual_sub account cannot be updated via this API")
 	}
 
 	// 虚拟账户不需要校验 apikey/apiSecret
@@ -582,6 +597,154 @@ func (s *Service) applyInitialAssets(ctx context.Context, accountID string, exch
 		}
 	}
 	return nil
+}
+
+func allocKey(asset string, wt types.WalletType) string {
+	return types.ParseAssetCode(asset) + "|" + string(wt)
+}
+
+// GetAccountUnallocatedAssets 父账户 multi_bot 模式下，各资产维度「父余额 − 子账已登记初始分配」。
+func (s *Service) GetAccountUnallocatedAssets(ctx context.Context, req *types.GetAccountUnallocatedAssetsRequest) (*types.GetAccountUnallocatedAssetsResponse, error) {
+	if req == nil || strings.TrimSpace(req.ParentAccountID) == "" {
+		return nil, errors.New(errors.InvalidArgument, "parent_account_id is required")
+	}
+	parent, err := entity.Account.GetAccount(ctx, req.ParentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	if parent == nil {
+		return nil, errors.New(errors.NotFound, "account not found")
+	}
+	if parent.AccountType != types.AccountTypeReal || !parent.MultiBotMode {
+		return nil, errors.New(errors.InvalidArgument, "account must be a real parent with multi_bot_mode enabled")
+	}
+	parentBal, err := s.GetBalance(ctx, &types.GetBalanceRequest{
+		AccountID:    req.ParentAccountID,
+		WithNotional: lo.ToPtr(false),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if parentBal == nil || parentBal.Balance == nil {
+		return &types.GetAccountUnallocatedAssetsResponse{Items: nil}, nil
+	}
+
+	subs, err := s.db.AccountRepo.ListVirtualSubByParent(ctx, &req.ParentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	subTotals := make(map[string]decimal.Decimal)
+	for i := range subs {
+		rows, err := s.db.AssetsRepo.ListAssetsByAccount(ctx, subs[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		for j := range rows {
+			r := &rows[j]
+			wt := types.WalletType(r.WalletType)
+			if !wt.Valid() {
+				continue
+			}
+			k := allocKey(r.Asset, wt)
+			subTotals[k] = subTotals[k].Add(utils.Decimal.PgNumericToDecimal(r.Total))
+		}
+	}
+
+	out := make([]*types.AccountUnallocatedAsset, 0)
+	for _, a := range parentBal.Balance.Assets {
+		if a == nil {
+			continue
+		}
+		k := allocKey(a.Code, a.WalletType)
+		subsAl := subTotals[k]
+		free := a.Balance
+		unalloc := free.Sub(subsAl)
+		if unalloc.IsNegative() {
+			unalloc = decimal.Zero
+		}
+		out = append(out, &types.AccountUnallocatedAsset{
+			Asset:          types.ParseAssetCode(a.Code),
+			WalletType:     a.WalletType,
+			ParentTotal:    free,
+			SubsAllocated:  subsAl,
+			Unallocated:    unalloc,
+		})
+	}
+	return &types.GetAccountUnallocatedAssetsResponse{Items: out}, nil
+}
+
+// CreateVirtualSubAccount 在父账户 multi_bot 模式下创建 virtual_sub 并写入初始资产快照。
+func (s *Service) CreateVirtualSubAccount(ctx context.Context, input types.CreateVirtualSubAccountInput) (*types.Account, error) {
+	if strings.TrimSpace(input.ParentAccountID) == "" {
+		return nil, errors.New(errors.InvalidArgument, "parent_account_id is required")
+	}
+	if len(strings.TrimSpace(input.BotName)) == 0 {
+		return nil, errors.New(errors.InvalidArgument, "bot_name is required")
+	}
+	if len(input.InitialAssets) == 0 {
+		return nil, errors.New(errors.InvalidArgument, "initial assets is required")
+	}
+	parent, err := entity.Account.GetAccount(ctx, input.ParentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	if parent == nil {
+		return nil, errors.New(errors.NotFound, "parent account not found")
+	}
+	if parent.AccountType != types.AccountTypeReal || !parent.MultiBotMode {
+		return nil, errors.New(errors.InvalidArgument, "parent must be a real account with multi_bot_mode enabled")
+	}
+	unalloc, err := s.GetAccountUnallocatedAssets(ctx, &types.GetAccountUnallocatedAssetsRequest{ParentAccountID: input.ParentAccountID})
+	if err != nil {
+		return nil, err
+	}
+	allowed := make(map[string]decimal.Decimal)
+	for _, row := range unalloc.Items {
+		if row == nil {
+			continue
+		}
+		allowed[allocKey(row.Asset, row.WalletType)] = row.Unallocated
+	}
+	for i := range input.InitialAssets {
+		a := &input.InitialAssets[i]
+		if !a.WalletType.Valid() {
+			return nil, errors.New(errors.InvalidArgument, "wallet_type is invalid")
+		}
+		total, err := decimal.NewFromString(a.Total)
+		if err != nil || total.IsNegative() {
+			return nil, errors.New(errors.InvalidArgument, "initial asset total is invalid")
+		}
+		if total.IsZero() {
+			continue
+		}
+		u := allowed[allocKey(a.Asset, a.WalletType)]
+		if total.GreaterThan(u) {
+			return nil, errors.New(errors.InvalidArgument, "initial allocation exceeds unallocated balance")
+		}
+	}
+
+	subName := fmt.Sprintf("%s-%s-%s", parent.Name, strings.TrimSpace(input.BotName), snowflake.Generate().String())
+	mbFalse := false
+	acc, err := entity.Account.CreateAccount(ctx, types.CreateAccountInput{
+		Name:             subName,
+		Exchange:         parent.Exchange,
+		ApiKey:           "",
+		ApiSecret:        "",
+		Passphrase:       "",
+		Tags:             nil,
+		Status:           types.AccountStatusOnline,
+		Algorithm:        parent.Algorithm,
+		AccountType:      types.AccountTypeVirtualSub,
+		ParentAccountID:  lo.ToPtr(input.ParentAccountID),
+		MultiBotMode:     &mbFalse,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := s.applyInitialAssets(ctx, acc.ID, parent.Exchange, input.InitialAssets); err != nil {
+		return nil, err
+	}
+	return entity.Account.GetAccount(ctx, acc.ID)
 }
 
 func (s *Service) checkAccountApiSecret(ctx context.Context, exchange types.Exchange, apiKey, apiSecret, passphrase string, algorithm types.AuthAlgorithm) error {

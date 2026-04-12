@@ -91,15 +91,16 @@ func (r *mutationResolver) CreateAccount(ctx context.Context, input model.Mutati
 		algo = ctypes.AuthAlgorithm(*input.Algorithm)
 	}
 	acc, err := r.AccountSvc.CreateAccount(ctx, ctypes.CreateAccountInput{
-		Name:        input.Name,
-		Exchange:    input.Exchange,
-		ApiKey:      input.APIKey,
-		ApiSecret:   input.APISecret,
-		Passphrase:  input.Passphrase,
-		Tags:        input.Tags,
-		Status:      ctypes.AccountStatusOffline,
-		Algorithm:   algo,
-		AccountType: ctypes.AccountTypeReal,
+		Name:         input.Name,
+		Exchange:     input.Exchange,
+		ApiKey:       input.APIKey,
+		ApiSecret:    input.APISecret,
+		Passphrase:   input.Passphrase,
+		Tags:         input.Tags,
+		Status:       ctypes.AccountStatusOffline,
+		Algorithm:    algo,
+		AccountType:  ctypes.AccountTypeReal,
+		MultiBotMode: input.MultiBotMode,
 	})
 	if err != nil {
 		return nil, err
@@ -128,16 +129,17 @@ func (r *mutationResolver) UpdateAccount(ctx context.Context, input model.Mutati
 		acctType = ctypes.AccountType(*input.AccountType)
 	}
 	response, err := r.AccountSvc.UpdateAccount(ctx, &ctypes.UpdateAccountRequest{
-		ID:          *input.ID,
-		Name:        input.Name,
-		Exchange:    input.Exchange,
-		ApiKey:      input.APIKey,
-		ApiSecret:   input.APISecret,
-		Passphrase:  input.Passphrase,
-		Tags:        input.Tags,
-		Status:      ctypes.AccountStatus(*input.Status),
-		Algorithm:   algo,
-		AccountType: acctType,
+		ID:           *input.ID,
+		Name:         input.Name,
+		Exchange:     input.Exchange,
+		ApiKey:       input.APIKey,
+		ApiSecret:    input.APISecret,
+		Passphrase:   input.Passphrase,
+		Tags:         input.Tags,
+		Status:       ctypes.AccountStatus(*input.Status),
+		Algorithm:    algo,
+		AccountType:  acctType,
+		MultiBotMode: input.MultiBotMode,
 	})
 	if err != nil {
 		return nil, err
@@ -665,6 +667,37 @@ func (r *queryResolver) RiskEvents(ctx context.Context, input model.QueryRiskEve
 			RiskIndex:   riskIndexPtr,
 			PayloadJSON: payloadPtr,
 			CreatedAt:   int(evt.CreatedAt),
+		})
+	}
+	return out, nil
+}
+
+// AccountUnallocatedAssets is the resolver for the AccountUnallocatedAssets field.
+func (r *queryResolver) AccountUnallocatedAssets(ctx context.Context, accountID string) ([]*model.AccountUnallocatedAsset, error) {
+	_, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		return nil, mowerror.New(mowerror.PermissionDenied, "unauthorized")
+	}
+	if strings.TrimSpace(accountID) == "" {
+		return nil, mowerror.New(mowerror.InvalidArgument, "accountId is required")
+	}
+	resp, err := r.AccountSvc.GetAccountUnallocatedAssets(ctx, &ctypes.GetAccountUnallocatedAssetsRequest{
+		ParentAccountID: accountID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.AccountUnallocatedAsset, 0, len(resp.Items))
+	for _, row := range resp.Items {
+		if row == nil {
+			continue
+		}
+		out = append(out, &model.AccountUnallocatedAsset{
+			Asset:         row.Asset,
+			WalletType:    converter.WalletTypeTypes2Gql(row.WalletType),
+			ParentTotal:   row.ParentTotal.String(),
+			SubsAllocated: row.SubsAllocated.String(),
+			Unallocated:   row.Unallocated.String(),
 		})
 	}
 	return out, nil

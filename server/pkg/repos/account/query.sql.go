@@ -19,7 +19,7 @@ import (
 )
 
 const create = `-- name: Create :one
-INSERT INTO public.account (id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type)
+INSERT INTO public.account (id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode)
 VALUES ($1,
         $2,
         $3,
@@ -30,22 +30,26 @@ VALUES ($1,
         $8,
         $9,
         $10,
-        $11)
-returning id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+        $11,
+        $12,
+        $13)
+returning id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 `
 
 type CreateParams struct {
-	ID          string
-	Name        string
-	Exchange    Exchange
-	Config      []byte
-	ApiKey      string
-	ApiSecret   string
-	Passphrase  string
-	Algorithm   Algorithm
-	Tags        []string
-	Status      AccountStatus
-	AccountType AccountType
+	ID              string
+	Name            string
+	Exchange        Exchange
+	Config          []byte
+	ApiKey          string
+	ApiSecret       string
+	Passphrase      string
+	Algorithm       Algorithm
+	Tags            []string
+	Status          AccountStatus
+	AccountType     AccountType
+	ParentAccountID *string
+	MultiBotMode    bool
 }
 
 // -- invalidate : [GetById, GetByName, GetDefaultAccounts]
@@ -68,7 +72,9 @@ func _Create(ctx context.Context, q CacheWGConn, arg CreateParams, getById *stri
 		arg.Algorithm,
 		arg.Tags,
 		arg.Status,
-		arg.AccountType)
+		arg.AccountType,
+		arg.ParentAccountID,
+		arg.MultiBotMode)
 	var i *Account = new(Account)
 	err := row.Scan(
 		&i.ID,
@@ -82,6 +88,8 @@ func _Create(ctx context.Context, q CacheWGConn, arg CreateParams, getById *stri
 		&i.Tags,
 		&i.Status,
 		&i.AccountType,
+		&i.ParentAccountID,
+		&i.MultiBotMode,
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -160,7 +168,7 @@ func (q *Queries) DeleteAccount(ctx context.Context, id string) (int64, error) {
 }
 
 const getById = `-- name: GetById :one
-SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 FROM public.account
 WHERE id = $1
   AND deleted_at IS NULL
@@ -196,6 +204,8 @@ func _GetById(ctx context.Context, q CacheQuerierConn, id string) (*Account, err
 			&i.Tags,
 			&i.Status,
 			&i.AccountType,
+			&i.ParentAccountID,
+			&i.MultiBotMode,
 			&i.DeletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -220,7 +230,7 @@ func _GetById(ctx context.Context, q CacheQuerierConn, id string) (*Account, err
 }
 
 const getByName = `-- name: GetByName :one
-SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 FROM public.account
 WHERE name = $1
   AND deleted_at IS NULL
@@ -256,6 +266,8 @@ func _GetByName(ctx context.Context, q CacheQuerierConn, name string) (*Account,
 			&i.Tags,
 			&i.Status,
 			&i.AccountType,
+			&i.ParentAccountID,
+			&i.MultiBotMode,
 			&i.DeletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -280,7 +292,7 @@ func _GetByName(ctx context.Context, q CacheQuerierConn, name string) (*Account,
 }
 
 const getDefaultAccounts = `-- name: GetDefaultAccounts :many
-SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 FROM public.account
 WHERE status = 'online'
   AND exchange = $1
@@ -324,6 +336,8 @@ func _GetDefaultAccounts(ctx context.Context, q CacheQuerierConn, exchange Excha
 				&i.Tags,
 				&i.Status,
 				&i.AccountType,
+				&i.ParentAccountID,
+				&i.MultiBotMode,
 				&i.DeletedAt,
 				&i.CreatedAt,
 				&i.UpdatedAt,
@@ -351,7 +365,7 @@ func _GetDefaultAccounts(ctx context.Context, q CacheQuerierConn, exchange Excha
 }
 
 const listAccounts = `-- name: ListAccounts :many
-SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 FROM public.account
 WHERE status = $1
   AND deleted_at IS NULL
@@ -390,6 +404,66 @@ func _ListAccounts(ctx context.Context, q CacheQuerierConn, status AccountStatus
 			&i.Tags,
 			&i.Status,
 			&i.AccountType,
+			&i.ParentAccountID,
+			&i.MultiBotMode,
+			&i.DeletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
+const listVirtualSubByParent = `-- name: ListVirtualSubByParent :many
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
+FROM public.account
+WHERE parent_account_id = $1
+  AND deleted_at IS NULL
+ORDER BY created_at ASC
+`
+
+// -- timeout: 5s
+func (q *Queries) ListVirtualSubByParent(ctx context.Context, parentAccountID *string) ([]Account, error) {
+	return _ListVirtualSubByParent(ctx, q.AsReadOnly(), parentAccountID)
+}
+
+func (q *ReadOnlyQueries) ListVirtualSubByParent(ctx context.Context, parentAccountID *string) ([]Account, error) {
+	return _ListVirtualSubByParent(ctx, q, parentAccountID)
+}
+
+func _ListVirtualSubByParent(ctx context.Context, q CacheQuerierConn, parentAccountID *string) ([]Account, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*5000)
+	defer cancel()
+	q.GetConn().CountIntent("account.ListVirtualSubByParent")
+	rows, err := q.GetConn().WQuery(qctx, "account.ListVirtualSubByParent", listVirtualSubByParent, parentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Account
+	for rows.Next() {
+		var i *Account = new(Account)
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Exchange,
+			&i.Config,
+			&i.ApiKey,
+			&i.ApiSecret,
+			&i.Passphrase,
+			&i.Algorithm,
+			&i.Tags,
+			&i.Status,
+			&i.AccountType,
+			&i.ParentAccountID,
+			&i.MultiBotMode,
 			&i.DeletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -406,7 +480,7 @@ func _ListAccounts(ctx context.Context, q CacheQuerierConn, status AccountStatus
 }
 
 const queryAccounts = `-- name: QueryAccounts :many
-SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 FROM public.account
 WHERE id = coalesce($1::varchar, id)
   AND exchange = coalesce($2::exchange, exchange)
@@ -415,6 +489,7 @@ WHERE id = coalesce($1::varchar, id)
   AND ($5::varchar[] is null or tags @> $5::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN $6::timestamptz AND $7::timestamptz
+  AND ($1::varchar IS NOT NULL OR account_type <> 'virtual_sub')
 ORDER BY id DESC
 OFFSET $8::int8 LIMIT $9::int8
 `
@@ -473,6 +548,8 @@ func _QueryAccounts(ctx context.Context, q CacheQuerierConn, arg QueryAccountsPa
 			&i.Tags,
 			&i.Status,
 			&i.AccountType,
+			&i.ParentAccountID,
+			&i.MultiBotMode,
 			&i.DeletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -498,6 +575,7 @@ WHERE id = coalesce($1::varchar, id)
   AND ($5::varchar[] is null or tags @> $5::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN $6::timestamptz AND $7::timestamptz
+  AND ($1::varchar IS NOT NULL OR account_type <> 'virtual_sub')
 `
 
 type QueryAccountsCountParams struct {
@@ -553,23 +631,25 @@ SET name       = $2,
     status     = $8,
     exchange   = $9,
     account_type = $10,
+    multi_bot_mode = $11,
     updated_at = now()
 WHERE id = $1
   AND deleted_at IS NULL
-returning id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+returning id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 `
 
 type UpdateParams struct {
-	ID          string
-	Name        string
-	ApiKey      string
-	ApiSecret   string
-	Passphrase  string
-	Algorithm   Algorithm
-	Tags        []string
-	Status      AccountStatus
-	Exchange    Exchange
-	AccountType AccountType
+	ID           string
+	Name         string
+	ApiKey       string
+	ApiSecret    string
+	Passphrase   string
+	Algorithm    Algorithm
+	Tags         []string
+	Status       AccountStatus
+	Exchange     Exchange
+	AccountType  AccountType
+	MultiBotMode bool
 }
 
 // -- invalidate : [GetById, GetByName, GetDefaultAccounts]
@@ -591,7 +671,8 @@ func _Update(ctx context.Context, q CacheWGConn, arg UpdateParams, getById *stri
 		arg.Tags,
 		arg.Status,
 		arg.Exchange,
-		arg.AccountType)
+		arg.AccountType,
+		arg.MultiBotMode)
 	var i *Account = new(Account)
 	err := row.Scan(
 		&i.ID,
@@ -605,6 +686,8 @@ func _Update(ctx context.Context, q CacheWGConn, arg UpdateParams, getById *stri
 		&i.Tags,
 		&i.Status,
 		&i.AccountType,
+		&i.ParentAccountID,
+		&i.MultiBotMode,
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -674,7 +757,7 @@ SET config = jsonb_set(
     updated_at = now()
 WHERE id = $2
   AND deleted_at IS NULL
-RETURNING id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, deleted_at, created_at, updated_at
+RETURNING id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 `
 
 type UpdateRiskConfigParams struct {
@@ -705,6 +788,8 @@ func _UpdateRiskConfig(ctx context.Context, q CacheWGConn, arg UpdateRiskConfigP
 		&i.Tags,
 		&i.Status,
 		&i.AccountType,
+		&i.ParentAccountID,
+		&i.MultiBotMode,
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -766,7 +851,7 @@ func _UpdateRiskConfig(ctx context.Context, q CacheWGConn, arg UpdateRiskConfigP
 //// auto generated functions
 
 func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, error) {
-	sql := "SELECT id,name,exchange,config,api_key,api_secret,passphrase,algorithm,tags,status,account_type,deleted_at,created_at,updated_at FROM \"account\" ORDER BY id,name,api_key,api_secret,passphrase,deleted_at,created_at,updated_at ASC;"
+	sql := "SELECT id,name,exchange,config,api_key,api_secret,passphrase,algorithm,tags,status,account_type,parent_account_id,multi_bot_mode,deleted_at,created_at,updated_at FROM \"account\" ORDER BY id,name,api_key,api_secret,passphrase,parent_account_id,multi_bot_mode,deleted_at,created_at,updated_at ASC;"
 	rows, err := q.db.WQuery(ctx, "account.Dump", sql)
 	if err != nil {
 		return nil, err
@@ -775,7 +860,7 @@ func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, e
 	var items []Account
 	for rows.Next() {
 		var v Account
-		if err := rows.Scan(&v.ID, &v.Name, &v.Exchange, &v.Config, &v.ApiKey, &v.ApiSecret, &v.Passphrase, &v.Algorithm, &v.Tags, &v.Status, &v.AccountType, &v.DeletedAt, &v.CreatedAt, &v.UpdatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.Name, &v.Exchange, &v.Config, &v.ApiKey, &v.ApiSecret, &v.Passphrase, &v.Algorithm, &v.Tags, &v.Status, &v.AccountType, &v.ParentAccountID, &v.MultiBotMode, &v.DeletedAt, &v.CreatedAt, &v.UpdatedAt); err != nil {
 			return nil, err
 		}
 		for _, applyBeforeDump := range beforeDump {
@@ -794,14 +879,14 @@ func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, e
 }
 
 func (q *Queries) Load(ctx context.Context, data []byte) error {
-	sql := "INSERT INTO \"account\" (id,name,exchange,config,api_key,api_secret,passphrase,algorithm,tags,status,account_type,deleted_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14);"
+	sql := "INSERT INTO \"account\" (id,name,exchange,config,api_key,api_secret,passphrase,algorithm,tags,status,account_type,parent_account_id,multi_bot_mode,deleted_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16);"
 	rows := make([]Account, 0)
 	err := json.Unmarshal(data, &rows)
 	if err != nil {
 		return err
 	}
 	for _, row := range rows {
-		_, err := q.db.WExec(ctx, "account.Load", sql, row.ID, row.Name, row.Exchange, row.Config, row.ApiKey, row.ApiSecret, row.Passphrase, row.Algorithm, row.Tags, row.Status, row.AccountType, row.DeletedAt, row.CreatedAt, row.UpdatedAt)
+		_, err := q.db.WExec(ctx, "account.Load", sql, row.ID, row.Name, row.Exchange, row.Config, row.ApiKey, row.ApiSecret, row.Passphrase, row.Algorithm, row.Tags, row.Status, row.AccountType, row.ParentAccountID, row.MultiBotMode, row.DeletedAt, row.CreatedAt, row.UpdatedAt)
 		if err != nil {
 			return err
 		}

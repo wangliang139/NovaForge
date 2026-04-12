@@ -622,6 +622,37 @@ func (s *Service) CreateBot(ctx context.Context, req *stypes.CreateBotRequest) (
 		if accountID == "" {
 			return nil, errors.New(errors.InvalidArgument, "account_id is required")
 		}
+		acct, err := entity.Account.GetAccount(ctx, accountID)
+		if err != nil {
+			return nil, err
+		}
+		if acct == nil {
+			return nil, errors.New(errors.NotFound, "account not found")
+		}
+		if acct.AccountType == ctypes.AccountTypeVirtual || acct.AccountType == ctypes.AccountTypeVirtualSub {
+			return nil, errors.New(errors.InvalidArgument, "live bot must bind to a real parent account")
+		}
+		if acct.Exchange != exSrv {
+			return nil, errors.New(errors.InvalidArgument, "account exchange mismatch")
+		}
+		if acct.MultiBotMode {
+			assets, err := parseInitialAssets(config)
+			if err != nil {
+				return nil, err
+			}
+			if len(assets) == 0 {
+				return nil, errors.New(errors.InvalidArgument, "initial assets is required when parent account has multi_bot_mode enabled")
+			}
+			sub, err := s.accountSvc.CreateVirtualSubAccount(ctx, ctypes.CreateVirtualSubAccountInput{
+				ParentAccountID: acct.ID,
+				BotName:         req.Name,
+				InitialAssets:   assets,
+			})
+			if err != nil {
+				return nil, err
+			}
+			accountID = sub.ID
+		}
 	} else {
 		assets, err := parseInitialAssets(config)
 		if err != nil {

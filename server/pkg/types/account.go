@@ -322,8 +322,12 @@ type Account struct {
 	Status      AccountStatus `json:"status"`
 	Algorithm   AuthAlgorithm `json:"algorithm"`
 	AccountType AccountType   `json:"account_type"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	// ParentAccountID 仅 virtual_sub：指向父 real 账户
+	ParentAccountID *string `json:"parent_account_id,omitempty"`
+	// MultiBotMode 仅父 real 有意义；virtual / virtual_sub 恒为 false
+	MultiBotMode bool `json:"multi_bot_mode"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 
 	// 风控配置（新结构）
 	Config *RiskConfig `json:"config,omitempty"`
@@ -364,13 +368,14 @@ func (a AuthAlgorithm) Valid() bool {
 type AccountType string
 
 const (
-	AccountTypeReal    AccountType = "real"
-	AccountTypeVirtual AccountType = "virtual"
+	AccountTypeReal        AccountType = "real"
+	AccountTypeVirtual     AccountType = "virtual"
+	AccountTypeVirtualSub AccountType = "virtual_sub"
 )
 
 func (t AccountType) Valid() bool {
 	switch t {
-	case AccountTypeReal, AccountTypeVirtual:
+	case AccountTypeReal, AccountTypeVirtual, AccountTypeVirtualSub:
 		return true
 	}
 	return false
@@ -388,6 +393,17 @@ type CreateAccountInput struct {
 	AccountType AccountType
 
 	InitialAssets []AssetInput
+
+	// ParentAccountID 与 MultiBotMode 仅服务内部创建 virtual_sub / 父账户多 Bot 标记
+	ParentAccountID *string
+	MultiBotMode    *bool
+}
+
+// CreateVirtualSubAccountInput 在父账户 multi_bot_mode 下创建子账（不暴露为公开 GraphQL 创建入口）
+type CreateVirtualSubAccountInput struct {
+	ParentAccountID string
+	BotName         string
+	InitialAssets   []AssetInput
 }
 
 type AssetInput struct {
@@ -443,6 +459,25 @@ type UpdateAccountRequest struct {
 	Status      AccountStatus
 	Algorithm   AuthAlgorithm
 	AccountType AccountType
+	// MultiBotMode 非 nil 时更新；仅父 real 允许为 true
+	MultiBotMode *bool
+}
+
+// AccountUnallocatedAsset 父账户在共享多 Bot 模式下，某资产维度未分配数量（父快照 − 各子账初始分配之和）
+type AccountUnallocatedAsset struct {
+	Asset           string       `json:"asset"`
+	WalletType      WalletType   `json:"wallet_type"`
+	ParentTotal     decimal.Decimal `json:"parent_total"`
+	SubsAllocated   decimal.Decimal `json:"subs_allocated"`
+	Unallocated     decimal.Decimal `json:"unallocated"`
+}
+
+type GetAccountUnallocatedAssetsRequest struct {
+	ParentAccountID string
+}
+
+type GetAccountUnallocatedAssetsResponse struct {
+	Items []*AccountUnallocatedAsset `json:"items"`
 }
 
 type UpdateAccountResponse struct {

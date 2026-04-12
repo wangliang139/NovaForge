@@ -12,6 +12,125 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AccountStatus string
+
+const (
+	AccountStatusOnline  AccountStatus = "online"
+	AccountStatusOffline AccountStatus = "offline"
+)
+
+func (e *AccountStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AccountStatus(s)
+	case string:
+		*e = AccountStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AccountStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAccountStatus struct {
+	AccountStatus AccountStatus
+	Valid         bool // Valid is true if AccountStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAccountStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AccountStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AccountStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAccountStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AccountStatus), nil
+}
+
+func (e AccountStatus) Valid() bool {
+	switch e {
+	case AccountStatusOnline,
+		AccountStatusOffline:
+		return true
+	}
+	return false
+}
+
+func AllAccountStatusValues() []AccountStatus {
+	return []AccountStatus{
+		AccountStatusOnline,
+		AccountStatusOffline,
+	}
+}
+
+type AccountType string
+
+const (
+	AccountTypeReal       AccountType = "real"
+	AccountTypeVirtual    AccountType = "virtual"
+	AccountTypeVirtualSub AccountType = "virtual_sub"
+)
+
+func (e *AccountType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AccountType(s)
+	case string:
+		*e = AccountType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AccountType: %T", src)
+	}
+	return nil
+}
+
+type NullAccountType struct {
+	AccountType AccountType
+	Valid       bool // Valid is true if AccountType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAccountType) Scan(value interface{}) error {
+	if value == nil {
+		ns.AccountType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AccountType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAccountType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AccountType), nil
+}
+
+func (e AccountType) Valid() bool {
+	switch e {
+	case AccountTypeReal,
+		AccountTypeVirtual,
+		AccountTypeVirtualSub:
+		return true
+	}
+	return false
+}
+
+func AllAccountTypeValues() []AccountType {
+	return []AccountType{
+		AccountTypeReal,
+		AccountTypeVirtual,
+		AccountTypeVirtualSub,
+	}
+}
+
 type AlgoType string
 
 const (
@@ -85,6 +204,134 @@ func AllAlgoTypeValues() []AlgoType {
 		AlgoTypeICEBERG,
 		AlgoTypeCHASE,
 		AlgoTypeUNKNOWN,
+	}
+}
+
+type Algorithm string
+
+const (
+	AlgorithmNone    Algorithm = "none"
+	AlgorithmHmac    Algorithm = "hmac"
+	AlgorithmEd25519 Algorithm = "ed25519"
+	AlgorithmRsa     Algorithm = "rsa"
+)
+
+func (e *Algorithm) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Algorithm(s)
+	case string:
+		*e = Algorithm(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Algorithm: %T", src)
+	}
+	return nil
+}
+
+type NullAlgorithm struct {
+	Algorithm Algorithm
+	Valid     bool // Valid is true if Algorithm is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAlgorithm) Scan(value interface{}) error {
+	if value == nil {
+		ns.Algorithm, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Algorithm.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAlgorithm) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Algorithm), nil
+}
+
+func (e Algorithm) Valid() bool {
+	switch e {
+	case AlgorithmNone,
+		AlgorithmHmac,
+		AlgorithmEd25519,
+		AlgorithmRsa:
+		return true
+	}
+	return false
+}
+
+func AllAlgorithmValues() []Algorithm {
+	return []Algorithm{
+		AlgorithmNone,
+		AlgorithmHmac,
+		AlgorithmEd25519,
+		AlgorithmRsa,
+	}
+}
+
+type Exchange string
+
+const (
+	ExchangeBinance     Exchange = "binance"
+	ExchangeOkx         Exchange = "okx"
+	ExchangeBinanceTest Exchange = "binance_test"
+	ExchangeOkxTest     Exchange = "okx_test"
+)
+
+func (e *Exchange) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Exchange(s)
+	case string:
+		*e = Exchange(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Exchange: %T", src)
+	}
+	return nil
+}
+
+type NullExchange struct {
+	Exchange Exchange
+	Valid    bool // Valid is true if Exchange is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullExchange) Scan(value interface{}) error {
+	if value == nil {
+		ns.Exchange, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Exchange.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullExchange) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Exchange), nil
+}
+
+func (e Exchange) Valid() bool {
+	switch e {
+	case ExchangeBinance,
+		ExchangeOkx,
+		ExchangeBinanceTest,
+		ExchangeOkxTest:
+		return true
+	}
+	return false
+}
+
+func AllExchangeValues() []Exchange {
+	return []Exchange{
+		ExchangeBinance,
+		ExchangeOkx,
+		ExchangeBinanceTest,
+		ExchangeOkxTest,
 	}
 }
 

@@ -7,6 +7,7 @@ import {
   ModalForm,
   ProForm,
   ProFormSelect,
+  ProFormSwitch,
   ProFormText,
   ProFormTextArea,
 } from '@ant-design/pro-components';
@@ -26,6 +27,7 @@ const defaultValues: Partial<Account> = {
   algorithm: AuthAlgorithm.Hmac,
   accountType: AccountType.Real,
   tags: [],
+  multiBotMode: false,
 };
 
 const AccountModal: React.FC<AccountModalProps> = ({
@@ -166,6 +168,12 @@ const AccountModal: React.FC<AccountModalProps> = ({
           ]}
         />
       </ProForm.Group>
+      <ProFormSwitch
+        name="multiBotMode"
+        label="多 Bot 模式（子账户）"
+        readonly={isReadonly}
+        tooltip="启用后，每个实盘 Bot 使用独立虚拟子账户与初始资金池，仍共用本账户的交易所 API"
+      />
       <ProFormText
         name="apiKey"
         label="ApiKey"

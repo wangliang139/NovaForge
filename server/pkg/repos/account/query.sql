@@ -1,7 +1,7 @@
 -- name: Create :one
 -- -- invalidate : [GetById, GetByName, GetDefaultAccounts]
 -- -- timeout: 1s
-INSERT INTO public.account (id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type)
+INSERT INTO public.account (id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode)
 VALUES ($1,
         $2,
         $3,
@@ -12,7 +12,9 @@ VALUES ($1,
         $8,
         $9,
         $10,
-        $11)
+        $11,
+        $12,
+        $13)
 returning *;
 
 -- name: Update :one
@@ -28,6 +30,7 @@ SET name       = $2,
     status     = $8,
     exchange   = $9,
     account_type = $10,
+    multi_bot_mode = $11,
     updated_at = now()
 WHERE id = $1
   AND deleted_at IS NULL
@@ -84,7 +87,8 @@ WHERE id = coalesce(sqlc.narg('id')::varchar, id)
   AND status = coalesce(sqlc.narg('status')::account_status, status)
   AND (sqlc.narg('tags')::varchar[] is null or tags @> sqlc.narg('tags')::varchar[])
   AND deleted_at IS NULL
-  AND created_at BETWEEN sqlc.arg('created_at_start')::timestamptz AND sqlc.arg('created_at_end')::timestamptz;
+  AND created_at BETWEEN sqlc.arg('created_at_start')::timestamptz AND sqlc.arg('created_at_end')::timestamptz
+  AND (sqlc.narg('id')::varchar IS NOT NULL OR account_type <> 'virtual_sub');
 
 -- name: QueryAccounts :many
 -- -- timeout: 5s
@@ -97,8 +101,17 @@ WHERE id = coalesce(sqlc.narg('id')::varchar, id)
   AND (sqlc.narg('tags')::varchar[] is null or tags @> sqlc.narg('tags')::varchar[])
   AND deleted_at IS NULL
   AND created_at BETWEEN sqlc.arg('created_at_start')::timestamptz AND sqlc.arg('created_at_end')::timestamptz
+  AND (sqlc.narg('id')::varchar IS NOT NULL OR account_type <> 'virtual_sub')
 ORDER BY id DESC
 OFFSET sqlc.arg('offset')::int8 LIMIT sqlc.arg('limit')::int8;
+
+-- name: ListVirtualSubByParent :many
+-- -- timeout: 5s
+SELECT *
+FROM public.account
+WHERE parent_account_id = $1
+  AND deleted_at IS NULL
+ORDER BY created_at ASC;
 
 -- name: DeleteAccount :execrows
 -- -- timeout: 5s

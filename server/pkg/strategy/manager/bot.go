@@ -12,6 +12,7 @@ import (
 	"github.com/stumble/wpgx"
 	"github.com/wangliang139/NovaForge/server/pkg/converter"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/registry"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/types"
@@ -506,10 +507,27 @@ func (m *botManager) DeleteBot(ctx context.Context, botID int32) error {
 		return fmt.Errorf("failed to stop bot before deletion: %w", err)
 	}
 
+	botRow, err := m.GetBot(ctx, botID)
+	if err != nil {
+		return fmt.Errorf("failed to load bot before deletion: %w", err)
+	}
+
 	// 删除数据库记录
-	_, err := m.db.BotRepo.DeleteBot(ctx, botID)
+	_, err = m.db.BotRepo.DeleteBot(ctx, botID)
 	if err != nil {
 		return fmt.Errorf("failed to delete bot: %w", err)
+	}
+
+	if botRow != nil && botRow.AccountID != "" {
+		acct, err := m.db.AccountRepo.GetById(ctx, botRow.AccountID)
+		if err != nil {
+			return fmt.Errorf("failed to load bot account: %w", err)
+		}
+		if acct != nil && acct.AccountType == accountrepo.AccountTypeVirtualSub {
+			if _, err := m.db.AccountRepo.DeleteAccount(ctx, acct.ID); err != nil {
+				return fmt.Errorf("failed to delete virtual sub account: %w", err)
+			}
+		}
 	}
 
 	logger.Ctx(ctx).Info().Int32("bot_id", botID).Msg("bot deleted")

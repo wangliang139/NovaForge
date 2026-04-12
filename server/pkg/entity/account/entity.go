@@ -104,6 +104,30 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 		}
 		return conn, nil
 	}
+	if acct.AccountType == types.AccountTypeVirtualSub {
+		if acct.ParentAccountID == nil || *acct.ParentAccountID == "" {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub account missing parent_account_id")
+		}
+		parent, err := e.GetAccount(ctx, *acct.ParentAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("load parent account: %w", err)
+		}
+		if parent == nil {
+			return nil, errors.New(errors.NotFound, "parent account not found")
+		}
+		if parent.AccountType != types.AccountTypeReal {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub parent must be a real account")
+		}
+		if parent.Exchange != exchange {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub exchange must match parent")
+		}
+		apiAccount := mdtypes.NewSecretApiAccount(acct.ID, parent.Exchange, parent.ApiKey, parent.ApiSecret, parent.Passphrase, string(parent.Algorithm))
+		conn, err := connector.GetConnector(exchange, apiAccount)
+		if err != nil {
+			return nil, err
+		}
+		return conn, nil
+	}
 	apiAccount := mdtypes.NewSecretApiAccount(acct.ID, acct.Exchange, acct.ApiKey, acct.ApiSecret, acct.Passphrase, string(acct.Algorithm))
 	conn, err := connector.GetConnector(exchange, apiAccount)
 	if err != nil {
@@ -118,6 +142,25 @@ func (e *Entity) PublishEvent(ctx context.Context, msg *ctypes.Message) error {
 		return nil
 	}
 	return e.engine.Publish(ctx, msg)
+}
+
+// validateAccountParentMultiInvariant 保证 parent_account_id / multi_bot_mode 与 account_type 一致（原 DB CHECK 由业务层承担）。
+func validateAccountParentMultiInvariant(t accountrepo.AccountType, parentID *string, multiBot bool) error {
+	isSub := t == accountrepo.AccountTypeVirtualSub
+	hasParent := parentID != nil && strings.TrimSpace(*parentID) != ""
+	if isSub {
+		if !hasParent {
+			return errors.New(errors.InvalidArgument, "virtual_sub requires parent_account_id")
+		}
+		if multiBot {
+			return errors.New(errors.InvalidArgument, "virtual_sub account must have multi_bot_mode false")
+		}
+		return nil
+	}
+	if hasParent {
+		return errors.New(errors.InvalidArgument, "parent_account_id is only valid for account_type virtual_sub")
+	}
+	return nil
 }
 
 func (e *Entity) CreateAccount(ctx context.Context, input types.CreateAccountInput) (*types.Account, error) {
@@ -141,18 +184,56 @@ func (e *Entity) CreateAccount(ctx context.Context, input types.CreateAccountInp
 	if !accountType.Valid() {
 		accountType = accountrepo.AccountTypeReal // 默认为真实账户
 	}
+	multiBot := false
+	if input.MultiBotMode != nil {
+		multiBot = *input.MultiBotMode
+	}
+	var parentPtr *string
+	useAlgo := algo
+	switch accountType {
+	case accountrepo.AccountTypeVirtual:
+		multiBot = false
+		parentPtr = nil
+	case accountrepo.AccountTypeVirtualSub:
+		multiBot = false
+		if input.ParentAccountID == nil || *input.ParentAccountID == "" {
+			return nil, errors.New(errors.InvalidArgument, "parent_account_id is required for virtual_sub")
+		}
+		parentPo, err := e.db.AccountRepo.GetById(ctx, *input.ParentAccountID)
+		if err != nil {
+			return nil, err
+		}
+		if parentPo == nil {
+			return nil, errors.New(errors.NotFound, "parent account not found")
+		}
+		if parentPo.AccountType != accountrepo.AccountTypeReal || !parentPo.MultiBotMode {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub parent must be a real account with multi_bot_mode enabled")
+		}
+		parentPtr = input.ParentAccountID
+		useAlgo = parentPo.Algorithm
+		if ex != parentPo.Exchange {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub exchange must match parent")
+		}
+	default:
+		parentPtr = nil
+	}
+	if err := validateAccountParentMultiInvariant(accountType, parentPtr, multiBot); err != nil {
+		return nil, err
+	}
 	po, err := e.db.AccountRepo.Create(ctx, accountrepo.CreateParams{
-		ID:          id,
-		Exchange:    ex,
-		Name:        input.Name,
-		Config:      []byte(`{}`),
-		ApiKey:      input.ApiKey,
-		ApiSecret:   input.ApiSecret,
-		Passphrase:  input.Passphrase,
-		Algorithm:   algo,
-		Tags:        input.Tags,
-		Status:      accountrepo.AccountStatusOnline,
-		AccountType: accountType,
+		ID:               id,
+		Exchange:         ex,
+		Name:             input.Name,
+		Config:           []byte(`{}`),
+		ApiKey:           input.ApiKey,
+		ApiSecret:        input.ApiSecret,
+		Passphrase:       input.Passphrase,
+		Algorithm:        useAlgo,
+		Tags:             input.Tags,
+		Status:           accountrepo.AccountStatusOnline,
+		AccountType:      accountType,
+		ParentAccountID:  parentPtr,
+		MultiBotMode:     multiBot,
 	}, &id, &input.Name, &ex)
 	if err != nil {
 		return nil, err
@@ -199,17 +280,52 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 	if !accountType.Valid() {
 		accountType = accountrepo.AccountTypeReal // 默认为真实账户
 	}
+	if account.AccountType != accountType {
+		return nil, errors.New(errors.InvalidArgument, "account_type cannot be changed")
+	}
+	multiBotMode := account.MultiBotMode
+	if input.MultiBotMode != nil {
+		newVal := *input.MultiBotMode
+		if newVal != account.MultiBotMode {
+			if account.AccountType == accountrepo.AccountTypeVirtualSub {
+				return nil, errors.New(errors.InvalidArgument, "multi_bot_mode cannot be changed for virtual_sub")
+			}
+			if account.AccountType == accountrepo.AccountTypeVirtual {
+				return nil, errors.New(errors.InvalidArgument, "multi_bot_mode cannot be enabled for virtual accounts")
+			}
+			if account.AccountType == accountrepo.AccountTypeReal {
+				cnt, err := e.db.BotRepo.CountActiveBotsForParentAccount(ctx, input.ID)
+				if err != nil {
+					return nil, err
+				}
+				if cnt != nil && *cnt > 0 {
+					return nil, errors.New(errors.InvalidArgument, "cannot change multi_bot_mode while active bots are bound to this account")
+				}
+			}
+		}
+		multiBotMode = newVal
+	}
+	if account.AccountType == accountrepo.AccountTypeVirtualSub {
+		multiBotMode = false
+	}
+	if account.AccountType == accountrepo.AccountTypeVirtual {
+		multiBotMode = false
+	}
+	if err := validateAccountParentMultiInvariant(account.AccountType, account.ParentAccountID, multiBotMode); err != nil {
+		return nil, err
+	}
 	po, err := e.db.AccountRepo.Update(ctx, accountrepo.UpdateParams{
-		ID:          input.ID,
-		Exchange:    ex,
-		Name:        input.Name,
-		ApiKey:      input.ApiKey,
-		ApiSecret:   input.ApiSecret,
-		Passphrase:  input.Passphrase,
-		Algorithm:   algo,
-		Tags:        input.Tags,
-		Status:      sts,
-		AccountType: accountType,
+		ID:             input.ID,
+		Exchange:       ex,
+		Name:           input.Name,
+		ApiKey:         input.ApiKey,
+		ApiSecret:      input.ApiSecret,
+		Passphrase:     input.Passphrase,
+		Algorithm:      algo,
+		Tags:           input.Tags,
+		Status:         sts,
+		AccountType:    accountType,
+		MultiBotMode:   multiBotMode,
 	}, &input.ID, &input.Name, &ex)
 	if err != nil {
 		return nil, err
