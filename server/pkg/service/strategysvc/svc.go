@@ -2,6 +2,7 @@ package strategysvc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -616,6 +617,9 @@ func (s *Service) CreateBot(ctx context.Context, req *stypes.CreateBotRequest) (
 	if err := sonic.Unmarshal([]byte(req.Config), &config); err != nil {
 		return nil, errors.New(errors.InvalidArgument, "invalid config format")
 	}
+	if err := hydrateInitialAssetsFromJSON(&config, []byte(req.Config)); err != nil {
+		return nil, err
+	}
 
 	accountID := req.AccountID
 	if mode == stypes.BotModeLive {
@@ -727,6 +731,132 @@ func parseInitialAssets(config stypes.BotConfig) ([]ctypes.AssetInput, error) {
 		})
 	}
 	return result, nil
+}
+
+// initialAssetWire 兼容前端表单字段 asset/total/frozen 与领域模型 code/balance/frozened。
+type initialAssetWire struct {
+	Code       string            `json:"code"`
+	Asset      string            `json:"asset"`
+	WalletType ctypes.WalletType `json:"walletType"`
+	Balance    json.RawMessage   `json:"balance"`
+	Total      json.RawMessage   `json:"total"`
+	Frozen     json.RawMessage   `json:"frozen"`
+	Frozened   json.RawMessage   `json:"frozened"`
+}
+
+func flexibleDecimalString(raw json.RawMessage) (string, error) {
+	if len(raw) == 0 {
+		return "", nil
+	}
+	var s string
+	if err := sonic.Unmarshal(raw, &s); err == nil {
+		return strings.TrimSpace(s), nil
+	}
+	var d decimal.Decimal
+	if err := sonic.Unmarshal(raw, &d); err == nil {
+		return d.String(), nil
+	}
+	var f float64
+	if err := sonic.Unmarshal(raw, &f); err == nil {
+		return strconv.FormatFloat(f, 'f', -1, 64), nil
+	}
+	return "", fmt.Errorf("invalid number in config")
+}
+
+func pickInitialTotalStr(balance, total json.RawMessage) (string, error) {
+	s, err := flexibleDecimalString(total)
+	if err != nil {
+		return "", err
+	}
+	if s != "" {
+		return s, nil
+	}
+	return flexibleDecimalString(balance)
+}
+
+func pickInitialFrozenStr(frozen, frozened json.RawMessage) (string, error) {
+	s, err := flexibleDecimalString(frozen)
+	if err != nil {
+		return "", err
+	}
+	if s != "" {
+		return s, nil
+	}
+	return flexibleDecimalString(frozened)
+}
+
+func isZeroDecimalString(s string) bool {
+	if s == "" {
+		return true
+	}
+	d, err := decimal.NewFromString(s)
+	if err != nil {
+		return false
+	}
+	return d.IsZero()
+}
+
+// hydrateInitialAssetsFromJSON 将 config JSON 中的 initialAssets（含 asset/total）写入 BotConfig，供 parseInitialAssets 与落库序列化使用。
+func hydrateInitialAssetsFromJSON(cfg *stypes.BotConfig, raw []byte) error {
+	var top map[string]json.RawMessage
+	if err := sonic.Unmarshal(raw, &top); err != nil {
+		return errors.New(errors.InvalidArgument, "invalid config format")
+	}
+	rawList, ok := top["initialAssets"]
+	if !ok || len(rawList) == 0 || string(rawList) == "null" {
+		return nil
+	}
+	var items []initialAssetWire
+	if err := sonic.Unmarshal(rawList, &items); err != nil {
+		return errors.New(errors.InvalidArgument, "invalid initialAssets format")
+	}
+	out := make([]ctypes.Asset, 0, len(items))
+	for i := range items {
+		it := &items[i]
+		code := strings.TrimSpace(it.Code)
+		if code == "" {
+			code = strings.TrimSpace(it.Asset)
+		}
+		totalStr, err := pickInitialTotalStr(it.Balance, it.Total)
+		if err != nil {
+			return errors.New(errors.InvalidArgument, err.Error())
+		}
+		frozenStr, err := pickInitialFrozenStr(it.Frozen, it.Frozened)
+		if err != nil {
+			return errors.New(errors.InvalidArgument, err.Error())
+		}
+		if code == "" {
+			if totalStr == "" || isZeroDecimalString(totalStr) {
+				continue
+			}
+			return errors.New(errors.InvalidArgument, "asset is required")
+		}
+		if totalStr == "" {
+			return errors.New(errors.InvalidArgument, "total is required")
+		}
+		total, err := decimal.NewFromString(totalStr)
+		if err != nil || total.IsNegative() {
+			return errors.New(errors.InvalidArgument, "total is invalid")
+		}
+		frozen := decimal.Zero
+		if frozenStr != "" {
+			frozen, err = decimal.NewFromString(frozenStr)
+			if err != nil || frozen.IsNegative() {
+				return errors.New(errors.InvalidArgument, "frozen is invalid")
+			}
+		}
+		if !it.WalletType.Valid() {
+			return errors.New(errors.InvalidArgument, "wallet_type is invalid")
+		}
+		out = append(out, ctypes.Asset{
+			Code:       code,
+			WalletType: it.WalletType,
+			Balance:    total,
+			Frozened:   frozen,
+		})
+	}
+	cfg.InitialAssets = out
+	return nil
 }
 
 func (s *Service) ListBots(ctx context.Context, req *stypes.ListBotsRequest) (*stypes.ListBotsResponse, error) {

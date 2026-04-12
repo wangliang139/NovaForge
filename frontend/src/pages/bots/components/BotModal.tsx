@@ -29,10 +29,9 @@ import { getExchangeLogo, getExchangeTitle, parseSymbol } from '@/utils/market';
 import {
   DeleteOutlined,
   InfoCircleOutlined,
-  PartitionOutlined,
   PlusOutlined,
   UsergroupAddOutlined,
-  UserOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import {
   ModalForm,
@@ -58,6 +57,7 @@ import {
   Tag,
   Tooltip,
 } from 'antd';
+import Decimal from 'decimal.js';
 import React, { useEffect, useRef, useState } from 'react';
 
 type BotModalProps = {
@@ -66,6 +66,43 @@ type BotModalProps = {
   onSuccess?: () => void;
   bot?: Bot | null;
 };
+
+/** 模拟盘与多 Bot 子账户共用：写入 bot config.initialAssets（字段 asset / total / frozen） */
+type BotInitialAssetRow = {
+  asset: string;
+  walletType?: WalletType;
+  total?: string | number;
+  frozen?: string;
+};
+
+const EMPTY_BOT_INITIAL_ASSET_ROW: BotInitialAssetRow = {
+  asset: '',
+  walletType: undefined,
+  total: undefined,
+  frozen: '0',
+};
+
+/** 实盘多 Bot 父账户下默认首行（与原先 OKX 类预设一致，可按需再按 exchange 区分） */
+const defaultLiveMultiInitialAssetRows = (): BotInitialAssetRow[] => [
+  { asset: 'USDT', walletType: WalletType.Trade, total: '', frozen: '0' },
+];
+
+/** 读表单或历史 JSON 时，把后端/旧数据别名收敛到 BotInitialAssetRow */
+function coerceInitialAssetRow(raw: unknown): BotInitialAssetRow {
+  if (!raw || typeof raw !== 'object') {
+    return { ...EMPTY_BOT_INITIAL_ASSET_ROW };
+  }
+  const r = raw as Record<string, unknown>;
+  return {
+    asset: String(r.asset ?? r.code ?? '').trim(),
+    walletType: r.walletType as WalletType | undefined,
+    total: (r.total ?? r.balance) as BotInitialAssetRow['total'],
+    frozen:
+      r.frozen !== undefined && r.frozen !== null && r.frozen !== ''
+        ? String(r.frozen)
+        : '0',
+  };
+}
 
 const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot }) => {
   const isEdit = !!bot;
@@ -91,7 +128,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           mode: BotMode.Live,
           exchange: 'binance',
           symbols: [],
-          initialAssets: [{ asset: '', walletType: undefined, total: undefined, frozen: '0' }],
+          initialAssets: [{ ...EMPTY_BOT_INITIAL_ASSET_ROW }],
         });
       } else {
         form.resetFields();
@@ -205,9 +242,10 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   const accountIdWatch = Form.useWatch('accountId', form);
   const needsLiveSubAllocation =
     modeValue === BotMode.Live &&
-    !!(accounts.find((a) => a.id === accountIdWatch)?.multiBotMode);
+    !!(
+      accounts.find((a) => String(a.id) === String(accountIdWatch ?? ''))?.multiBotMode
+    );
   const prevExchangeRef = useRef<string | undefined>(exchangeValue);
-  const emptyInitialAsset = { asset: '', walletType: undefined, total: undefined, frozen: '0' };
   const getAllowedWalletTypes = (exchange?: string) => {
     if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
       return [WalletType.Spot, WalletType.Future];
@@ -232,7 +270,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     }
     return undefined;
   };
-  const validateInitialAssetsAgainstSymbols = (assets: any[]) => {
+  const validateInitialAssetsAgainstSymbols = (assets: BotInitialAssetRow[]) => {
     if (
       !exchangeValue ||
       !symbolsValue ||
@@ -277,6 +315,90 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     }
     return true;
   };
+
+  /** 与后端 allocKey 一致：资产大写 + 钱包类型小写 */
+  const multiBotAllocKey = (asset: string, walletType: string) =>
+    `${String(asset || '').trim().toUpperCase()}|${String(walletType || '').trim().toLowerCase()}`;
+
+  const walletTypeKey = (w: unknown) => String(w ?? '').trim().toLowerCase();
+
+  const parseInitialAssetTotal = (item: BotInitialAssetRow): Decimal | null => {
+    const raw = item?.total;
+    if (raw === null || raw === undefined || raw === '') {
+      return new Decimal(0);
+    }
+    try {
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        return new Decimal(raw);
+      }
+      return new Decimal(String(raw).trim());
+    } catch {
+      return null;
+    }
+  };
+
+  /** 用已拉取的未分配列表校验各条 initialAssets（与后端 allocKey 一致） */
+  const checkInitialAssetsAgainstUnallocatedRows = (
+    fresh: AccountUnallocatedAsset[],
+    initialAssets: unknown[],
+  ): string | null => {
+    const rows = initialAssets.map(coerceInitialAssetRow);
+    const allowed = new Map<string, Decimal>();
+    for (const row of fresh) {
+      const k = multiBotAllocKey(row.asset, walletTypeKey(row.walletType));
+      try {
+        allowed.set(k, new Decimal(row.unallocated || '0'));
+      } catch {
+        allowed.set(k, new Decimal(0));
+      }
+    }
+    for (const item of rows) {
+      const asset = String(item.asset || '')
+        .trim()
+        .toUpperCase();
+      const walletType = walletTypeKey(item?.walletType);
+      if (!asset || !walletType) {
+        continue;
+      }
+      const total = parseInitialAssetTotal(item);
+      if (total === null) {
+        return '初始资产数量格式不正确';
+      }
+      if (total.isNegative()) {
+        return '初始资产数量不能为负';
+      }
+      if (total.isZero()) {
+        continue;
+      }
+      const k = multiBotAllocKey(asset, walletType);
+      const max = allowed.get(k) ?? new Decimal(0);
+      if (total.gt(max)) {
+        const [sym, wt] = k.split('|');
+        return `初始分配超额：${sym}（${wt}）申请 ${total.toString()}，超过未分配 ${max.toString()}`;
+      }
+    }
+    return null;
+  };
+
+  const validateMultiBotInitialAssets = async (
+    parentAccountId: string,
+    initialAssets: BotInitialAssetRow[],
+  ): Promise<boolean> => {
+    let fresh: AccountUnallocatedAsset[];
+    try {
+      fresh = await queryAccountUnallocatedAssets(String(parentAccountId));
+    } catch {
+      message.error('拉取父账户未分配资产失败，请稍后重试');
+      return false;
+    }
+    const errMsg = checkInitialAssetsAgainstUnallocatedRows(fresh, initialAssets);
+    if (errMsg) {
+      message.error(errMsg);
+      return false;
+    }
+    return true;
+  };
+
   const walletTypeOptions = getAllowedWalletTypes(exchangeValue).map((value) => {
     const labelMap: Record<string, string> = {
       [WalletType.Spot]: '现货',
@@ -349,9 +471,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       return;
     }
     form.setFieldsValue({
-      initialAssets: [
-        { asset: 'USDT', walletType: WalletType.Trade, total: '', frozen: '0' },
-      ],
+      initialAssets: defaultLiveMultiInitialAssetRows(),
     });
   }, [accountIdWatch, needsLiveSubAllocation, open, isEdit, form]);
 
@@ -375,7 +495,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       form.setFieldsValue({
         symbols: [],
         accountId: undefined,
-        initialAssets: [emptyInitialAsset],
+        initialAssets: [{ ...EMPTY_BOT_INITIAL_ASSET_ROW }],
       });
     }
     prevExchangeRef.current = exchangeValue;
@@ -534,33 +654,47 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       return false;
     }
 
+    const pickInitialAssets = (): BotInitialAssetRow[] => {
+      const fromValues = values.initialAssets;
+      const fromForm = form.getFieldValue('initialAssets');
+      const raw = Array.isArray(fromValues)
+        ? fromValues
+        : Array.isArray(fromForm)
+          ? fromForm
+          : [];
+      return raw.map(coerceInitialAssetRow);
+    };
+
     const configMap: Record<string, any> = {};
-    if (values.mode === BotMode.Paper) {
-      const initialAssets = values.initialAssets || [];
+    const accountForSubmit = accounts.find(
+      (a) => String(a.id) === String(values.accountId ?? ''),
+    );
+    const liveMulti = values.mode === BotMode.Live && !!accountForSubmit?.multiBotMode;
+
+    if (values.mode === BotMode.Paper || liveMulti) {
+      const initialAssets = pickInitialAssets();
       if (!initialAssets.length) {
-        message.error('模拟盘需要配置初始资产');
+        message.error(
+          values.mode === BotMode.Paper
+            ? '模拟盘需要配置初始资产'
+            : '多 Bot 共享父账户需配置子账户初始资产',
+        );
         return false;
       }
       if (!validateInitialAssetsAgainstSymbols(initialAssets)) {
         message.error('初始资产和交易对不匹配，缺失相关资产，请检查');
         return false;
       }
-      configMap.initialAssets = initialAssets;
-    }
-    if (values.mode === BotMode.Live) {
-      const acc = accounts.find((a) => a.id === values.accountId);
-      if (acc?.multiBotMode) {
-        const initialAssets = values.initialAssets || [];
-        if (!initialAssets.length) {
-          message.error('多 Bot 共享父账户需配置子账户初始资产');
+      if (liveMulti) {
+        const okUnalloc = await validateMultiBotInitialAssets(
+          String(values.accountId),
+          initialAssets,
+        );
+        if (!okUnalloc) {
           return false;
         }
-        if (!validateInitialAssetsAgainstSymbols(initialAssets)) {
-          message.error('初始资产和交易对不匹配，缺失相关资产，请检查');
-          return false;
-        }
-        configMap.initialAssets = initialAssets;
       }
+      configMap.initialAssets = initialAssets;
     }
     configMap.params = values.params;
 
@@ -1028,7 +1162,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
         {needsLiveSubAllocation && (
           <Card
             size="small"
-            title="父账户资产分配"
+            title="父账户资产概览"
             loading={loadingUnallocated}
             style={{ marginBottom: 12 }}
           >
@@ -1040,9 +1174,9 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
               columns={[
                 { title: '资产', dataIndex: 'asset' },
                 { title: '钱包', dataIndex: 'walletType' },
-                { title: '父账户可用', dataIndex: 'parentTotal' },
+                { title: '总量', dataIndex: 'parentTotal' },
                 { title: '已分配', dataIndex: 'subsAllocated' },
-                { title: '未分配', dataIndex: 'unallocated' },
+                { title: '可分配', dataIndex: 'unallocated' },
               ]}
             />
           </Card>
@@ -1050,7 +1184,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
 
         {(modeValue === BotMode.Paper || needsLiveSubAllocation) && (
           <ProForm.Item
-            label={needsLiveSubAllocation ? '子账户初始分配（实盘共享）' : '初始资产配置'}
+            label={needsLiveSubAllocation ? '子账户初始资产（实盘共享）' : '初始资产配置'}
             required
           >
             <Card>
@@ -1073,19 +1207,36 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
                           new Error('初始资产和交易对不匹配，缺失相关资产，请检查'),
                         );
                       }
-                      const list = (value || []) as any[];
+                      const list = ((value || []) as unknown[]).map(coerceInitialAssetRow);
                       const seen = new Set<string>();
                       for (const item of list) {
-                        const asset = String(item?.asset || '')
+                        const asset = String(item.asset || '')
                           .trim()
                           .toUpperCase();
-                        const walletType = String(item?.walletType || '').trim();
-                        if (!asset || !walletType) continue;
-                        const key = `${asset}__${walletType}`;
+                        const walletType = walletTypeKey(item?.walletType);
+                        if (!asset || !walletType) {
+                          continue;
+                        }
+                        const key = multiBotAllocKey(asset, walletType);
                         if (seen.has(key)) {
                           return Promise.reject(new Error('资产与钱包类型组合需唯一'));
                         }
                         seen.add(key);
+                      }
+                      // 用父账户未分配表格同源数据校验，避免在规则里 async 请求导致 Form.List 异常；提交仍会拉接口兜底
+                      if (
+                        needsLiveSubAllocation &&
+                        !loadingUnallocated &&
+                        String(form.getFieldValue('accountId') ?? '') ===
+                          String(accountIdWatch ?? '')
+                      ) {
+                        const unallocErr = checkInitialAssetsAgainstUnallocatedRows(
+                          unallocatedRows,
+                          list,
+                        );
+                        if (unallocErr) {
+                          return Promise.reject(new Error(unallocErr));
+                        }
                       }
                       return Promise.resolve();
                     },
@@ -1145,7 +1296,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
                             icon={<DeleteOutlined />}
                             onClick={() => {
                               if (fields.length === 1) {
-                                form.setFieldValue('initialAssets', [emptyInitialAsset]);
+                                form.setFieldValue('initialAssets', [{ ...EMPTY_BOT_INITIAL_ASSET_ROW }]);
                                 return;
                               }
                               remove(name);
@@ -1156,7 +1307,12 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
                         </Col>
                       </Row>
                     ))}
-                    <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add()}>
+                    <Button
+                      type="dashed"
+                      block
+                      icon={<PlusOutlined />}
+                      onClick={() => add({ ...EMPTY_BOT_INITIAL_ASSET_ROW })}
+                    >
                       添加资产
                     </Button>
                     <Form.ErrorList errors={errors?.slice(0, 1)} />

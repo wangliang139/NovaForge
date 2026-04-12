@@ -705,6 +705,8 @@ func (s *Service) CreateVirtualSubAccount(ctx context.Context, input types.Creat
 		}
 		allowed[allocKey(row.Asset, row.WalletType)] = row.Unallocated
 	}
+	// 同一资产+钱包多行时按 key 汇总后再与未分配额度比较
+	perKeyTotal := make(map[string]decimal.Decimal)
 	for i := range input.InitialAssets {
 		a := &input.InitialAssets[i]
 		if !a.WalletType.Valid() {
@@ -717,9 +719,18 @@ func (s *Service) CreateVirtualSubAccount(ctx context.Context, input types.Creat
 		if total.IsZero() {
 			continue
 		}
-		u := allowed[allocKey(a.Asset, a.WalletType)]
-		if total.GreaterThan(u) {
-			return nil, errors.New(errors.InvalidArgument, "initial allocation exceeds unallocated balance")
+		k := allocKey(a.Asset, a.WalletType)
+		perKeyTotal[k] = perKeyTotal[k].Add(total)
+	}
+	for k, sum := range perKeyTotal {
+		u, ok := allowed[k]
+		if !ok {
+			u = decimal.Zero
+		}
+		if sum.GreaterThan(u) {
+			return nil, errors.New(errors.InvalidArgument, fmt.Sprintf(
+				"initial allocation for %s exceeds unallocated balance: requested %s, available %s",
+				k, sum.String(), u.String()))
 		}
 	}
 
