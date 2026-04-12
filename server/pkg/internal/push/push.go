@@ -110,8 +110,10 @@ func sendByProvider(ctx context.Context, cfg settings.PushConfig, message string
 	switch provider {
 	case settings.PushProviderFeishu:
 		return sendFeishuText(ctx, cfg, htmlToText(message))
-	default:
+	case settings.PushProviderTelegram:
 		return sendTelegramHTML(ctx, cfg, message)
+	default:
+		return fmt.Errorf("unsupported push provider: %s", provider)
 	}
 }
 

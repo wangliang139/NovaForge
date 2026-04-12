@@ -216,7 +216,7 @@ const TelegramView: React.FC = () => {
               告警推送
             </Typography.Text>
             <Typography.Text type="secondary" style={{ display: 'block' }}>
-              开启后，服务/策略告警将发往推送渠道
+              开启后，服务/策略/价格告警将发往推送渠道
             </Typography.Text>
           </div>
           <Form.Item name="pushAlarmEnabled" valuePropName="checked" style={{ margin: 6, padding: 0 }}>
