@@ -1,22 +1,40 @@
+import { EllipsisMiddleText } from '@/components';
 import { EditIndicator, Exchange } from '@/global.types';
-import { Account, AccountStatus, AccountType, createAccount, deleteAccount, offlineAccount, onlineAccount, queryAccounts, QueryAccountsParams, updateAccount } from '@/services/gateway/account';
+import {
+  Account,
+  AccountStatus,
+  AccountType,
+  createAccount,
+  deleteAccount,
+  offlineAccount,
+  onlineAccount,
+  queryAccounts,
+  QueryAccountsParams,
+  updateAccount,
+} from '@/services/gateway/account';
 import utils from '@/utils';
 import { enumToOptions } from '@/utils/dict';
 import { history } from '@@/exports';
-import { Outlet, useMatch } from '@umijs/max';
 import { PlusOutlined } from '@ant-design/icons';
+import { ActionType, PageContainer, ProFormInstance, ProList } from '@ant-design/pro-components';
+import { Outlet, useMatch } from '@umijs/max';
 import {
-  ActionType,
-  PageContainer,
-  ProColumns,
-  ProFormInstance,
-  ProList,
-} from '@ant-design/pro-components';
-import { Button, Card, Dropdown, Flex, message, Modal, Space, Statistic, Tag, Typography } from 'antd';
+  Button,
+  Card,
+  Dropdown,
+  Flex,
+  message,
+  Modal,
+  Space,
+  Statistic,
+  Tag,
+  Typography,
+} from 'antd';
 import dayjs from 'dayjs';
 import { MenuInfo } from 'rc-menu/es/interface';
 import React, { useRef, useState } from 'react';
 import AccountModal from './components/AccountModal';
+import useAccountListStyles from './index.style';
 
 const AccountsComponent: React.FC = () => {
   const matchDetail = useMatch({ path: '/account/:id', end: true });
@@ -33,6 +51,7 @@ const AccountsComponent: React.FC = () => {
     unRealizedProfit: 0,
     notional24HChange: 0,
   });
+  const { styles: accountListStyles } = useAccountListStyles();
 
   // 子路由 /account/:id 时渲染详情页出口（放在所有 hooks 之后，避免 Rendered fewer hooks）
   if (matchDetail) {
@@ -173,192 +192,234 @@ const AccountsComponent: React.FC = () => {
           />
         </Card>
       </Flex>
-      <ProList<Account, API.PageParams>
-        actionRef={actionRef}
-        formRef={formRef}
-        form={{ span: 6 }}
-        rowKey={(record) => record.id}
-        search={{
-          filterType: 'light',
-          // labelWidth: 'auto',
-          // showHiddenNum: true,
-        }}
-        toolBarRender={() => [
-          <Button
-            type="primary"
-            key="primary"
-            onClick={() => {
-              setAccountIndicator({
-                mode: 'new',
-                open: true,
-                value: null,
+      <div className={accountListStyles.proListScope}>
+        <ProList<Account, API.PageParams>
+          actionRef={actionRef}
+          formRef={formRef}
+          form={{ span: 6 }}
+          rowKey={(record) => record.id}
+          search={{
+            filterType: 'light',
+            // labelWidth: 'auto',
+            // showHiddenNum: true,
+          }}
+          toolBarRender={() => [
+            <Button
+              type="primary"
+              key="primary"
+              onClick={() => {
+                setAccountIndicator({
+                  mode: 'new',
+                  open: true,
+                  value: null,
+                });
+              }}
+            >
+              <PlusOutlined /> 新建
+            </Button>,
+          ]}
+          request={async (params: QueryAccountsParams) => {
+            const res = await queryAccounts(params);
+            const list = (res?.list || []) as Account[];
+            let summaryList = list;
+            if (res?.totalCount && res.totalCount > list.length) {
+              const summaryRes = await queryAccounts({
+                ...params,
+                current: 1,
+                pageSize: res.totalCount,
               });
-            }}
-          >
-            <PlusOutlined /> 新建
-          </Button>,
-        ]}
-        request={async (params: QueryAccountsParams) => {
-          const res = await queryAccounts(params);
-          const list = (res?.list || []) as Account[];
-          let summaryList = list;
-          if (res?.totalCount && res.totalCount > list.length) {
-            const summaryRes = await queryAccounts({
-              ...params,
-              current: 1,
-              pageSize: res.totalCount,
-            });
-            summaryList = (summaryRes?.list || []) as Account[];
-          }
-          const totals = summaryList.reduce(
-            (acc: { notional: number; unRealizedProfit: number; notional24HChange: number }, item: Account) => {
-              acc.notional += toNumber(item.stats?.notional);
-              acc.unRealizedProfit += toNumber(item.stats?.unRealizedProfit);
-              acc.notional24HChange += toNumber(item.stats?.notional24HChange);
-              return acc;
+              summaryList = (summaryRes?.list || []) as Account[];
+            }
+            const totals = summaryList.reduce(
+              (
+                acc: { notional: number; unRealizedProfit: number; notional24HChange: number },
+                item: Account,
+              ) => {
+                acc.notional += toNumber(item.stats?.notional);
+                acc.unRealizedProfit += toNumber(item.stats?.unRealizedProfit);
+                acc.notional24HChange += toNumber(item.stats?.notional24HChange);
+                return acc;
+              },
+              { notional: 0, unRealizedProfit: 0, notional24HChange: 0 },
+            );
+            setSummaryStats(totals);
+            return {
+              data: list,
+              total: res?.totalCount,
+              success: true,
+            };
+          }}
+          pagination={{
+            showSizeChanger: true,
+          }}
+          grid={{
+            gutter: 16,
+            xs: 1,
+            sm: 2,
+            md: 2,
+            lg: 3,
+            xl: 3,
+            xxl: 4,
+          }}
+          showActions="hover"
+          metas={{
+            title: {
+              dataIndex: 'name',
+              render: (_: React.ReactNode, row: Account) => (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    columnGap: 4,
+                    maxWidth: '100%',
+                    width: '100%',
+                    minWidth: 0,
+                    verticalAlign: 'middle',
+                    marginRight: 10,
+                  }}
+                >
+                  <img
+                    alt={row.exchange}
+                    style={{ flexShrink: 0, display: 'block', paddingBottom: 2 }}
+                    width={16}
+                    height={16}
+                    src={utils.market.getExchangeLogo(row.exchange)}
+                  />
+                  <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    <EllipsisMiddleText suffixCount={5}>{row.name || row.id}</EllipsisMiddleText>
+                  </span>
+                </span>
+              ),
+              search: false,
             },
-            { notional: 0, unRealizedProfit: 0, notional24HChange: 0 },
-          );
-          setSummaryStats(totals);
-          return {
-            data: list,
-            total: res?.totalCount,
-            success: true,
-          };
-        }}
-        pagination={{
-          showSizeChanger: true,
-        }}
-        grid={{
-          gutter: 16,
-          xs: 1,
-          sm: 2,
-          md: 2,
-          lg: 3,
-          xl: 3,
-          xxl: 4,
-        }}
-        showActions="hover"
-        metas={{
-          title: {
-            dataIndex: 'name',
-            render: (_: React.ReactNode, row: Account) => (
-              <Space size={4} align="baseline">
-                <img
-                  alt={row.exchange}
-                  style={{ display: 'inline', marginLeft: 0, paddingBottom: 2 }}
-                  width={16}
-                  src={utils.market.getExchangeLogo(row.exchange)}
-                />
-                <span>{row.name || row.id}</span>
-              </Space>
-            ),
-            search: false,
-          },
-          description: {
-            search: false,
-            render: (_: React.ReactNode, row: Account) => (
-              <Space size={[4, 4]} wrap>
-                <Tag color="blue">{getExchangeLabel(row.exchange)}</Tag>
-                {renderAccountTypeTag(row.accountType)}
-              </Space>
-            ),
-          },
-          content: {
-            search: false,
-            render: (_: React.ReactNode, row: Account) => (
-              <div style={{ width: '100%' }}>
-                <Space direction="vertical" size={6} style={{ textAlign: 'right', float: 'right' }}>
-                  <Typography.Title level={4}>
-                    {toNumber(row.stats?.notional).toFixed(2)}
-                  </Typography.Title>
-                  <Typography.Text type={toNumber(row.stats?.notional24HChange) >= 0 ? 'success' : 'danger'}>
-                    {toNumber(row.stats?.notional24HChange) >= 0 ? '+' : ''}
-                    {toNumber(row.stats?.notional24HChange).toFixed(2)}
-                  </Typography.Text>
+            description: {
+              search: false,
+              render: (_: React.ReactNode, row: Account) => (
+                <Space size={[4, 4]} wrap>
+                  <Tag color="blue">{getExchangeLabel(row.exchange)}</Tag>
+                  {renderAccountTypeTag(row.accountType)}
                 </Space>
-                <Space direction="vertical" size={4} style={{ float: 'left' }}>
-                  <div>
-                    ID: <a onClick={(e) => {
-                      e.stopPropagation();
-                      handleCopy(row.id);
-                    }}>{row.id}</a>
-                  </div>
-                  <div>
-                    {renderStatusTag(row.status)}
-                    {renderAccountTypeTag(row.accountType)}
-                  </div>
-                  {row.tags?.length ? (
-                    <Space size={0}>
-                      {row.tags.map((tag) => (
-                        <Tag key={tag}>{tag}</Tag>
-                      ))}
-                    </Space>
-                  ) : (
-                    <span>暂无标签</span>
-                  )}
-                  <div style={{ marginTop: 10 }}>
-                    创建时间：{row.createdAt >= 0 ? dayjs.unix(row.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
-                  </div>
-                </Space>
-              </div>
-            ),
-          },
-          actions: {
-            render: (_: React.ReactNode, row: Account) => {
-              const menus = [];
-              if (row.status === AccountStatus.Online) {
-                menus.push({ key: 'offline', label: 'Offline' });
-              } else {
-                menus.push({ key: 'online', label: 'Online' });
-              }
-              menus.push({ key: 'delete', label: '删除', danger: true });
-              return [
-                <Dropdown.Button menu={{ items: menus, onClick: async (e: MenuInfo) => { await handleMenuClick(e, row); } }}
-                  onClick={() => {
-                    setAccountIndicator({
-                      mode: 'edit',
-                      open: true,
-                      value: row,
-                    });
-                  }}>编辑</Dropdown.Button>
-              ];
+              ),
             },
-          },
-          id: {
-            title: 'ID',
-            dataIndex: 'id',
-          },
-          exchange: {
-            title: 'Exchange',
-            dataIndex: 'exchange',
-            valueType: 'select',
-            fieldProps: {
-              options: enumToOptions(Exchange),
+            content: {
+              search: false,
+              render: (_: React.ReactNode, row: Account) => (
+                <div style={{ width: '100%' }}>
+                  <Space
+                    direction="vertical"
+                    size={6}
+                    style={{ textAlign: 'right', float: 'right' }}
+                  >
+                    <Typography.Title level={4}>
+                      {toNumber(row.stats?.notional).toFixed(2)}
+                    </Typography.Title>
+                    <Typography.Text
+                      type={toNumber(row.stats?.notional24HChange) >= 0 ? 'success' : 'danger'}
+                    >
+                      {toNumber(row.stats?.notional24HChange) >= 0 ? '+' : ''}
+                      {toNumber(row.stats?.notional24HChange).toFixed(2)}
+                    </Typography.Text>
+                  </Space>
+                  <Space direction="vertical" size={4} style={{ float: 'left' }}>
+                    <div>
+                      ID:{' '}
+                      <a
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCopy(row.id);
+                        }}
+                      >
+                        {row.id}
+                      </a>
+                    </div>
+                    <div>
+                      {renderStatusTag(row.status)}
+                      {renderAccountTypeTag(row.accountType)}
+                    </div>
+                    {row.tags?.length ? (
+                      <Space size={0}>
+                        {row.tags.map((tag) => (
+                          <Tag key={tag}>{tag}</Tag>
+                        ))}
+                      </Space>
+                    ) : (
+                      <span>暂无标签</span>
+                    )}
+                    <div style={{ marginTop: 10 }}>
+                      创建时间：
+                      {row.createdAt >= 0
+                        ? dayjs.unix(row.createdAt).format('YYYY-MM-DD HH:mm:ss')
+                        : '-'}
+                    </div>
+                  </Space>
+                </div>
+              ),
             },
-          },
-          accountType: {
-            title: '账户类型',
-            dataIndex: 'accountType',
-            valueType: 'select',
-            fieldProps: {
-              options: enumToOptions(AccountType, 'Unspecified'),
+            actions: {
+              render: (_: React.ReactNode, row: Account) => {
+                const menus = [];
+                if (row.status === AccountStatus.Online) {
+                  menus.push({ key: 'offline', label: 'Offline' });
+                } else {
+                  menus.push({ key: 'online', label: 'Online' });
+                }
+                menus.push({ key: 'delete', label: '删除', danger: true });
+                return [
+                  <Dropdown.Button
+                    menu={{
+                      items: menus,
+                      onClick: async (e: MenuInfo) => {
+                        await handleMenuClick(e, row);
+                      },
+                    }}
+                    onClick={() => {
+                      setAccountIndicator({
+                        mode: 'edit',
+                        open: true,
+                        value: row,
+                      });
+                    }}
+                  >
+                    编辑
+                  </Dropdown.Button>,
+                ];
+              },
             },
-            render: (_: React.ReactNode, row: Account) => {
-              return renderAccountTypeTag(row.accountType);
+            id: {
+              title: 'ID',
+              dataIndex: 'id',
             },
-          },
-        }}
-        dateFormatter={'number'}
-        onItem={(row: any) => {
-          return {
-            onClick: () => {
-              // window.open(`/account/${row.id}`, '_blank');
-              history.push(`/account/${row.id}`);
+            exchange: {
+              title: 'Exchange',
+              dataIndex: 'exchange',
+              valueType: 'select',
+              fieldProps: {
+                options: enumToOptions(Exchange),
+              },
             },
-          };
-        }}
-      />
+            accountType: {
+              title: '账户类型',
+              dataIndex: 'accountType',
+              valueType: 'select',
+              fieldProps: {
+                options: enumToOptions(AccountType, 'Unspecified'),
+              },
+              render: (_: React.ReactNode, row: Account) => {
+                return renderAccountTypeTag(row.accountType);
+              },
+            },
+          }}
+          dateFormatter={'number'}
+          onItem={(row: any) => {
+            return {
+              onClick: () => {
+                // window.open(`/account/${row.id}`, '_blank');
+                history.push(`/account/${row.id}`);
+              },
+            };
+          }}
+        />
+      </div>
       <AccountModal
         key={accountIndicator.value?.id || accountIndicator.mode}
         mode={accountIndicator.mode || 'new'}

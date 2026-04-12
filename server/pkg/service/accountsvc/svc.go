@@ -178,13 +178,12 @@ func (s *Service) UpdateAccount(ctx context.Context, request *types.UpdateAccoun
 	if existingMeta == nil {
 		return nil, errors.New(errors.NotFound, "account not found")
 	}
-	if existingMeta.AccountType == types.AccountTypeVirtualSub {
-		return nil, errors.New(errors.InvalidArgument, "virtual_sub account cannot be updated via this API")
-	}
+	// 更新不允许改账户类型；客户端未传 GraphQL account_type 时常误默认为 real，与库内类型对齐
+	request.AccountType = existingMeta.AccountType
 
-	// 虚拟账户不需要校验 apikey/apiSecret
-	if request.AccountType == types.AccountTypeVirtual {
-		// 虚拟账户可以为空，设置默认值
+	// 虚拟账户 / 虚拟子账户：不向交易所校验密钥；子账户仅允许改名等约束在 entity 层校验
+	switch existingMeta.AccountType {
+	case types.AccountTypeVirtual:
 		if len(request.ApiKey) == 0 {
 			request.ApiKey = ""
 		}
@@ -194,8 +193,9 @@ func (s *Service) UpdateAccount(ctx context.Context, request *types.UpdateAccoun
 		if len(request.Passphrase) == 0 {
 			request.Passphrase = ""
 		}
-	} else {
-		// 真实账户需要校验
+	case types.AccountTypeVirtualSub:
+		// 请求体需携带与库内一致的占位密钥等，由 entity.validateVirtualSubAccountUpdate 约束
+	default:
 		if len(request.ApiKey) == 0 {
 			return nil, errors.New(errors.InvalidArgument, "api key is required")
 		}
@@ -214,8 +214,8 @@ func (s *Service) UpdateAccount(ctx context.Context, request *types.UpdateAccoun
 		return nil, errors.New(errors.InvalidArgument, "algorithm is invalid")
 	}
 
-	// 校验apiKey和apiSecret是否合法（仅对非虚拟账户且状态为 online 时）
-	if request.AccountType != types.AccountTypeVirtual && request.Status == types.AccountStatusOnline {
+	// 校验 apiKey/apiSecret（仅真实账户且 online；虚拟子账户不调用交易所）
+	if existingMeta.AccountType == types.AccountTypeReal && request.Status == types.AccountStatusOnline {
 		err := s.checkAccountApiSecret(ctx, request.Exchange, request.ApiKey, request.ApiSecret, request.Passphrase, request.Algorithm)
 		if err != nil {
 			log.Err(err).Msg("failed check api key/secret")
