@@ -16,6 +16,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/market/pubsub"
 	"github.com/wangliang139/NovaForge/server/pkg/market/subscription"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
+	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
@@ -230,6 +231,9 @@ func (e *Engine) connector(subscription *Subscription) (Connector, error) {
 	}
 	if account == nil {
 		return nil, fmt.Errorf("account not found: %s", *subscription.Selector.Account)
+	}
+	if account.AccountType != accountrepo.AccountTypeReal {
+		return nil, fmt.Errorf("only real account is supported")
 	}
 	apiAccount := NewSecretApiAccount(account.ID, subscription.Exchange, account.ApiKey, account.ApiSecret, account.Passphrase, string(account.Algorithm))
 	return connector.GetConnector(subscription.Exchange, apiAccount)
