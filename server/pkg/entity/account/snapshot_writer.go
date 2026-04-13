@@ -1,0 +1,186 @@
+package account
+
+import (
+	"context"
+	"time"
+
+	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/acct_snapshot"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
+	"github.com/wangliang139/mow/logger"
+)
+
+// positionUpsertMeaningfulChange 与 ApplyAccountPositions 中「是否对外广播」判定一致，用于决定是否写入仓位历史快照。
+func positionUpsertMeaningfulChange(row *positions.UpsertPositionRow) bool {
+	if row == nil {
+		return false
+	}
+	if row.PrevUpdatedTs == nil {
+		return true
+	}
+	prevQty := utils.Decimal.PgNumericToDecimal(row.PrevQty)
+	qty := utils.Decimal.PgNumericToDecimal(row.Qty)
+	prevEntry := utils.Decimal.PgNumericToDecimal(row.PrevEntryPrice)
+	entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
+
+	if !qty.Equal(prevQty) || !entry.Equal(prevEntry) {
+		return true
+	}
+	if row.PrevLeverage == nil || *row.PrevLeverage != row.Leverage {
+		return true
+	}
+	if !row.UpdatedTs.Equal(*row.PrevUpdatedTs) {
+		return true
+	}
+	return false
+}
+
+func (e *Entity) recordAccountAssetSnapshotIfChanged(
+	ctx context.Context,
+	accountID, exchange string,
+	walletType assets.WalletType,
+	asset string,
+	prevTotal, prevFrozen, newTotal, newFrozen decimal.Decimal,
+	effectiveTs time.Time,
+) {
+	d := func(a, b decimal.Decimal) bool { return a.Sub(b).Abs().LessThan(MinDelta) }
+	if d(prevTotal, newTotal) && d(prevFrozen, newFrozen) {
+		return
+	}
+	ts := effectiveTs
+	if ts.IsZero() {
+		ts = time.Now()
+	}
+	err := e.db.AcctSnapshotRepo.InsertAccountAssetSnapshot(ctx, acct_snapshot.InsertAccountAssetSnapshotParams{
+		AccountID:   accountID,
+		Exchange:    exchange,
+		WalletType:  acct_snapshot.WalletType(walletType),
+		Asset:       asset,
+		Total:       utils.Decimal.DecimalToPgNumeric(newTotal),
+		Frozen:      utils.Decimal.DecimalToPgNumeric(newFrozen),
+		EffectiveTs: ts,
+	})
+	if err != nil {
+		logger.Ctx(ctx).Err(err).
+			Str("account_id", accountID).
+			Str("exchange", exchange).
+			Str("asset", asset).
+			Str("wallet_type", string(walletType)).
+			Msg("insert asset_snapshot")
+	}
+}
+
+func (e *Entity) recordAccountAssetSnapshotFromUpsertRow(ctx context.Context, row *assets.UpsertAssetRow) {
+	if row == nil {
+		return
+	}
+	prevT := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
+	prevF := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
+	newT := utils.Decimal.PgNumericToDecimal(row.Total)
+	newF := utils.Decimal.PgNumericToDecimal(row.Frozen)
+	e.recordAccountAssetSnapshotIfChanged(ctx, row.AccountID, row.Exchange, row.WalletType, row.Asset,
+		prevT, prevF, newT, newF, row.LastUpdatedTs)
+}
+
+func (e *Entity) recordAccountPositionSnapshotFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
+	if row == nil || !positionUpsertMeaningfulChange(row) {
+		return
+	}
+	ts := row.UpdatedTs
+	if ts.IsZero() {
+		ts = time.Now()
+	}
+	qty := utils.Decimal.PgNumericToDecimal(row.Qty)
+	entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
+	err := e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
+		AccountID:   row.AccountID,
+		Exchange:    row.Exchange,
+		Symbol:      row.Symbol,
+		Side:        acct_snapshot.PositionSide(row.Side),
+		Qty:         utils.Decimal.DecimalToPgNumeric(qty),
+		EntryPrice:  utils.Decimal.DecimalToPgNumeric(entry),
+		Leverage:    row.Leverage,
+		EffectiveTs: ts,
+	})
+	if err != nil {
+		logger.Ctx(ctx).Err(err).
+			Str("account_id", row.AccountID).
+			Str("symbol", row.Symbol).
+			Str("side", string(row.Side)).
+			Msg("insert position_snapshot")
+	}
+}
+
+// recordAccountPositionSnapshotFromPositionsRow 在 UpsertSymbolLeverage 等仅更新 positions 行但未返回 UpsertPositionRow 时使用。
+func (e *Entity) recordAccountPositionSnapshotFromPositionsRow(ctx context.Context, row *positions.Position, effectiveTs time.Time) {
+	if row == nil {
+		return
+	}
+	ts := effectiveTs
+	if ts.IsZero() {
+		ts = row.UpdatedTs
+	}
+	if ts.IsZero() {
+		ts = time.Now()
+	}
+	qty := utils.Decimal.PgNumericToDecimal(row.Qty)
+	entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
+	err := e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
+		AccountID:   row.AccountID,
+		Exchange:    row.Exchange,
+		Symbol:      row.Symbol,
+		Side:        acct_snapshot.PositionSide(row.Side),
+		Qty:         utils.Decimal.DecimalToPgNumeric(qty),
+		EntryPrice:  utils.Decimal.DecimalToPgNumeric(entry),
+		Leverage:    row.Leverage,
+		EffectiveTs: ts,
+	})
+	if err != nil {
+		logger.Ctx(ctx).Err(err).
+			Str("account_id", row.AccountID).
+			Str("symbol", row.Symbol).
+			Str("side", string(row.Side)).
+			Msg("insert position_snapshot from positions row")
+	}
+}
+
+// recordPositionSnapshotsForSymbolBothSides 在杠杆同步等场景下，为 LONG/SHORT 各写一条历史（若行存在）。
+func (e *Entity) recordPositionSnapshotsForSymbolBothSides(ctx context.Context, accountID, exchange, symbol string, effectiveTs time.Time) {
+	for _, side := range []positions.PositionSide{positions.PositionSideLONG, positions.PositionSideSHORT} {
+		p, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
+			AccountID: accountID,
+			Exchange:  exchange,
+			Symbol:    symbol,
+			Side:      side,
+		})
+		if err != nil || p == nil {
+			continue
+		}
+		e.recordAccountPositionSnapshotFromPositionsRow(ctx, p, effectiveTs)
+	}
+}
+
+// AccountSnapshotWriter P2 T10：对外写入门面（与计划 SnapshotWriter / Record*IfChanged 命名对齐）。
+type AccountSnapshotWriter struct{ e *Entity }
+
+// AccountSnapshotWriter 返回账户历史快照写入器。
+func (e *Entity) AccountSnapshotWriter() *AccountSnapshotWriter {
+	return &AccountSnapshotWriter{e: e}
+}
+
+// RecordAssetIfChanged 见 recordAccountAssetSnapshotIfChanged。
+func (w *AccountSnapshotWriter) RecordAssetIfChanged(ctx context.Context, accountID, exchange string, walletType assets.WalletType, asset string, prevTotal, prevFrozen, newTotal, newFrozen decimal.Decimal, effectiveTs time.Time) {
+	w.e.recordAccountAssetSnapshotIfChanged(ctx, accountID, exchange, walletType, asset, prevTotal, prevFrozen, newTotal, newFrozen, effectiveTs)
+}
+
+// RecordAssetFromUpsertRow 见 recordAccountAssetSnapshotFromUpsertRow。
+func (w *AccountSnapshotWriter) RecordAssetFromUpsertRow(ctx context.Context, row *assets.UpsertAssetRow) {
+	w.e.recordAccountAssetSnapshotFromUpsertRow(ctx, row)
+}
+
+// RecordPositionFromUpsertRow 见 recordAccountPositionSnapshotFromUpsertRow。
+func (w *AccountSnapshotWriter) RecordPositionFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
+	w.e.recordAccountPositionSnapshotFromUpsertRow(ctx, row)
+}
