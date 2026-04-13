@@ -532,13 +532,6 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 	}
 	fillQtyDelta := order.ExecutedQty.Sub(prevExecutedQty)
 
-	// ========== 第一部分：发送成交事件（Fill） ==========
-	if fillQtyDelta.GreaterThan(decimal.Zero) {
-		if err := e.sendOrderDerivedFillEvent(ctx, order, prev); err != nil {
-			return err
-		}
-	}
-
 	defer func() {
 		if retErr != nil {
 			return
@@ -561,10 +554,17 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 		}
 
 		includePos := order.Symbol.Type == ctypes.MarketTypeFuture
-		if err := e.publishVsAcctSnapshotsFromDB(ctx, order.AccountID, order.Exchange, includePos); err != nil {
+		if err := e.publishVsAcctSnapshotsFromDB(ctx, order.AccountID, order.Exchange); err != nil {
 			logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("publish virtual_sub order-derived snapshots")
 		}
 	}()
+
+	// ========== 第一部分：发送成交事件（Fill） ==========
+	if fillQtyDelta.GreaterThan(decimal.Zero) {
+		if err := e.sendOrderDerivedFillEvent(ctx, order, prev); err != nil {
+			return err
+		}
+	}
 
 	// ========== 第二部分：处理订单冻结/解冻 ==========
 	// 订单已完结，解冻 DB 中所有已冻结资金

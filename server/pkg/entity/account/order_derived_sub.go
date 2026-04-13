@@ -10,7 +10,7 @@ import (
 )
 
 // publishVsAcctSnapshotsFromDB 从子账户 DB 投影发布 BalanceSnapshot；可选发布合约 PositionSnapshot（现货不落仓位类事件）。
-func (e *Entity) publishVsAcctSnapshotsFromDB(ctx context.Context, accountID string, exchange ctypes.Exchange, includeFuturePositionSnapshot bool) error {
+func (e *Entity) publishVsAcctSnapshotsFromDB(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
 	if e == nil || accountID == "" || !exchange.IsValid() {
 		return nil
 	}
@@ -19,10 +19,8 @@ func (e *Entity) publishVsAcctSnapshotsFromDB(ctx context.Context, accountID str
 		return err
 	}
 
-	if !includeFuturePositionSnapshot {
-		if err := e.publishVsAcctPositionSnapshots(ctx, accountID, exchange); err != nil {
-			return err
-		}
+	if err := e.publishVsAcctPositionSnapshots(ctx, accountID, exchange); err != nil {
+		return err
 	}
 
 	return nil
