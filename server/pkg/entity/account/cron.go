@@ -249,47 +249,33 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 	if acct == nil {
 		return fmt.Errorf("account not found")
 	}
-
-	// virtual_sub 无独立交易所连接：与 WS 一致，对父 real 拉取并落库（含 multi_bot 派发链）
-	syncAcct := acct
-	if acct.AccountType == types.AccountTypeVirtualSub {
-		if acct.ParentAccountID == nil || *acct.ParentAccountID == "" {
-			return fmt.Errorf("virtual_sub account missing parent_account_id")
-		}
-		parent, err := e.GetAccount(ctx, *acct.ParentAccountID)
-		if err != nil {
-			return fmt.Errorf("get parent account: %w", err)
-		}
-		if parent == nil {
-			return fmt.Errorf("parent account not found")
-		}
-		if parent.AccountType != types.AccountTypeReal {
-			return fmt.Errorf("virtual_sub parent must be a real account")
-		}
-		syncAcct = parent
-	} else if acct.AccountType != types.AccountTypeReal {
-		return fmt.Errorf("account is not real")
+	if acct.AccountType == types.AccountTypeVirtual {
+		return fmt.Errorf("account type not supported")
 	}
 
-	conn, err := e.GetConnector(ctx, syncAcct.Exchange, syncAcct.ID)
+	conn, err := e.GetConnector(ctx, acct.Exchange, acct.ID)
 	if err != nil {
 		return fmt.Errorf("get connector: %w", err)
 	}
 
 	// 1. 刷新资产快照
-	err = e.refreshAssets(ctx, conn, syncAcct.ID, syncAcct.Exchange)
-	if err != nil {
-		return fmt.Errorf("refresh assets failed: %v", err)
+	if acct.AccountType == types.AccountTypeReal {
+		err = e.refreshAssets(ctx, conn, acct.ID, acct.Exchange)
+		if err != nil {
+			return fmt.Errorf("refresh assets failed: %v", err)
+		}
 	}
 
 	// 2. 刷新持仓快照
-	err = e.refreshPositions(ctx, conn, syncAcct.ID, syncAcct.Exchange)
-	if err != nil {
-		return fmt.Errorf("refresh positions failed: %v", err)
+	if acct.AccountType == types.AccountTypeReal {
+		err = e.refreshPositions(ctx, conn, acct.ID, acct.Exchange)
+		if err != nil {
+			return fmt.Errorf("refresh positions failed: %v", err)
+		}
 	}
 
 	// 3. 刷新在途订单快照
-	err = e.refreshOrders(ctx, conn, syncAcct.ID, syncAcct.Exchange)
+	_, err = e.refreshOrders(ctx, conn, acct)
 	if err != nil {
 		return fmt.Errorf("refresh orders failed: %v", err)
 	}
@@ -388,19 +374,70 @@ func (e *Entity) refreshPositions(ctx context.Context, conn mdtypes.Connector, a
 // refreshOrders 刷新订单快照（不传 symbol，直接拉取账户当前所有订单）。
 // P2 T5：仅由 RefreshSingleAccountSnapshots 对父 real 调用；与 WS 同源。
 // multi_bot：先对 ordersList 全量仅父落库，再对成功项逐个执行子归因派发（与 handleOrderUpdate 顺序一致，仅批量摊平 RPC/锁竞争）。
-func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, accountID string, exchange ctypes.Exchange) error {
-	// GetOrders 支持 symbol 传 nil，表示获取当前账户下所有相关订单
-	ordersList, err := conn.GetOrders(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("get orders: %w", err)
+func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct *types.Account) ([]*ctypes.Order, error) {
+	if acct == nil {
+		return nil, fmt.Errorf("account is nil")
+	}
+	accountID := acct.ID
+	exchange := acct.Exchange
+
+	var (
+		ordersList []*ctypes.Order
+		err        error
+	)
+	switch acct.AccountType {
+	case types.AccountTypeReal:
+		// GetOrders 支持 symbol 传 nil，表示获取当前账户下所有相关订单
+		ordersList, err = conn.GetOrders(ctx, nil)
+	case types.AccountTypeVirtualSub:
+		// virtual_sub 无独立交易所连接：与 WS 一致，对父 real 拉取并落库（含 multi_bot 派发链）
+		if acct.ParentAccountID == nil || *acct.ParentAccountID == "" {
+			return nil, fmt.Errorf("virtual_sub account missing parent_account_id")
+		}
+		parent, err := e.GetAccount(ctx, *acct.ParentAccountID)
+		if err != nil {
+			return nil, fmt.Errorf("get parent account: %w", err)
+		}
+		if parent == nil {
+			return nil, fmt.Errorf("parent account not found")
+		}
+		if parent.AccountType != types.AccountTypeReal {
+			return nil, fmt.Errorf("virtual_sub parent must be a real account")
+		}
+		// 先同步一遍父账户
+		parentOrders, err := e.refreshOrders(ctx, conn, parent)
+		if err != nil {
+			return nil, fmt.Errorf("refresh parent orders: %w", err)
+		}
+		if len(parentOrders) == 0 {
+			return nil, nil
+		}
+		for _, ord := range parentOrders {
+			if ord == nil {
+				continue
+			}
+			dispatches, err := e.AttributeMultiBotOrderForFanout(ctx, parent.ID, parent.Exchange, ord)
+			if err != nil {
+				logger.Ctx(ctx).Err(err).
+					Str("parent_account_id", parent.ID).
+					Str("sub_account_id", accountID).
+					Str("order_id", ord.OrderID.String()).
+					Msg("attribute parent order for virtual_sub failed")
+				continue
+			}
+			for _, d := range dispatches {
+				if d.SubAccountID != accountID {
+					continue
+				}
+				o := d.Order
+				ordersList = append(ordersList, &o)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("account type not supported")
 	}
 
-	acct, acctErr := e.GetAccount(ctx, accountID)
-	multiBot := acctErr == nil && acct != nil && acct.AccountType == ctypes.AccountTypeReal && acct.MultiBotMode
-
 	existingOpenOrders := make(map[string]bool)
-	var fanoutOK []*ctypes.Order
-
 	for _, ord := range ordersList {
 		if ord == nil {
 			continue
@@ -408,7 +445,6 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 
 		existingOpenOrders[ord.OrderID.String()] = true
 
-		// 先父账户落库（与交易所对齐）
 		if err := e.applyOrderPipeline(ctx, accountID, exchange, ord, true); err != nil {
 			logger.Ctx(ctx).Err(err).
 				Str("order_id", ord.OrderID.String()).
@@ -416,16 +452,13 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 				Msg("failed to save parent order snapshot")
 			continue
 		}
-		if multiBot {
-			fanoutOK = append(fanoutOK, ord)
-		}
 	}
 
 	pendingOrders, err := e.db.OrdersRepo.GetPendingOrders(ctx, orders.GetPendingOrdersParams{
 		AccountID: accountID,
 	})
 	if err != nil {
-		return fmt.Errorf("get pending orders: %w", err)
+		return nil, fmt.Errorf("get pending orders: %w", err)
 	}
 	for _, ord := range pendingOrders {
 		if ord.UpdatedAt.After(time.Now().Add(-1*time.Minute)) || existingOpenOrders[ord.OrderID] {
@@ -457,26 +490,14 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 				logger.Ctx(ctx).Err(err).Str("order_id", ord.OrderID).Msg("failed to save order snapshot")
 				continue
 			}
-			if multiBot {
-				fanoutOK = append(fanoutOK, order)
-			}
 		}
 	}
 
 	// 同步订单结束后：汇总当前所有在途订单的 locked，重置 assets.order_occupied
 	// 以 DB 的订单状态为准（NEW/PENDING/WORKING/PARTIAL_DONE）
 	if _, err := e.db.AssetsRepo.ResetOrderOccupiedByPendingOrders(ctx, accountID); err != nil {
-		return fmt.Errorf("reset order occupied by pending orders: %w", err)
+		return nil, fmt.Errorf("reset order occupied by pending orders: %w", err)
 	}
 
-	for _, ord := range fanoutOK {
-		if _, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
-			logger.Ctx(ctx).Err(err).
-				Str("order_id", ord.OrderID.String()).
-				Str("symbol", ord.Symbol.String()).
-				Msg("failed to multi_bot order fanout after parent snapshot")
-		}
-	}
-
-	return nil
+	return ordersList, nil
 }
