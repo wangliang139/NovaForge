@@ -258,26 +258,38 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 		return fmt.Errorf("get connector: %w", err)
 	}
 
-	// 1. 刷新资产快照
-	if acct.AccountType == types.AccountTypeReal {
+	switch acct.AccountType {
+	case types.AccountTypeReal:
+		// 1. 刷新资产快照
 		err = e.refreshAssets(ctx, conn, acct.ID, acct.Exchange)
 		if err != nil {
 			return fmt.Errorf("refresh assets failed: %v", err)
 		}
-	}
 
-	// 2. 刷新持仓快照
-	if acct.AccountType == types.AccountTypeReal {
+		// 2. 刷新持仓快照
 		err = e.refreshPositions(ctx, conn, acct.ID, acct.Exchange)
 		if err != nil {
 			return fmt.Errorf("refresh positions failed: %v", err)
 		}
-	}
 
-	// 3. 刷新在途订单快照
-	_, err = e.refreshOrders(ctx, conn, acct)
-	if err != nil {
-		return fmt.Errorf("refresh orders failed: %v", err)
+		// 3. 刷新在途订单快照
+		_, err = e.refreshOrders(ctx, conn, acct)
+		if err != nil {
+			return fmt.Errorf("refresh orders failed: %v", err)
+		}
+	case types.AccountTypeVirtualSub:
+		// 1. 刷新在途订单快照（虚拟子账户依赖订单派生资金/仓位，所以优先刷新订单数据）
+		_, err = e.refreshOrders(ctx, conn, acct)
+		if err != nil {
+			return fmt.Errorf("refresh orders failed: %v", err)
+		}
+		
+		// 2. 刷新持仓快照（根据DB数据发送仓位快照事件）
+		
+		// 3. 刷新资产快照（根据DB数据发送资产快照事件）
+		
+	default:
+		return fmt.Errorf("account type not supported")
 	}
 
 	return nil
