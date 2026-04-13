@@ -59,6 +59,9 @@ type Entity struct {
 	riskChecker RiskChecker
 }
 
+// 编译期断言：*Entity 满足 virtual_sub 包装层所需的子账户读接口（实现位于 connector 包）。
+var _ connector.VirtualSubAccountReader = (*Entity)(nil)
+
 func New(db *repos.Entity, engine *market.Engine, cache redis.UniversalClient, riskChecker RiskChecker) *Entity {
 	cfg := Config{}
 	envconfig.MustProcess("ACCOUNT_ENTITY", &cfg)
@@ -126,7 +129,7 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 		if err != nil {
 			return nil, err
 		}
-		return newVirtualSubConnectorView(conn, e, acct.ID, *acct.ParentAccountID), nil
+		return connector.NewVirtualSubConnectorView(conn, e, acct.ID, *acct.ParentAccountID), nil
 	}
 	apiAccount := mdtypes.NewSecretApiAccount(acct.ID, acct.Exchange, acct.ApiKey, acct.ApiSecret, acct.Passphrase, string(acct.Algorithm))
 	conn, err := connector.GetConnector(exchange, apiAccount)
@@ -244,19 +247,19 @@ func (e *Entity) CreateAccount(ctx context.Context, input types.CreateAccountInp
 		return nil, err
 	}
 	po, err := e.db.AccountRepo.Create(ctx, accountrepo.CreateParams{
-		ID:               id,
-		Exchange:         ex,
-		Name:             input.Name,
-		Config:           []byte(`{}`),
-		ApiKey:           input.ApiKey,
-		ApiSecret:        input.ApiSecret,
-		Passphrase:       input.Passphrase,
-		Algorithm:        useAlgo,
-		Tags:             input.Tags,
-		Status:           accountrepo.AccountStatusOnline,
-		AccountType:      accountType,
-		ParentAccountID:  parentPtr,
-		MultiBotMode:     multiBot,
+		ID:              id,
+		Exchange:        ex,
+		Name:            input.Name,
+		Config:          []byte(`{}`),
+		ApiKey:          input.ApiKey,
+		ApiSecret:       input.ApiSecret,
+		Passphrase:      input.Passphrase,
+		Algorithm:       useAlgo,
+		Tags:            input.Tags,
+		Status:          accountrepo.AccountStatusOnline,
+		AccountType:     accountType,
+		ParentAccountID: parentPtr,
+		MultiBotMode:    multiBot,
 	}, &id, &input.Name, &ex)
 	if err != nil {
 		return nil, err
@@ -356,17 +359,17 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 		return nil, err
 	}
 	po, err := e.db.AccountRepo.Update(ctx, accountrepo.UpdateParams{
-		ID:             input.ID,
-		Exchange:       ex,
-		Name:           input.Name,
-		ApiKey:         input.ApiKey,
-		ApiSecret:      input.ApiSecret,
-		Passphrase:     input.Passphrase,
-		Algorithm:      algo,
-		Tags:           input.Tags,
-		Status:         sts,
-		AccountType:    accountType,
-		MultiBotMode:   multiBotMode,
+		ID:           input.ID,
+		Exchange:     ex,
+		Name:         input.Name,
+		ApiKey:       input.ApiKey,
+		ApiSecret:    input.ApiSecret,
+		Passphrase:   input.Passphrase,
+		Algorithm:    algo,
+		Tags:         input.Tags,
+		Status:       sts,
+		AccountType:  accountType,
+		MultiBotMode: multiBotMode,
 	}, &input.ID, &input.Name, &ex)
 	if err != nil {
 		return nil, err

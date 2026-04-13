@@ -1,37 +1,38 @@
-package account
+package connector
 
 import (
 	"context"
 	"strings"
 
-	"github.com/shopspring/decimal"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
-	"github.com/wangliang139/NovaForge/server/pkg/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-// subConnectorDataSource 为 virtualSubConnectorView 提供子账户维度的 DB 读路径。
-// *Entity 实现该接口。
-type subConnectorDataSource interface {
-	GetAssets(ctx context.Context, accountID string) ([]*types.Asset, error)
+// VirtualSubAccountReader 为虚拟子账户 connector 视图提供子账户维度的读路径（通常由 account.Entity 实现）。
+// 定义在 connector 包以避免 connector import account 的循环依赖。
+type VirtualSubAccountReader interface {
+	GetAssets(ctx context.Context, accountID string) ([]*ctypes.Asset, error)
 	GetPositions(ctx context.Context, accountID string) ([]*ctypes.Position, error)
 	GetOpenOrders(ctx context.Context, accountID string, symbol *ctypes.Symbol) ([]*ctypes.Order, error)
 	GetOrder(ctx context.Context, accountID string, symbol string, clientOrderID, exchangeOrderID string) (*ctypes.Order, error)
 }
 
-// virtualSubConnectorView 将父账户 API connector 与「子账户表视图」解耦：
-// 私有查询 Account/Balance/Positions/GetOrders/GetOrder 读子表；其余方法透传内嵌 base。
+// virtualSubConnectorView 在父账户真实交易所 connector 之上叠加子账户表视图：
+// Account/Balance/Positions/GetOrders/GetOrder 读 reader；其余方法透传内嵌 base。
+// 不修改各交易所 Connector 实现。
 type virtualSubConnectorView struct {
 	mdtypes.Connector
-	src      subConnectorDataSource
+	reader   VirtualSubAccountReader
 	subID    string
 	parentID string
 }
 
-func newVirtualSubConnectorView(base mdtypes.Connector, src subConnectorDataSource, subID, parentID string) mdtypes.Connector {
+// NewVirtualSubConnectorView 用已有 GetConnector 得到的 base 包装为子账户视图 connector。
+// parentID 保留供调用方溯源，当前实现未使用。
+func NewVirtualSubConnectorView(base mdtypes.Connector, reader VirtualSubAccountReader, subID, parentID string) mdtypes.Connector {
 	return &virtualSubConnectorView{
 		Connector: base,
-		src:       src,
+		reader:    reader,
 		subID:     subID,
 		parentID:  parentID,
 	}
@@ -57,7 +58,7 @@ func (v *virtualSubConnectorView) Account(ctx context.Context) (*ctypes.AccountB
 }
 
 func (v *virtualSubConnectorView) Balance(ctx context.Context) (*ctypes.Balance, error) {
-	assets, err := v.src.GetAssets(ctx, v.subID)
+	assets, err := v.reader.GetAssets(ctx, v.subID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func (v *virtualSubConnectorView) Balance(ctx context.Context) (*ctypes.Balance,
 }
 
 func (v *virtualSubConnectorView) Positions(ctx context.Context, mt *ctypes.MarketType) ([]*ctypes.Position, error) {
-	all, err := v.src.GetPositions(ctx, v.subID)
+	all, err := v.reader.GetPositions(ctx, v.subID)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func (v *virtualSubConnectorView) Positions(ctx context.Context, mt *ctypes.Mark
 }
 
 func (v *virtualSubConnectorView) GetOrders(ctx context.Context, symbol *ctypes.Symbol) ([]*ctypes.Order, error) {
-	return v.src.GetOpenOrders(ctx, v.subID, symbol)
+	return v.reader.GetOpenOrders(ctx, v.subID, symbol)
 }
 
 func (v *virtualSubConnectorView) GetOrder(ctx context.Context, symbol ctypes.Symbol, orderId string) (*ctypes.Order, error) {
@@ -106,21 +107,5 @@ func (v *virtualSubConnectorView) GetOrder(ctx context.Context, symbol ctypes.Sy
 	if oid == "" {
 		return nil, nil
 	}
-	return v.src.GetOrder(ctx, v.subID, symbol.String(), "", oid)
-}
-
-func (v *virtualSubConnectorView) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ctypes.SymbolConfig, error) {
-	return v.Connector.SymbolConfig(ctx, symbol)
-}
-
-func (v *virtualSubConnectorView) CalcOrderFee(ctx context.Context, order ctypes.Order) (*decimal.Decimal, *string, error) {
-	return v.Connector.CalcOrderFee(ctx, order)
-}
-
-func (v *virtualSubConnectorView) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInput) (*mdtypes.PlaceOrderResult, error) {
-	return v.Connector.PlaceOrder(ctx, input)
-}
-
-func (v *virtualSubConnectorView) CancelOrder(ctx context.Context, symbol ctypes.Symbol, orderId string) error {
-	return v.Connector.CancelOrder(ctx, symbol, orderId)
+	return v.reader.GetOrder(ctx, v.subID, symbol.String(), "", oid)
 }
