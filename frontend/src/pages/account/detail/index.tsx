@@ -10,6 +10,7 @@ import {
   AccountConfig,
   AccountEquity,
   AccountInfo,
+  AccountType,
   Asset,
   cancelOrder,
   getBalance,
@@ -76,6 +77,17 @@ import { LineChart, ResponsiveContainer, Line as RLine, XAxis, YAxis } from 'rec
 import AccountDebugModal from './components/AccountDebugModal';
 import AccountMetricsCard from './components/AccountMetricsCard';
 import useStyles from './style.style';
+
+function renderAccountTypeTag(accountType: AccountType) {
+  const typeMap: Record<AccountType, { text: string; color: string }> = {
+    [AccountType.Real]: { text: '真实账户', color: 'blue' },
+    [AccountType.Virtual]: { text: '虚拟账户', color: 'green' },
+    [AccountType.VirtualSub]: { text: '虚拟子账户', color: 'orange' },
+    [AccountType.Unspecified]: { text: '未指定', color: 'default' },
+  };
+  const typeInfo = typeMap[accountType] ?? typeMap[AccountType.Unspecified];
+  return <Tag color={typeInfo.color}>{typeInfo.text}</Tag>;
+}
 
 const AccountDetail: FC = () => {
   const { styles } = useStyles();
@@ -903,6 +915,25 @@ const AccountDetail: FC = () => {
               {utils.market.getExchangeTitle(account.exchange)}
             </Space>
           </ProDescriptions.Item>
+          <ProDescriptions.Item label="交易所 UID" copyable>
+            {renderAccountInfoValue(accountInfo?.uid)}
+          </ProDescriptions.Item>
+          {account.accountType === AccountType.VirtualSub && (
+            <ProDescriptions.Item label="父账户 ID">
+              {account.parentAccountId ? (
+                <Typography.Link
+                  onClick={() => history.push(`/account/${account.parentAccountId}`)}
+                >
+                  {account.parentAccountId}
+                </Typography.Link>
+              ) : (
+                '-'
+              )}
+            </ProDescriptions.Item>
+          )}
+          <ProDescriptions.Item label="账户类型">
+            {renderAccountTypeTag(account.accountType)}
+          </ProDescriptions.Item>
           <ProDescriptions.Item label="状态">
             <Tag color={account.status === 'online' ? 'green' : 'default'}>
               {account.status === 'online' ? '在线' : '离线'}
@@ -923,9 +954,6 @@ const AccountDetail: FC = () => {
             {account.createdAt >= 0
               ? dayjs.unix(account.createdAt).format('YYYY-MM-DD HH:mm:ss')
               : '-'}
-          </ProDescriptions.Item>
-          <ProDescriptions.Item label="交易所 UID" copyable>
-            {renderAccountInfoValue(accountInfo?.uid)}
           </ProDescriptions.Item>
           <ProDescriptions.Item label="现货权限">
             {renderAccountPermission(accountInfo?.isSpotEnabled)}

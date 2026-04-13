@@ -283,11 +283,8 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 		if err != nil {
 			return fmt.Errorf("refresh orders failed: %v", err)
 		}
-		
-		// 2. 刷新持仓快照（根据DB数据发送仓位快照事件）
-		
-		// 3. 刷新资产快照（根据DB数据发送资产快照事件）
-		
+		// 2+3. 定时从子表 DB 发布资金快照与合约仓位快照（现货成交触发的订单路径不发仓位快照，见 order_derived_sub）
+		return e.publishVirtualSubSnapshotsFromDB(ctx, acct.ID, acct.Exchange, true)
 	default:
 		return fmt.Errorf("account type not supported")
 	}

@@ -513,12 +513,17 @@ func (e *Entity) applyOrderLockedDelta(ctx context.Context, tx *wpgx.WTx, order 
 
 // applyOrderFillBalanceUpdate 处理订单冻结/解冻逻辑以及发送成交事件
 // 注意：成交资金变更由单独的 asset update 事件触发，此函数不发布资金变更的 BalanceUpdate
-func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, order *ctypes.Order, prev *orders.Order) error {
+func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, order *ctypes.Order, prev *orders.Order) (retErr error) {
 	if order == nil {
 		return nil
 	}
 	if order.AccountID == "" || !order.Exchange.IsValid() || !order.Symbol.IsValid() {
 		return nil
+	}
+
+	acct, err := e.GetAccount(ctx, order.AccountID)
+	if err != nil {
+		return err
 	}
 
 	prevExecutedQty := decimal.Zero
@@ -529,11 +534,37 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 
 	// ========== 第一部分：发送成交事件（Fill） ==========
 	if fillQtyDelta.GreaterThan(decimal.Zero) {
-		err := e.sendOrderDerivedFillEvent(ctx, order, prev)
-		if err != nil {
+		if err := e.sendOrderDerivedFillEvent(ctx, order, prev); err != nil {
 			return err
 		}
 	}
+
+	defer func() {
+		if retErr != nil {
+			return
+		}
+
+		if acct == nil || acct.AccountType != ctypes.AccountTypeVirtualSub {
+			return
+		}
+
+		if !fillQtyDelta.GreaterThan(decimal.Zero) {
+			return
+		}
+
+		prevExec := decimal.Zero
+		if prev != nil {
+			prevExec = utils.Decimal.PgNumericToDecimal(prev.ExecutedQty)
+		}
+		if !order.ExecutedQty.GreaterThan(prevExec) {
+			return
+		}
+
+		includePos := order.Symbol.Type == ctypes.MarketTypeFuture
+		if err := e.publishVirtualSubSnapshotsFromDB(ctx, order.AccountID, order.Exchange, includePos); err != nil {
+			logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("publish virtual_sub order-derived snapshots")
+		}
+	}()
 
 	// ========== 第二部分：处理订单冻结/解冻 ==========
 	// 订单已完结，解冻 DB 中所有已冻结资金
