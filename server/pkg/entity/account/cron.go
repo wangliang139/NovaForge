@@ -249,29 +249,47 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 	if acct == nil {
 		return fmt.Errorf("account not found")
 	}
-	if acct.AccountType != types.AccountTypeReal {
+
+	// virtual_sub 无独立交易所连接：与 WS 一致，对父 real 拉取并落库（含 multi_bot 派发链）
+	syncAcct := acct
+	if acct.AccountType == types.AccountTypeVirtualSub {
+		if acct.ParentAccountID == nil || *acct.ParentAccountID == "" {
+			return fmt.Errorf("virtual_sub account missing parent_account_id")
+		}
+		parent, err := e.GetAccount(ctx, *acct.ParentAccountID)
+		if err != nil {
+			return fmt.Errorf("get parent account: %w", err)
+		}
+		if parent == nil {
+			return fmt.Errorf("parent account not found")
+		}
+		if parent.AccountType != types.AccountTypeReal {
+			return fmt.Errorf("virtual_sub parent must be a real account")
+		}
+		syncAcct = parent
+	} else if acct.AccountType != types.AccountTypeReal {
 		return fmt.Errorf("account is not real")
 	}
 
-	conn, err := e.GetConnector(ctx, acct.Exchange, acct.ID)
+	conn, err := e.GetConnector(ctx, syncAcct.Exchange, syncAcct.ID)
 	if err != nil {
 		return fmt.Errorf("get connector: %w", err)
 	}
 
 	// 1. 刷新资产快照
-	err = e.refreshAssets(ctx, conn, acct.ID, acct.Exchange)
+	err = e.refreshAssets(ctx, conn, syncAcct.ID, syncAcct.Exchange)
 	if err != nil {
 		return fmt.Errorf("refresh assets failed: %v", err)
 	}
 
 	// 2. 刷新持仓快照
-	err = e.refreshPositions(ctx, conn, acct.ID, acct.Exchange)
+	err = e.refreshPositions(ctx, conn, syncAcct.ID, syncAcct.Exchange)
 	if err != nil {
 		return fmt.Errorf("refresh positions failed: %v", err)
 	}
 
 	// 3. 刷新在途订单快照
-	err = e.refreshOrders(ctx, conn, acct.ID, acct.Exchange)
+	err = e.refreshOrders(ctx, conn, syncAcct.ID, syncAcct.Exchange)
 	if err != nil {
 		return fmt.Errorf("refresh orders failed: %v", err)
 	}
@@ -367,7 +385,8 @@ func (e *Entity) refreshPositions(ctx context.Context, conn mdtypes.Connector, a
 	return nil
 }
 
-// refreshOrders 刷新订单快照（不传 symbol，直接拉取账户当前所有订单）
+// refreshOrders 刷新订单快照（不传 symbol，直接拉取账户当前所有订单）。
+// P2 T5：仅由 RefreshSingleAccountSnapshots 对父 real 调用；每条订单经 saveOrderSnapshot，与 WS account_raw Order 同源（父 multi_bot → applyMultiBotParentOrderStage → 子 synthetic）。
 func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, accountID string, exchange ctypes.Exchange) error {
 	// GetOrders 支持 symbol 传 nil，表示获取当前账户下所有相关订单
 	ordersList, err := conn.GetOrders(ctx, nil)
@@ -440,41 +459,18 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 	return nil
 }
 
-// saveOrderSnapshot 保存单个订单快照
+// saveOrderSnapshot 保存单个订单快照（P2 T5：与 stream.handleOrderUpdate 同源——仅父 real 拉单；multi_bot 父先 applyMultiBotParentOrderStage，再与 WS 共用 applyOrderPipelineAfterParentStage；引擎 Publish 由 shouldPublishOrderSnapshot 节流）。
 func (e *Entity) saveOrderSnapshot(ctx context.Context, accountID string, exchange ctypes.Exchange, ord *ctypes.Order) error {
 	if ord == nil {
 		return fmt.Errorf("order is nil")
 	}
+	ord.AccountID = accountID
 	ord.Exchange = exchange
-	effectiveID, err := e.resolveEffectiveAccountIDForOrder(ctx, accountID, exchange, ord)
-	if err != nil {
+	if ok, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
 		return err
-	}
-	ord.AccountID = effectiveID
-
-	// 落库并派生成交/冻结事件
-	prevOrder, err := e.ApplyOrderSnapshot(ctx, ord)
-	if err != nil {
-		return err
+	} else if ok {
+		return nil
 	}
 
-	// 仅当有效变更时才发布订单快照事件
-	if shouldPublishOrderSnapshot(prevOrder, ord) {
-		ts := time.Now()
-		if !ord.UpdatedTs.IsZero() {
-			ts = ord.UpdatedTs
-		}
-		selector := ctypes.StreamSelector{
-			Stream:  ctypes.StreamTypeAccount,
-			Account: lo.ToPtr(ord.AccountID),
-			Symbol:  lo.ToPtr(ord.Symbol),
-		}
-		msg := ctypes.NewMessage(exchange, selector, ord, ts)
-		if e.engine != nil {
-			if err := e.engine.Publish(ctx, msg); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return e.applyOrderPipelineAfterParentStage(ctx, accountID, exchange, ord, true)
 }

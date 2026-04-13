@@ -247,6 +247,13 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 						return err
 					}
 				}
+				if err := e.fanoutMultiBotAttributedBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, totalDelta, frozenDelta, ts); err != nil {
+					logger.Ctx(ctx).Err(err).
+						Str("account_id", accountID).
+						Str("asset", asset.Code).
+						Str("reason", string(update.Reason)).
+						Msg("multi_bot balance fanout (snapshot-derived increment)")
+				}
 			}
 		} else {
 			if (asset.Balance == nil || asset.Balance.IsZero()) && (asset.Locked == nil || asset.Locked.IsZero()) {
@@ -323,6 +330,15 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 					return err
 				}
 			}
+			if assetPo != nil {
+				if err := e.fanoutMultiBotAttributedBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, td, fd, ts); err != nil {
+					logger.Ctx(ctx).Err(err).
+						Str("account_id", accountID).
+						Str("asset", asset.Code).
+						Str("reason", string(update.Reason)).
+						Msg("multi_bot balance update fanout")
+				}
+			}
 		}
 
 		go func() {
@@ -355,23 +371,28 @@ func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID strin
 	symbol := update.Symbol.String()
 	leverage := update.Leverage
 
-	_, err := e.db.PositionsRepo.UpsertSymbolLeverage(ctx, positions.UpsertSymbolLeverageParams{
+	upsertTs := time.Now()
+	if !update.UpdatedTs.IsZero() {
+		upsertTs = update.UpdatedTs
+	}
+
+	posRow, err := e.db.PositionsRepo.UpsertSymbolLeverage(ctx, positions.UpsertSymbolLeverageParams{
 		AccountID: accountID,
 		Exchange:  exchangeStr,
 		Symbol:    symbol,
 		Side:      positions.PositionSide(update.Side),
 		Leverage:  int32(leverage),
-		UpdatedTs: time.Now(),
+		UpdatedTs: upsertTs,
 	})
 	if err != nil {
 		return fmt.Errorf("apply symbol leverage update: %w", err)
 	}
+	if posRow != nil {
+		e.recordAccountPositionSnapshotFromPositionsRow(ctx, posRow, upsertTs)
+	}
 
 	// 处理后发布到事件总线（供下游订阅）
-	ts := time.Now()
-	if !update.UpdatedTs.IsZero() {
-		ts = update.UpdatedTs
-	}
+	ts := upsertTs
 	selector := ctypes.StreamSelector{
 		Stream:  ctypes.StreamTypeAccount,
 		Account: lo.ToPtr(accountID),
@@ -381,6 +402,9 @@ func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID strin
 		if err := e.engine.Publish(ctx, msg); err != nil {
 			return err
 		}
+	}
+	if err := e.fanoutMultiBotSymbolLeverageIfNeeded(ctx, accountID, exchange, update); err != nil {
+		logger.Ctx(ctx).Err(err).Str("account_id", accountID).Msg("multi_bot symbol leverage fanout")
 	}
 	return nil
 }
@@ -392,27 +416,12 @@ func (e *Entity) handleOrderUpdate(ctx context.Context, accountID string, exchan
 	ord.AccountID = accountID
 	ord.Exchange = exchange
 
-	// 落库并派生成交/冻结事件
-	prevOrder, err := e.ApplyOrderSnapshot(ctx, ord)
-	if err != nil {
+	// P2 T3：multi_bot 父流上订单归因到子时不写父订单行
+	if ok, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
 		return err
+	} else if ok {
+		return nil
 	}
-	e.maybeNotifyOrderTelegram(ctx, prevOrder, ord)
 
-	// 发布订单快照事件
-	ts := time.Now()
-	if !ord.UpdatedTs.IsZero() {
-		ts = ord.UpdatedTs
-	}
-	selector := ctypes.StreamSelector{
-		Stream:  ctypes.StreamTypeAccount,
-		Account: lo.ToPtr(accountID),
-	}
-	msg := ctypes.NewMessage(exchange, selector, ord, ts)
-	if e.engine != nil {
-		if err := e.engine.Publish(ctx, msg); err != nil {
-			return err
-		}
-	}
-	return nil
+	return e.applyOrderPipelineAfterParentStage(ctx, accountID, exchange, ord, false)
 }

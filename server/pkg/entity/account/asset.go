@@ -313,7 +313,7 @@ func (e *Entity) ApplyAssetSnapshot(ctx context.Context, accountID string, excha
 	}
 	row := result.(*assets.UpsertAssetRow)
 	if row != nil {
-		e.appendAccountAssetSnapshotFromUpsertRow(ctx, row)
+		e.recordAccountAssetSnapshotFromUpsertRow(ctx, row)
 	}
 	return row, nil
 }
@@ -437,12 +437,15 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 		return nil, err
 	}
 	pair := result.(assetIncrementTxResult)
-	if pair.newRow != nil && pair.prev != nil {
-		prevT := utils.Decimal.PgNumericToDecimal(pair.prev.Total)
-		prevF := utils.Decimal.PgNumericToDecimal(pair.prev.Frozen)
+	if pair.newRow != nil {
+		prevT, prevF := decimal.Zero, decimal.Zero
+		if pair.prev != nil {
+			prevT = utils.Decimal.PgNumericToDecimal(pair.prev.Total)
+			prevF = utils.Decimal.PgNumericToDecimal(pair.prev.Frozen)
+		}
 		newT := utils.Decimal.PgNumericToDecimal(pair.newRow.Total)
 		newF := utils.Decimal.PgNumericToDecimal(pair.newRow.Frozen)
-		e.appendAccountAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset,
+		e.recordAccountAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset,
 			prevT, prevF, newT, newF, pair.newRow.LastUpdatedTs)
 	}
 	return pair.newRow, nil

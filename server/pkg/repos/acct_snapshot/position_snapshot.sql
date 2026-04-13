@@ -1,6 +1,6 @@
 -- 依赖 positions.position_side（由 sqlc schema 列表加载 positions/schema.sql）
 
-CREATE TABLE IF NOT EXISTS account_position_snapshot (
+CREATE TABLE IF NOT EXISTS position_snapshot (
     id           BIGSERIAL PRIMARY KEY,
     account_id   VARCHAR(32)                           NOT NULL,
     exchange     VARCHAR(32)                           NOT NULL,
@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS account_position_snapshot (
     created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_account_position_snapshot_lookup
-    ON account_position_snapshot (account_id, exchange, symbol, side, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_position_snapshot_lookup
+    ON position_snapshot (account_id, exchange, symbol, side, effective_ts DESC);
 
-CREATE INDEX IF NOT EXISTS idx_account_position_snapshot_account_ts
-    ON account_position_snapshot (account_id, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_position_snapshot_account_ts
+    ON position_snapshot (account_id, effective_ts DESC);

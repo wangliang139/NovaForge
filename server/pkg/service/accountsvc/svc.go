@@ -610,6 +610,7 @@ func allocKey(asset string, wt types.WalletType) string {
 }
 
 // GetAccountUnallocatedAssets 父账户 multi_bot 模式下，各资产维度「父余额 − 子账已登记初始分配」。
+// P2 归因权重 w_unalloc 与此同键同口径，见 docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §3。
 func (s *Service) GetAccountUnallocatedAssets(ctx context.Context, req *types.GetAccountUnallocatedAssetsRequest) (*types.GetAccountUnallocatedAssetsResponse, error) {
 	if req == nil || strings.TrimSpace(req.ParentAccountID) == "" {
 		return nil, errors.New(errors.InvalidArgument, "parent_account_id is required")

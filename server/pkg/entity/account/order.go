@@ -289,6 +289,51 @@ func shouldPublishOrderSnapshot(prev *orders.Order, cur *ctypes.Order) bool {
 	return false
 }
 
+// applyOrderPipelineAfterParentStage P2 T5：在父 multi_bot 已处理（派发或跳过）之后，与 WS `handleOrderUpdate` 同源的执行链——
+// resolve 落库账户 → ApplyOrderSnapshot → Telegram →（可选节流）引擎 Publish →子 virtual_sub 成交衍生 PositionsUpdate。
+// gatePublishToEngine 为 true 时（Cron/REST 轮询）仅在 shouldPublishOrderSnapshot 为真时发布；为 false 时（用户流）每次落库后均发布。
+func (e *Entity) applyOrderPipelineAfterParentStage(ctx context.Context, streamAccountID string, exchange ctypes.Exchange, ord *ctypes.Order, gatePublishToEngine bool) error {
+	effectiveID, err := e.resolveEffectiveAccountIDForOrder(ctx, streamAccountID, exchange, ord)
+	if err != nil {
+		return err
+	}
+	ord.AccountID = effectiveID
+
+	prevOrder, err := e.ApplyOrderSnapshot(ctx, ord)
+	if err != nil {
+		return err
+	}
+	e.maybeNotifyOrderTelegram(ctx, prevOrder, ord)
+
+	doPublish := true
+	if gatePublishToEngine {
+		doPublish = shouldPublishOrderSnapshot(prevOrder, ord)
+	}
+	if doPublish && e.engine != nil {
+		ts := time.Now()
+		if !ord.UpdatedTs.IsZero() {
+			ts = ord.UpdatedTs
+		}
+		selector := ctypes.StreamSelector{
+			Stream:  ctypes.StreamTypeAccount,
+			Account: lo.ToPtr(ord.AccountID),
+			Symbol:  lo.ToPtr(ord.Symbol),
+		}
+		msg := ctypes.NewMessage(exchange, selector, ord, ts)
+		if err := e.engine.Publish(ctx, msg); err != nil {
+			return err
+		}
+	}
+
+	if err := e.publishVirtualSubPositionsAfterOrderFill(ctx, ord.AccountID, exchange, ord, prevOrder); err != nil {
+		logger.Ctx(ctx).Err(err).
+			Str("account_id", ord.AccountID).
+			Str("order_id", ord.OrderID.String()).
+			Msg("virtual_sub positions publish after order fill")
+	}
+	return nil
+}
+
 // deriveOrderLocked 推导订单应冻结的资金
 // 返回值：(冻结金额, 冻结资产, 是否成功推导)
 // 参考 ordersvc.PlaceOrder 中的资金冻结计算逻辑

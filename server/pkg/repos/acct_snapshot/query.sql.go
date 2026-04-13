@@ -21,7 +21,7 @@ import (
 
 const getAccountAssetSnapshotAtOrBefore = `-- name: GetAccountAssetSnapshotAtOrBefore :one
 SELECT id, account_id, exchange, wallet_type, asset, total, frozen, effective_ts, created_at
-FROM account_asset_snapshot
+FROM asset_snapshot
 WHERE account_id = $1
   AND exchange = $2
   AND asset = $3
@@ -93,7 +93,7 @@ func _GetAccountAssetSnapshotAtOrBefore(ctx context.Context, q CacheQuerierConn,
 
 const getAccountPositionSnapshotAtOrBefore = `-- name: GetAccountPositionSnapshotAtOrBefore :one
 SELECT id, account_id, exchange, symbol, side, qty, entry_price, leverage, effective_ts, created_at
-FROM account_position_snapshot
+FROM position_snapshot
 WHERE account_id = $1
   AND exchange = $2
   AND symbol = $3
@@ -166,7 +166,7 @@ func _GetAccountPositionSnapshotAtOrBefore(ctx context.Context, q CacheQuerierCo
 }
 
 const insertAccountAssetSnapshot = `-- name: InsertAccountAssetSnapshot :exec
-INSERT INTO account_asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, effective_ts)
+INSERT INTO asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, effective_ts)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
@@ -200,7 +200,7 @@ func (q *Queries) InsertAccountAssetSnapshot(ctx context.Context, arg InsertAcco
 }
 
 const insertAccountPositionSnapshot = `-- name: InsertAccountPositionSnapshot :exec
-INSERT INTO account_position_snapshot (account_id, exchange, symbol, side, qty, entry_price, leverage, effective_ts)
+INSERT INTO position_snapshot (account_id, exchange, symbol, side, qty, entry_price, leverage, effective_ts)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 

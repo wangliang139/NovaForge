@@ -147,8 +147,8 @@ CREATE TABLE IF NOT EXISTS positions (
     PRIMARY KEY (account_id, exchange, symbol, side)
 );
 
--- account_asset_snapshot / account_position_snapshot（append-only 历史；P2 虚拟子账户对账）
-CREATE TABLE IF NOT EXISTS account_asset_snapshot (
+-- asset_snapshot / position_snapshot（append-only 历史；P2 虚拟子账户对账）
+CREATE TABLE IF NOT EXISTS asset_snapshot (
     id              BIGSERIAL PRIMARY KEY,
     account_id      VARCHAR(32)                           NOT NULL,
     exchange        VARCHAR(32)                           NOT NULL,
@@ -161,15 +161,15 @@ CREATE TABLE IF NOT EXISTS account_asset_snapshot (
 );
 
 -- 旧环境曾含 order_occupied 列时删除（幂等）
-ALTER TABLE account_asset_snapshot DROP COLUMN IF EXISTS order_occupied;
+ALTER TABLE asset_snapshot DROP COLUMN IF EXISTS order_occupied;
 
-CREATE INDEX IF NOT EXISTS idx_account_asset_snapshot_lookup
-    ON account_asset_snapshot (account_id, exchange, asset, wallet_type, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_asset_snapshot_lookup
+    ON asset_snapshot (account_id, exchange, asset, wallet_type, effective_ts DESC);
 
-CREATE INDEX IF NOT EXISTS idx_account_asset_snapshot_account_ts
-    ON account_asset_snapshot (account_id, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_asset_snapshot_account_ts
+    ON asset_snapshot (account_id, effective_ts DESC);
 
-CREATE TABLE IF NOT EXISTS account_position_snapshot (
+CREATE TABLE IF NOT EXISTS position_snapshot (
     id           BIGSERIAL PRIMARY KEY,
     account_id   VARCHAR(32)                           NOT NULL,
     exchange     VARCHAR(32)                           NOT NULL,
@@ -182,11 +182,11 @@ CREATE TABLE IF NOT EXISTS account_position_snapshot (
     created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_account_position_snapshot_lookup
-    ON account_position_snapshot (account_id, exchange, symbol, side, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_position_snapshot_lookup
+    ON position_snapshot (account_id, exchange, symbol, side, effective_ts DESC);
 
-CREATE INDEX IF NOT EXISTS idx_account_position_snapshot_account_ts
-    ON account_position_snapshot (account_id, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_position_snapshot_account_ts
+    ON position_snapshot (account_id, effective_ts DESC);
 
 -- equity
 CREATE TABLE IF NOT EXISTS equity (

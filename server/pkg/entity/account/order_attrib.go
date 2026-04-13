@@ -47,54 +47,29 @@ func (e *Entity) resolveEffectiveAccountIDForOrder(ctx context.Context, streamAc
 		return streamAccountID, nil
 	}
 
+	// P2 T3 / §9.3：BotId 优先于父库 order_id / client_order_id 行归属
+	if ord.BotID > 0 {
+		bot, err := e.db.BotRepo.GetBot(ctx, int32(ord.BotID))
+		if err != nil {
+			return "", err
+		}
+		if bot != nil && strings.TrimSpace(bot.AccountID) != "" {
+			if e.accountIsVirtualSubOfParent(ctx, streamAccountID, bot.AccountID) {
+				return bot.AccountID, nil
+			}
+		}
+	}
+
 	exStr := exchange.String()
 	oid := strings.TrimSpace(ord.OrderID.String())
 	cid := strings.TrimSpace(ord.ClientOrderID.String())
 
-	var parentByOID, childByOID, parentByCID, underParentByCID *orders.Order
-
-	if oid != "" {
-		parentByOID, err = e.db.OrdersRepo.GetOrderByOrderId(ctx, orders.GetOrderByOrderIdParams{
-			AccountID: streamAccountID,
-			OrderID:   oid,
-		})
-		if err != nil {
-			return "", err
-		}
-		if parentByOID == nil {
-			pid := streamAccountID
-			childByOID, err = e.db.OrdersRepo.GetOrderByOrderIdUnderVirtualSubs(ctx, orders.GetOrderByOrderIdUnderVirtualSubsParams{
-				OrderID:         oid,
-				Exchange:        exStr,
-				ParentAccountID: &pid,
-			})
-			if err != nil {
-				return "", err
-			}
-		}
+	l, err := e.loadMultiBotOrderLookup(ctx, streamAccountID, exchange, ord)
+	if err != nil {
+		return "", err
 	}
 
-	if cid != "" {
-		parentByCID, err = e.db.OrdersRepo.GetOrderByClientOrderId(ctx, orders.GetOrderByClientOrderIdParams{
-			AccountID:     streamAccountID,
-			ClientOrderID: cid,
-		})
-		if err != nil {
-			return "", err
-		}
-		if parentByCID == nil {
-			underParentByCID, err = e.db.OrdersRepo.GetOrderByClientOrderIdUnderParent(ctx, orders.GetOrderByClientOrderIdUnderParentParams{
-				ClientOrderID: cid,
-				Exchange:      exStr,
-				AccountID:     streamAccountID,
-			})
-			if err != nil {
-				return "", err
-			}
-		}
-	}
-
-	effective := classifyMultiBotOrderAccount(streamAccountID, parentByOID, childByOID, parentByCID, underParentByCID)
+	effective := classifyMultiBotOrderAccount(streamAccountID, l.ParentByOrderID, l.ChildByOrderID, l.ParentByClientOrderID, l.UnderParentByClientOrderID)
 	if effective != streamAccountID {
 		logger.Ctx(ctx).Info().
 			Str("stream_account_id", streamAccountID).

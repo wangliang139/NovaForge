@@ -1,6 +1,6 @@
 -- 依赖 assets.wallet_type（由 sqlc schema 列表加载 assets/schema.sql）
 
-CREATE TABLE IF NOT EXISTS account_asset_snapshot (
+CREATE TABLE IF NOT EXISTS asset_snapshot (
     id              BIGSERIAL PRIMARY KEY,
     account_id      VARCHAR(32)                           NOT NULL,
     exchange        VARCHAR(32)                           NOT NULL,
@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS account_asset_snapshot (
     created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_account_asset_snapshot_lookup
-    ON account_asset_snapshot (account_id, exchange, asset, wallet_type, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_asset_snapshot_lookup
+    ON asset_snapshot (account_id, exchange, asset, wallet_type, effective_ts DESC);
 
-CREATE INDEX IF NOT EXISTS idx_account_asset_snapshot_account_ts
-    ON account_asset_snapshot (account_id, effective_ts DESC);
+CREATE INDEX IF NOT EXISTS idx_asset_snapshot_account_ts
+    ON asset_snapshot (account_id, effective_ts DESC);

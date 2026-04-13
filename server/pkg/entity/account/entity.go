@@ -1104,7 +1104,7 @@ func (e *Entity) ApplyAccountPositions(ctx context.Context, accountID string, ex
 		changed := positionUpsertMeaningfulChange(row)
 		if changed {
 			positionsChanged = true
-			e.appendAccountPositionSnapshotFromUpsertRow(ctx, row)
+			e.recordAccountPositionSnapshotFromUpsertRow(ctx, row)
 		}
 		if !row.UpdatedTs.IsZero() && (maxTs.IsZero() || row.UpdatedTs.After(maxTs)) {
 			maxTs = row.UpdatedTs
@@ -1452,6 +1452,9 @@ func (e *Entity) UpdatePositionLeverage(ctx context.Context, accountID string, e
 
 		return nil, nil
 	})
-
-	return err
+	if err != nil {
+		return err
+	}
+	e.recordPositionSnapshotsForSymbolBothSides(ctx, accountID, exchange.String(), symbol.String(), now)
+	return nil
 }
