@@ -561,7 +561,7 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 		}
 
 		includePos := order.Symbol.Type == ctypes.MarketTypeFuture
-		if err := e.publishVirtualSubSnapshotsFromDB(ctx, order.AccountID, order.Exchange, includePos); err != nil {
+		if err := e.publishVsAcctSnapshotsFromDB(ctx, order.AccountID, order.Exchange, includePos); err != nil {
 			logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("publish virtual_sub order-derived snapshots")
 		}
 	}()
@@ -633,7 +633,7 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 		Str("delta", delta.String()).
 		Msg("apply order locked delta")
 
-	_, err := e.db.OrdersRepo.WithTx(tx).SetOrderLockedAsset(ctx, orders.SetOrderLockedAssetParams{
+	_, err = e.db.OrdersRepo.WithTx(tx).SetOrderLockedAsset(ctx, orders.SetOrderLockedAssetParams{
 		AccountID:   order.AccountID,
 		OrderID:     order.OrderID.String(),
 		Locked:      utils.Decimal.DecimalToPgNumeric(prevLocked.Add(delta)),

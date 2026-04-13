@@ -284,7 +284,7 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 			return fmt.Errorf("refresh orders failed: %v", err)
 		}
 		// 2+3. 定时从子表 DB 发布资金快照与合约仓位快照（现货成交触发的订单路径不发仓位快照，见 order_derived_sub）
-		return e.publishVirtualSubSnapshotsFromDB(ctx, acct.ID, acct.Exchange, true)
+		return e.publishVsAcctSnapshotsFromDB(ctx, acct.ID, acct.Exchange, true)
 	default:
 		return fmt.Errorf("account type not supported")
 	}
@@ -316,12 +316,6 @@ func (e *Entity) refreshAssets(ctx context.Context, conn mdtypes.Connector, acco
 
 	var ts time.Time
 	snapshot := ctypes.BalanceSnapshot{}
-	switch exchange {
-	case ctypes.ExchangeBinance, ctypes.ExchangeBinanceTest:
-		scope = []ctypes.WalletType{ctypes.WalletTypeSpot, ctypes.WalletTypeFuture, ctypes.WalletTypeMargin}
-	case ctypes.ExchangeOkx, ctypes.ExchangeOkxTest:
-		scope = []ctypes.WalletType{ctypes.WalletTypeTrade}
-	}
 	for _, asset := range balance.Assets {
 		snapshot.Assets = append(snapshot.Assets, &ctypes.AssetEvent{
 			WalletType: asset.WalletType,

@@ -9,35 +9,38 @@ import (
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-// virtualSubBalanceSnapshotScope 与 refreshAssets 对外 BalanceSnapshot 的 scope 语义对齐。
-func virtualSubBalanceSnapshotScope(exchange ctypes.Exchange) []ctypes.WalletType {
-	switch exchange {
-	case ctypes.ExchangeBinance, ctypes.ExchangeBinanceTest:
-		return []ctypes.WalletType{ctypes.WalletTypeSpot, ctypes.WalletTypeFuture, ctypes.WalletTypeMargin}
-	case ctypes.ExchangeOkx, ctypes.ExchangeOkxTest:
-		return []ctypes.WalletType{ctypes.WalletTypeTrade}
-	default:
-		return nil
-	}
-}
-
-func filterFuturePositionsByExchange(pos []*ctypes.Position, exchange ctypes.Exchange) []*ctypes.Position {
-	out := make([]*ctypes.Position, 0, len(pos))
-	for _, p := range pos {
-		if p != nil && p.Exchange == exchange && p.Symbol.Type == ctypes.MarketTypeFuture {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// publishVirtualSubSnapshotsFromDB 从子账户 DB 投影发布 BalanceSnapshot；可选发布合约 PositionSnapshot（现货不落仓位类事件）。
-func (e *Entity) publishVirtualSubSnapshotsFromDB(ctx context.Context, accountID string, exchange ctypes.Exchange, includeFuturePositionSnapshot bool) error {
+// publishVsAcctSnapshotsFromDB 从子账户 DB 投影发布 BalanceSnapshot；可选发布合约 PositionSnapshot（现货不落仓位类事件）。
+func (e *Entity) publishVsAcctSnapshotsFromDB(ctx context.Context, accountID string, exchange ctypes.Exchange, includeFuturePositionSnapshot bool) error {
 	if e == nil || accountID == "" || !exchange.IsValid() {
 		return nil
 	}
 
-	scope := virtualSubBalanceSnapshotScope(exchange)
+	if err := e.publishVsAcctAssetSnapshots(ctx, accountID, exchange); err != nil {
+		return err
+	}
+
+	if !includeFuturePositionSnapshot {
+		if err := e.publishVsAcctPositionSnapshots(ctx, accountID, exchange); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *Entity) publishVsAcctAssetSnapshots(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
+	if e == nil || accountID == "" || !exchange.IsValid() {
+		return nil
+	}
+
+	scope := []ctypes.WalletType{}
+	switch exchange {
+	case ctypes.ExchangeBinance, ctypes.ExchangeBinanceTest:
+		scope = []ctypes.WalletType{ctypes.WalletTypeFund, ctypes.WalletTypeSpot, ctypes.WalletTypeFuture, ctypes.WalletTypeMargin}
+	case ctypes.ExchangeOkx, ctypes.ExchangeOkxTest:
+		scope = []ctypes.WalletType{ctypes.WalletTypeFund, ctypes.WalletTypeTrade}
+	}
+
 	var rows []*ctypes.Asset
 	var err error
 	if len(scope) > 0 {
@@ -88,15 +91,31 @@ func (e *Entity) publishVirtualSubSnapshotsFromDB(ctx context.Context, accountID
 		return err
 	}
 
-	if !includeFuturePositionSnapshot {
+	return nil
+}
+
+func (e *Entity) publishVsAcctPositionSnapshots(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
+	if e == nil || accountID == "" || !exchange.IsValid() {
 		return nil
+	}
+
+	ts := time.Now()
+
+	selector := ctypes.StreamSelector{
+		Stream:  ctypes.StreamTypeAccount,
+		Account: lo.ToPtr(accountID),
 	}
 
 	allPos, err := e.GetPositions(ctx, accountID)
 	if err != nil {
 		return err
 	}
-	fut := filterFuturePositionsByExchange(allPos, exchange)
+	fut := make([]*ctypes.Position, 0, len(allPos))
+	for _, p := range allPos {
+		if p != nil && p.Exchange == exchange && p.Symbol.Type == ctypes.MarketTypeFuture {
+			fut = append(fut, p)
+		}
+	}
 	posTs := ts
 	for _, p := range fut {
 		if p != nil && !p.UpdatedTs.IsZero() && p.UpdatedTs.After(posTs) {
