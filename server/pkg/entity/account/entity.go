@@ -1101,28 +1101,10 @@ func (e *Entity) ApplyAccountPositions(ctx context.Context, accountID string, ex
 		if row == nil {
 			return nil
 		}
-		// 判断本次 upsert 是否实际造成变更（避免无意义对外广播）
-		changed := false
-		if row.PrevUpdatedTs == nil {
-			changed = true
-		} else {
-			prevQty := utils.Decimal.PgNumericToDecimal(row.PrevQty)
-			qty := utils.Decimal.PgNumericToDecimal(row.Qty)
-			prevEntry := utils.Decimal.PgNumericToDecimal(row.PrevEntryPrice)
-			entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
-
-			if !qty.Equal(prevQty) || !entry.Equal(prevEntry) {
-				changed = true
-			}
-			if row.PrevLeverage == nil || *row.PrevLeverage != row.Leverage {
-				changed = true
-			}
-			if !row.UpdatedTs.Equal(*row.PrevUpdatedTs) {
-				changed = true
-			}
-		}
+		changed := positionUpsertMeaningfulChange(row)
 		if changed {
 			positionsChanged = true
+			e.appendAccountPositionSnapshotFromUpsertRow(ctx, row)
 		}
 		if !row.UpdatedTs.IsZero() && (maxTs.IsZero() || row.UpdatedTs.After(maxTs)) {
 			maxTs = row.UpdatedTs

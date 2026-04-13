@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS account_asset_snapshot (
     asset           VARCHAR(16)                           NOT NULL,
     total           DECIMAL(32, 8)                        NOT NULL DEFAULT 0,
     frozen          DECIMAL(32, 8)                        NOT NULL DEFAULT 0,
-    order_occupied  DECIMAL(32, 8)                        NOT NULL DEFAULT 0,
     effective_ts    TIMESTAMPTZ                           NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

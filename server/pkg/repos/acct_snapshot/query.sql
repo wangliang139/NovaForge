@@ -1,7 +1,7 @@
 -- name: InsertAccountAssetSnapshot :exec
 -- -- timeout: 2s
-INSERT INTO account_asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, order_occupied, effective_ts)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+INSERT INTO account_asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, effective_ts)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- name: GetAccountAssetSnapshotAtOrBefore :one
 -- -- timeout: 2s

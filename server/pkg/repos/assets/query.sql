@@ -166,4 +166,5 @@ FROM all_assets aa
 WHERE a.account_id = aa.account_id
   AND a.asset = aa.asset
   AND a.wallet_type = aa.wallet_type
+  AND (a.order_occupied IS DISTINCT FROM aa.order_occupied)
 RETURNING a.*;

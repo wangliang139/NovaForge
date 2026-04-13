@@ -23,6 +23,11 @@ import (
 
 var MinDelta = decimal.RequireFromString("0.00000001")
 
+type assetIncrementTxResult struct {
+	newRow *assets.Asset
+	prev   *assets.Asset
+}
+
 // GetAssets 查询账户资产快照
 func (e *Entity) GetAssets(ctx context.Context, accountID string) ([]*types.Asset, error) {
 	if accountID == "" {
@@ -306,7 +311,11 @@ func (e *Entity) ApplyAssetSnapshot(ctx context.Context, accountID string, excha
 	if err != nil {
 		return nil, err
 	}
-	return result.(*assets.UpsertAssetRow), nil
+	row := result.(*assets.UpsertAssetRow)
+	if row != nil {
+		e.appendAccountAssetSnapshotFromUpsertRow(ctx, row)
+	}
+	return row, nil
 }
 
 // updateAssetAvgPriceOnIncrease 资产变多时按 WAC 更新 avg_price（内部方法，失败时仅记录日志）
@@ -385,6 +394,15 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 		frozenNum = utils.Decimal.DecimalToPgNumeric(*frozen)
 	}
 	result, err := e.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
+		prevPo, err := e.db.AssetsRepo.WithTx(tx).GetAssetWithLock(ctx, assets.GetAssetWithLockParams{
+			AccountID:  accountID,
+			Asset:      asset,
+			WalletType: assets.WalletType(walletType),
+		})
+		if err != nil {
+			return nil, err
+		}
+
 		row, err := e.db.AssetsRepo.WithTx(tx).IncrementAsset(ctx, assets.IncrementAssetParams{
 			AccountID:     accountID,
 			Asset:         asset,
@@ -413,12 +431,21 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 			}
 		}
 
-		return row, nil
+		return assetIncrementTxResult{newRow: row, prev: prevPo}, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return result.(*assets.Asset), nil
+	pair := result.(assetIncrementTxResult)
+	if pair.newRow != nil && pair.prev != nil {
+		prevT := utils.Decimal.PgNumericToDecimal(pair.prev.Total)
+		prevF := utils.Decimal.PgNumericToDecimal(pair.prev.Frozen)
+		newT := utils.Decimal.PgNumericToDecimal(pair.newRow.Total)
+		newF := utils.Decimal.PgNumericToDecimal(pair.newRow.Frozen)
+		e.appendAccountAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset,
+			prevT, prevF, newT, newF, pair.newRow.LastUpdatedTs)
+	}
+	return pair.newRow, nil
 }
 
 func (e *Entity) CheckAndApplyAssetOrderOccupiedUpdate(ctx context.Context, accountID string, exchange ctypes.Exchange, asset *ctypes.AssetEvent, reason ctypes.LedgerReason, detail any) error {
@@ -435,7 +462,8 @@ func (e *Entity) CheckAndApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context
 	}
 
 	fn := func(ctx context.Context, tx *wpgx.WTx) (any, error) {
-		assetPo, err := e.db.AssetsRepo.GetAssetWithLock(ctx, assets.GetAssetWithLockParams{
+		assetQuerier := e.db.AssetsRepo.WithTx(tx)
+		assetPo, err := assetQuerier.GetAssetWithLock(ctx, assets.GetAssetWithLockParams{
 			AccountID:  accountID,
 			Asset:      asset.Code,
 			WalletType: assets.WalletType(asset.WalletType),

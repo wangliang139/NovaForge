@@ -321,6 +321,7 @@ FROM all_assets aa
 WHERE a.account_id = aa.account_id
   AND a.asset = aa.asset
   AND a.wallet_type = aa.wallet_type
+  AND (a.order_occupied IS DISTINCT FROM aa.order_occupied)
 RETURNING a.account_id, a.exchange, a.asset, a.wallet_type, a.total, a.frozen, a.order_occupied, a.avg_price, a.last_updated_ts, a.created_at, a.updated_at
 `
 

@@ -20,7 +20,7 @@ import (
 )
 
 const getAccountAssetSnapshotAtOrBefore = `-- name: GetAccountAssetSnapshotAtOrBefore :one
-SELECT id, account_id, exchange, wallet_type, asset, total, frozen, order_occupied, effective_ts, created_at
+SELECT id, account_id, exchange, wallet_type, asset, total, frozen, effective_ts, created_at
 FROM account_asset_snapshot
 WHERE account_id = $1
   AND exchange = $2
@@ -40,16 +40,15 @@ type GetAccountAssetSnapshotAtOrBeforeParams struct {
 }
 
 type GetAccountAssetSnapshotAtOrBeforeRow struct {
-	ID            int64
-	AccountID     string
-	Exchange      string
-	WalletType    WalletType
-	Asset         string
-	Total         pgtype.Numeric
-	Frozen        pgtype.Numeric
-	OrderOccupied pgtype.Numeric
-	EffectiveTs   time.Time
-	CreatedAt     time.Time
+	ID          int64
+	AccountID   string
+	Exchange    string
+	WalletType  WalletType
+	Asset       string
+	Total       pgtype.Numeric
+	Frozen      pgtype.Numeric
+	EffectiveTs time.Time
+	CreatedAt   time.Time
 }
 
 // -- timeout: 2s
@@ -80,7 +79,6 @@ func _GetAccountAssetSnapshotAtOrBefore(ctx context.Context, q CacheQuerierConn,
 		&i.Asset,
 		&i.Total,
 		&i.Frozen,
-		&i.OrderOccupied,
 		&i.EffectiveTs,
 		&i.CreatedAt,
 	)
@@ -168,19 +166,18 @@ func _GetAccountPositionSnapshotAtOrBefore(ctx context.Context, q CacheQuerierCo
 }
 
 const insertAccountAssetSnapshot = `-- name: InsertAccountAssetSnapshot :exec
-INSERT INTO account_asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, order_occupied, effective_ts)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO account_asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, effective_ts)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type InsertAccountAssetSnapshotParams struct {
-	AccountID     string
-	Exchange      string
-	WalletType    WalletType
-	Asset         string
-	Total         pgtype.Numeric
-	Frozen        pgtype.Numeric
-	OrderOccupied pgtype.Numeric
-	EffectiveTs   time.Time
+	AccountID   string
+	Exchange    string
+	WalletType  WalletType
+	Asset       string
+	Total       pgtype.Numeric
+	Frozen      pgtype.Numeric
+	EffectiveTs time.Time
 }
 
 // -- timeout: 2s
@@ -194,7 +191,6 @@ func (q *Queries) InsertAccountAssetSnapshot(ctx context.Context, arg InsertAcco
 		arg.Asset,
 		arg.Total,
 		arg.Frozen,
-		arg.OrderOccupied,
 		arg.EffectiveTs)
 	if err != nil {
 		return err
