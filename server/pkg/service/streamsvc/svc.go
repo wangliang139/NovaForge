@@ -23,55 +23,6 @@ func New(db *repos.Entity) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) EnsureSubscription(ctx context.Context, req *ctypes.EnsureSubscriptionRequest) (*ctypes.EnsureSubscriptionResponse, error) {
-	if req == nil {
-		return nil, errors.New(errors.InvalidArgument, "request is required")
-	}
-	ex := req.Exchange
-	if !ex.IsValid() {
-		return nil, errors.New(errors.InvalidArgument, fmt.Sprintf("invalid exchange: %s", req.Exchange))
-	}
-	if req.Selector == nil {
-		return nil, errors.New(errors.InvalidArgument, "selector is required")
-	}
-	selector := ctypes.StreamSelector{
-		Stream: req.Selector.Stream,
-	}
-	if req.Selector.Interval != nil {
-		selector.Interval = req.Selector.Interval
-	}
-	if req.Selector.AccountId != nil {
-		selector.Account = req.Selector.AccountId
-	}
-	if req.Selector.Symbol != nil {
-		smb, err := ctypes.ParseSymbol(*req.Selector.Symbol)
-		if err != nil {
-			return nil, errors.New(errors.InvalidArgument, fmt.Sprintf("invalid symbol: %s", *req.Selector.Symbol))
-		}
-		selector.Symbol = &smb
-	}
-	subscription, err := entity.Market.EnsureSubscription(ctx, ex, selector)
-	if err != nil {
-		return nil, err
-	}
-	return &ctypes.EnsureSubscriptionResponse{
-		Subscription: subscription,
-	}, nil
-}
-
-func (s *Service) ReleaseSubscription(ctx context.Context, req *ctypes.ReleaseSubscriptionRequest) (*ctypes.ReleaseSubscriptionResponse, error) {
-	if req == nil || strings.TrimSpace(req.ID) == "" {
-		return nil, errors.New(errors.InvalidArgument, "id is required")
-	}
-	success, err := entity.Market.ReleaseSubscription(ctx, req.ID)
-	if err != nil {
-		return nil, err
-	}
-	return &ctypes.ReleaseSubscriptionResponse{
-		Success: success,
-	}, nil
-}
-
 func (s *Service) ListActiveSubscriptions(ctx context.Context, req *ctypes.ListActiveSubscriptionsRequest) (*ctypes.ListActiveSubscriptionsResponse, error) {
 	var exchange *ctypes.Exchange
 	var symbol *string

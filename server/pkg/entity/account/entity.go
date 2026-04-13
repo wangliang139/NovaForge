@@ -126,7 +126,7 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 		if err != nil {
 			return nil, err
 		}
-		return conn, nil
+		return newVirtualSubConnectorView(conn, e, acct.ID, *acct.ParentAccountID), nil
 	}
 	apiAccount := mdtypes.NewSecretApiAccount(acct.ID, acct.Exchange, acct.ApiKey, acct.ApiSecret, acct.Passphrase, string(acct.Algorithm))
 	conn, err := connector.GetConnector(exchange, apiAccount)
