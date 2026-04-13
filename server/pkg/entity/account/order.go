@@ -196,6 +196,9 @@ func (e *Entity) ApplyOrderSnapshot(ctx context.Context, order *ctypes.Order) (*
 	}
 
 	prevOrder, _ := result.(*orders.Order)
+	if err := e.driveBalanceAndPositionEventByOrderIfNeeded(ctx, order, prevOrder); err != nil {
+		logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("virtual_sub order-derived account_raw")
+	}
 	return prevOrder, nil
 }
 
@@ -512,8 +515,9 @@ func (e *Entity) applyOrderLockedDelta(ctx context.Context, tx *wpgx.WTx, order 
 }
 
 // applyOrderFillBalanceUpdate 处理订单冻结/解冻逻辑以及发送成交事件
-// 注意：成交资金变更由单独的 asset update 事件触发，此函数不发布资金变更的 BalanceUpdate
-func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, order *ctypes.Order, prev *orders.Order) (retErr error) {
+// 注意：普通账户成交资金变更由交易所 asset update 事件触发；virtual_sub 在订单事务提交后由
+// applyVirtualSubOrderFillDerivedRawAccountsIfNeeded 从订单增量派生 account_raw（BalanceUpdate/PositionsUpdate）。
+func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, order *ctypes.Order, prev *orders.Order) error {
 	if order == nil {
 		return nil
 	}
@@ -521,43 +525,11 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 		return nil
 	}
 
-	acct, err := e.GetAccount(ctx, order.AccountID)
-	if err != nil {
-		return err
-	}
-
 	prevExecutedQty := decimal.Zero
 	if prev != nil {
 		prevExecutedQty = utils.Decimal.PgNumericToDecimal(prev.ExecutedQty)
 	}
 	fillQtyDelta := order.ExecutedQty.Sub(prevExecutedQty)
-
-	defer func() {
-		if retErr != nil {
-			return
-		}
-
-		if acct == nil || acct.AccountType != ctypes.AccountTypeVirtualSub {
-			return
-		}
-
-		if !fillQtyDelta.GreaterThan(decimal.Zero) {
-			return
-		}
-
-		prevExec := decimal.Zero
-		if prev != nil {
-			prevExec = utils.Decimal.PgNumericToDecimal(prev.ExecutedQty)
-		}
-		if !order.ExecutedQty.GreaterThan(prevExec) {
-			return
-		}
-
-		includePos := order.Symbol.Type == ctypes.MarketTypeFuture
-		if err := e.publishVsAcctSnapshotsFromDB(ctx, order.AccountID, order.Exchange); err != nil {
-			logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("publish virtual_sub order-derived snapshots")
-		}
-	}()
 
 	// ========== 第一部分：发送成交事件（Fill） ==========
 	if fillQtyDelta.GreaterThan(decimal.Zero) {
@@ -633,7 +605,7 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 		Str("delta", delta.String()).
 		Msg("apply order locked delta")
 
-	_, err = e.db.OrdersRepo.WithTx(tx).SetOrderLockedAsset(ctx, orders.SetOrderLockedAssetParams{
+	_, err := e.db.OrdersRepo.WithTx(tx).SetOrderLockedAsset(ctx, orders.SetOrderLockedAssetParams{
 		AccountID:   order.AccountID,
 		OrderID:     order.OrderID.String(),
 		Locked:      utils.Decimal.DecimalToPgNumeric(prevLocked.Add(delta)),
