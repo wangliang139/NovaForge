@@ -4,6 +4,7 @@ import (
 	"github.com/stumble/dcache"
 	"github.com/stumble/wpgx"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/account"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/acct_snapshot"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/alert"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/alert_event"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/api_keys"
@@ -51,6 +52,7 @@ type Entity struct {
 
 	AssetsRepo       *assets.Queries
 	PositionsRepo    *positions.Queries
+	AcctSnapshotRepo *acct_snapshot.Queries
 	OrdersRepo       *orders.Queries
 	LedgersRepo      *ledgers.Queries
 	EquityRepo       *equity.Queries
@@ -86,6 +88,7 @@ func New(connPool *wpgx.Pool, dCache *dcache.DCache) *Entity {
 
 		AssetsRepo:       assets.New(connPool.WConn(), dCache),
 		PositionsRepo:    positions.New(connPool.WConn(), dCache),
+		AcctSnapshotRepo: acct_snapshot.New(connPool.WConn(), dCache),
 		OrdersRepo:       orders.New(connPool.WConn(), dCache),
 		LedgersRepo:      ledgers.New(connPool.WConn(), dCache),
 		EquityRepo:       equity.New(connPool.WConn(), dCache),

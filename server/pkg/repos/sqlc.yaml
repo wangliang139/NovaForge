@@ -109,6 +109,14 @@ sql:
         sql_package: wpgx
         package: positions
         out: positions
+  - schema: [assets/schema.sql, positions/schema.sql, acct_snapshot/asset_snapshot.sql, acct_snapshot/position_snapshot.sql]
+    queries: acct_snapshot/query.sql
+    engine: postgresql
+    gen:
+      go:
+        sql_package: wpgx
+        package: acct_snapshot
+        out: acct_snapshot
   - schema: [assets/schema.sql, ledgers/schema.sql]
     queries: ledgers/query.sql
     engine: postgresql

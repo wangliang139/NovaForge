@@ -445,8 +445,12 @@ func (e *Entity) saveOrderSnapshot(ctx context.Context, accountID string, exchan
 	if ord == nil {
 		return fmt.Errorf("order is nil")
 	}
-	ord.AccountID = accountID
 	ord.Exchange = exchange
+	effectiveID, err := e.resolveEffectiveAccountIDForOrder(ctx, accountID, exchange, ord)
+	if err != nil {
+		return err
+	}
+	ord.AccountID = effectiveID
 
 	// 落库并派生成交/冻结事件
 	prevOrder, err := e.ApplyOrderSnapshot(ctx, ord)
@@ -462,7 +466,7 @@ func (e *Entity) saveOrderSnapshot(ctx context.Context, accountID string, exchan
 		}
 		selector := ctypes.StreamSelector{
 			Stream:  ctypes.StreamTypeAccount,
-			Account: lo.ToPtr(accountID),
+			Account: lo.ToPtr(ord.AccountID),
 			Symbol:  lo.ToPtr(ord.Symbol),
 		}
 		msg := ctypes.NewMessage(exchange, selector, ord, ts)
