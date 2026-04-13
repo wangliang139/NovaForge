@@ -12,10 +12,10 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stumble/wpgx"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 	"github.com/wangliang139/mow/snowflake"
@@ -289,15 +289,12 @@ func shouldPublishOrderSnapshot(prev *orders.Order, cur *ctypes.Order) bool {
 	return false
 }
 
-// applyOrderPipelineAfterParentStage P2 T5：在父 multi_bot 已处理（派发或跳过）之后，与 WS `handleOrderUpdate` 同源的执行链——
-// resolve 落库账户 → ApplyOrderSnapshot → Telegram →（可选节流）引擎 Publish →子 virtual_sub 成交衍生 PositionsUpdate。
-// gatePublishToEngine 为 true 时（Cron/REST 轮询）仅在 shouldPublishOrderSnapshot 为真时发布；为 false 时（用户流）每次落库后均发布。
-func (e *Entity) applyOrderPipelineAfterParentStage(ctx context.Context, streamAccountID string, exchange ctypes.Exchange, ord *ctypes.Order, gatePublishToEngine bool) error {
-	effectiveID, err := e.resolveEffectiveAccountIDForOrder(ctx, streamAccountID, exchange, ord)
-	if err != nil {
-		return err
+func (e *Entity) applyOrderPipeline(ctx context.Context, accountID string, exchange ctypes.Exchange, ord *ctypes.Order, gatePublishToEngine bool) error {
+	if ord == nil {
+		return fmt.Errorf("order is nil")
 	}
-	ord.AccountID = effectiveID
+	ord.AccountID = accountID
+	ord.Exchange = exchange
 
 	prevOrder, err := e.ApplyOrderSnapshot(ctx, ord)
 	if err != nil {
@@ -325,12 +322,6 @@ func (e *Entity) applyOrderPipelineAfterParentStage(ctx context.Context, streamA
 		}
 	}
 
-	if err := e.publishVirtualSubPositionsAfterOrderFill(ctx, ord.AccountID, exchange, ord, prevOrder); err != nil {
-		logger.Ctx(ctx).Err(err).
-			Str("account_id", ord.AccountID).
-			Str("order_id", ord.OrderID.String()).
-			Msg("virtual_sub positions publish after order fill")
-	}
 	return nil
 }
 

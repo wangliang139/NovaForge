@@ -177,8 +177,8 @@ func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID
 	return weights, U, nil
 }
 
-// AttributeMultiBotOrderForFanout P2 T1：父 multi_bot 下将交易所 Order 归因到 0/1/N 个 virtual_sub（BotId → DB 子行 → 比例；比例与分摊内核一致）。
-// 非 multi_bot 父、无子、或无可分摊权重时返回 (nil, nil)。T4 由 applyMultiBotParentOrderStage 合成 account_raw 并调用 handleAccountMessage。
+// AttributeMultiBotOrderForFanout：父 multi_bot 下将交易所 Order 归因到 0/1/N 个 virtual_sub（BotId → DB 子行 → 比例；比例与分摊内核一致）。
+// 非 multi_bot 父、无子、或无可分摊权重时返回 (nil, nil)。T4 由 applyMultiBotParentOrderStage 在父行落库之后合成 account_raw 并调用 handleAccountMessage。
 func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) ([]SubRawDispatch, error) {
 	if ord == nil || parentID == "" {
 		return nil, nil
@@ -247,12 +247,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		}
 	}
 
-	// 父账户已为该 order_id / client_order_id 建档：不走子派发（T3 父单仍落父库）
-	if lookup.ParentByOrderID != nil || lookup.ParentByClientOrderID != nil {
-		return nil, nil
-	}
-
-	// 4) 比例：无父侧命中行、无单子命中时的 N 路分摊
+	// 4) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout）
 	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs)
 	if err != nil {
 		return nil, err

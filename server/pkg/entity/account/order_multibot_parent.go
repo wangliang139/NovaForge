@@ -7,8 +7,8 @@ import (
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-// applyMultiBotParentOrderStage P2 T3/T4：父 real+multi_bot 且 T1 归因产生子派发时，不在父 account_id 下写入订单；
-// 对每个子合成 account_raw（Synthetic + source_parent_id）并走 handleAccountMessage（与计划 §3.3 一致）。
+// applyMultiBotParentOrderStage P2 T4：在父账户已完成与交易所对齐的订单落库之后调用。
+// 父 real+multi_bot 且 T1 归因产生子派发时，对每个子合成 account_raw（Synthetic + source_parent_id）并走 handleAccountMessage（§3.3）。
 func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) (handled bool, err error) {
 	if ord == nil {
 		return false, nil

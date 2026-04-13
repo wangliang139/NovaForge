@@ -386,7 +386,8 @@ func (e *Entity) refreshPositions(ctx context.Context, conn mdtypes.Connector, a
 }
 
 // refreshOrders 刷新订单快照（不传 symbol，直接拉取账户当前所有订单）。
-// P2 T5：仅由 RefreshSingleAccountSnapshots 对父 real 调用；每条订单经 saveOrderSnapshot，与 WS account_raw Order 同源（父 multi_bot → applyMultiBotParentOrderStage → 子 synthetic）。
+// P2 T5：仅由 RefreshSingleAccountSnapshots 对父 real 调用；与 WS 同源。
+// multi_bot：先对 ordersList 全量仅父落库，再对成功项逐个执行子归因派发（与 handleOrderUpdate 顺序一致，仅批量摊平 RPC/锁竞争）。
 func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, accountID string, exchange ctypes.Exchange) error {
 	// GetOrders 支持 symbol 传 nil，表示获取当前账户下所有相关订单
 	ordersList, err := conn.GetOrders(ctx, nil)
@@ -394,7 +395,12 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 		return fmt.Errorf("get orders: %w", err)
 	}
 
+	acct, acctErr := e.GetAccount(ctx, accountID)
+	multiBot := acctErr == nil && acct != nil && acct.AccountType == ctypes.AccountTypeReal && acct.MultiBotMode
+
 	existingOpenOrders := make(map[string]bool)
+	var fanoutOK []*ctypes.Order
+
 	for _, ord := range ordersList {
 		if ord == nil {
 			continue
@@ -402,13 +408,16 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 
 		existingOpenOrders[ord.OrderID.String()] = true
 
-		// 将所有状态的订单都落库
-		if err := e.saveOrderSnapshot(ctx, accountID, exchange, ord); err != nil {
+		// 先父账户落库（与交易所对齐）
+		if err := e.applyOrderPipeline(ctx, accountID, exchange, ord, true); err != nil {
 			logger.Ctx(ctx).Err(err).
 				Str("order_id", ord.OrderID.String()).
 				Str("symbol", ord.Symbol.String()).
-				Msg("failed to save order snapshot")
+				Msg("failed to save parent order snapshot")
 			continue
+		}
+		if multiBot {
+			fanoutOK = append(fanoutOK, ord)
 		}
 	}
 
@@ -444,8 +453,12 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 				logger.Ctx(ctx).Err(err).Str("order_id", ord.OrderID).Msg("failed to cancel order status")
 			}
 		} else {
-			if err := e.saveOrderSnapshot(ctx, accountID, exchange, order); err != nil {
+			if err := e.applyOrderPipeline(ctx, accountID, exchange, order, true); err != nil {
 				logger.Ctx(ctx).Err(err).Str("order_id", ord.OrderID).Msg("failed to save order snapshot")
+				continue
+			}
+			if multiBot {
+				fanoutOK = append(fanoutOK, order)
 			}
 		}
 	}
@@ -456,21 +469,14 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acco
 		return fmt.Errorf("reset order occupied by pending orders: %w", err)
 	}
 
+	for _, ord := range fanoutOK {
+		if _, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
+			logger.Ctx(ctx).Err(err).
+				Str("order_id", ord.OrderID.String()).
+				Str("symbol", ord.Symbol.String()).
+				Msg("failed to multi_bot order fanout after parent snapshot")
+		}
+	}
+
 	return nil
-}
-
-// saveOrderSnapshot 保存单个订单快照（P2 T5：与 stream.handleOrderUpdate 同源——仅父 real 拉单；multi_bot 父先 applyMultiBotParentOrderStage，再与 WS 共用 applyOrderPipelineAfterParentStage；引擎 Publish 由 shouldPublishOrderSnapshot 节流）。
-func (e *Entity) saveOrderSnapshot(ctx context.Context, accountID string, exchange ctypes.Exchange, ord *ctypes.Order) error {
-	if ord == nil {
-		return fmt.Errorf("order is nil")
-	}
-	ord.AccountID = accountID
-	ord.Exchange = exchange
-	if ok, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
-		return err
-	} else if ok {
-		return nil
-	}
-
-	return e.applyOrderPipelineAfterParentStage(ctx, accountID, exchange, ord, true)
 }

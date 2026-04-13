@@ -416,12 +416,12 @@ func (e *Entity) handleOrderUpdate(ctx context.Context, accountID string, exchan
 	ord.AccountID = accountID
 	ord.Exchange = exchange
 
-	// P2 T3：multi_bot 父流上订单归因到子时不写父订单行
-	if ok, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
+	// 父行先与交易所对齐落库，再 multi_bot 向子 synthetic fanout（子 envelope 上 account=virtual_sub，不会再次 fanout）
+	if err := e.applyOrderPipeline(ctx, accountID, exchange, ord, false); err != nil {
 		return err
-	} else if ok {
-		return nil
 	}
-
-	return e.applyOrderPipelineAfterParentStage(ctx, accountID, exchange, ord, false)
+	if _, err := e.applyMultiBotParentOrderStage(ctx, accountID, exchange, ord); err != nil {
+		return err
+	}
+	return nil
 }
