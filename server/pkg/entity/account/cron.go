@@ -372,8 +372,6 @@ func (e *Entity) refreshPositions(ctx context.Context, conn mdtypes.Connector, a
 }
 
 // refreshOrders 刷新订单快照（不传 symbol，直接拉取账户当前所有订单）。
-// P2 T5：仅由 RefreshSingleAccountSnapshots 对父 real 调用；与 WS 同源。
-// multi_bot：先对 ordersList 全量仅父落库，再对成功项逐个执行子归因派发（与 handleOrderUpdate 顺序一致，仅批量摊平 RPC/锁竞争）。
 func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct *types.Account) ([]*ctypes.Order, error) {
 	if acct == nil {
 		return nil, fmt.Errorf("account is nil")
@@ -409,28 +407,27 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 		if err != nil {
 			return nil, fmt.Errorf("refresh parent orders: %w", err)
 		}
-		if len(parentOrders) == 0 {
-			return nil, nil
-		}
-		for _, ord := range parentOrders {
-			if ord == nil {
-				continue
-			}
-			dispatches, err := e.AttributeMultiBotOrderForFanout(ctx, parent.ID, parent.Exchange, ord)
-			if err != nil {
-				logger.Ctx(ctx).Err(err).
-					Str("parent_account_id", parent.ID).
-					Str("sub_account_id", accountID).
-					Str("order_id", ord.OrderID.String()).
-					Msg("attribute parent order for virtual_sub failed")
-				continue
-			}
-			for _, d := range dispatches {
-				if d.SubAccountID != accountID {
+		if len(parentOrders) > 0 {
+			for _, ord := range parentOrders {
+				if ord == nil {
 					continue
 				}
-				o := d.Order
-				ordersList = append(ordersList, &o)
+				dispatches, err := e.AttributeMultiBotOrderForFanout(ctx, parent.ID, parent.Exchange, ord)
+				if err != nil {
+					logger.Ctx(ctx).Err(err).
+						Str("parent_account_id", parent.ID).
+						Str("sub_account_id", accountID).
+						Str("order_id", ord.OrderID.String()).
+						Msg("attribute parent order for virtual_sub failed")
+					continue
+				}
+				for _, d := range dispatches {
+					if d.SubAccountID != accountID {
+						continue
+					}
+					o := d.Order
+					ordersList = append(ordersList, &o)
+				}
 			}
 		}
 	default:
@@ -490,6 +487,7 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 				logger.Ctx(ctx).Err(err).Str("order_id", ord.OrderID).Msg("failed to save order snapshot")
 				continue
 			}
+			ordersList = append(ordersList, order)
 		}
 	}
 
