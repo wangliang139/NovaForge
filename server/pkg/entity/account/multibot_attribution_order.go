@@ -265,3 +265,56 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 	}
 	return buildSubRawDispatchesFromUnitShares(ordCopy, shares), nil
 }
+
+
+// AttributeOrdersFromParent 将父 connector 拉到的在途订单按 multi_bot 归因到本 virtual_sub（含份额缩放）。
+// 供 connector.VirtualSubAccountReader 实现，与 WS/Cron 侧 AttributeMultiBotOrderForFanout 语义一致。
+func (e *Entity) AttributeOrdersFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol *ctypes.Symbol, parentOrders []*ctypes.Order) ([]*ctypes.Order, error) {
+	_ = symbol // 父订单列表已由交易所按 symbol 过滤
+	out := make([]*ctypes.Order, 0)
+	for _, po := range parentOrders {
+		if po == nil {
+			continue
+		}
+		disp, err := e.AttributeMultiBotOrderForFanout(ctx, parentID, exchange, po)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range disp {
+			if d.SubAccountID != subID {
+				continue
+			}
+			o := d.Order
+			if !d.Share.Equal(decimal.NewFromInt(1)) {
+				o = scaleOrderForShare(o, d.Share)
+			}
+			cp := o
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}
+
+// AttributeOrderFromParent 将父侧单笔订单归因到本 virtual_sub；无派发至本子账户时返回 (nil, nil)。
+func (e *Entity) AttributeOrderFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol ctypes.Symbol, parentOrder *ctypes.Order) (*ctypes.Order, error) {
+	_ = symbol
+	if parentOrder == nil {
+		return nil, nil
+	}
+	disp, err := e.AttributeMultiBotOrderForFanout(ctx, parentID, exchange, parentOrder)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range disp {
+		if d.SubAccountID != subID {
+			continue
+		}
+		o := d.Order
+		if !d.Share.Equal(decimal.NewFromInt(1)) {
+			o = scaleOrderForShare(o, d.Share)
+		}
+		cp := o
+		return &cp, nil
+	}
+	return nil, nil
+}

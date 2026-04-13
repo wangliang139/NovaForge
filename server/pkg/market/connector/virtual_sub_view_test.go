@@ -173,6 +173,14 @@ func (m *mockVirtualSubReader) GetOrder(ctx context.Context, accountID string, s
 	return m.oneOrder, nil
 }
 
+func (m *mockVirtualSubReader) AttributeOrdersFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol *ctypes.Symbol, parentOrders []*ctypes.Order) ([]*ctypes.Order, error) {
+	return nil, nil
+}
+
+func (m *mockVirtualSubReader) AttributeOrderFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol ctypes.Symbol, parentOrder *ctypes.Order) (*ctypes.Order, error) {
+	return nil, nil
+}
+
 func TestVirtualSubConnectorView_BalanceUsesSubAccount(t *testing.T) {
 	base := stubBase{isPrivate: true}
 	src := &mockVirtualSubReader{

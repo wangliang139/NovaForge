@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
@@ -15,11 +16,15 @@ type VirtualSubAccountReader interface {
 	GetPositions(ctx context.Context, accountID string) ([]*ctypes.Position, error)
 	GetOpenOrders(ctx context.Context, accountID string, symbol *ctypes.Symbol) ([]*ctypes.Order, error)
 	GetOrder(ctx context.Context, accountID string, symbol string, clientOrderID, exchangeOrderID string) (*ctypes.Order, error)
+	// AttributeOrdersFromParent / AttributeOrderFromParent：父 multi_bot 订单归因到指定 virtual_sub（与 account 包 P2 逻辑一致）。
+	// 无派发至 subID 时返回空切片 / nil，由包装层决定是否回退子表查询。
+	AttributeOrdersFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol *ctypes.Symbol, parentOrders []*ctypes.Order) ([]*ctypes.Order, error)
+	AttributeOrderFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol ctypes.Symbol, parentOrder *ctypes.Order) (*ctypes.Order, error)
 }
 
 // virtualSubConnectorView 在父账户真实交易所 connector 之上叠加子账户表视图：
-// Account/Balance/Positions/GetOrders/GetOrder 读 reader；其余方法透传内嵌 base。
-// 不修改各交易所 Connector 实现。
+// Account/Balance/Positions 读 reader；GetOrders/GetOrder 先拉父 connector 再在 reader 上做多 Bot 归因，无命中时回退子表。
+// 其余方法透传内嵌 base。不修改各交易所 Connector 实现。
 type virtualSubConnectorView struct {
 	mdtypes.Connector
 	reader   VirtualSubAccountReader
@@ -28,7 +33,7 @@ type virtualSubConnectorView struct {
 }
 
 // NewVirtualSubConnectorView 用已有 GetConnector 得到的 base 包装为子账户视图 connector。
-// parentID 保留供调用方溯源，当前实现未使用。
+// parentID 为父 real 账户 id，用于订单归因；subID 为 virtual_sub 账户 id。
 func NewVirtualSubConnectorView(base mdtypes.Connector, reader VirtualSubAccountReader, subID, parentID string) mdtypes.Connector {
 	return &virtualSubConnectorView{
 		Connector: base,
@@ -99,6 +104,17 @@ func (v *virtualSubConnectorView) Positions(ctx context.Context, mt *ctypes.Mark
 }
 
 func (v *virtualSubConnectorView) GetOrders(ctx context.Context, symbol *ctypes.Symbol) ([]*ctypes.Order, error) {
+	parentOrders, err := v.Connector.GetOrders(ctx, symbol)
+	if err != nil {
+		return nil, err
+	}
+	attributed, err := v.reader.AttributeOrdersFromParent(ctx, v.parentID, v.subID, v.Connector.Exchange(), symbol, parentOrders)
+	if err != nil {
+		return nil, err
+	}
+	if len(attributed) > 0 {
+		return attributed, nil
+	}
 	return v.reader.GetOpenOrders(ctx, v.subID, symbol)
 }
 
@@ -107,5 +123,24 @@ func (v *virtualSubConnectorView) GetOrder(ctx context.Context, symbol ctypes.Sy
 	if oid == "" {
 		return nil, nil
 	}
+	parentOrder, err := v.Connector.GetOrder(ctx, symbol, oid)
+	if err != nil {
+		return nil, err
+	}
+	attributed, err := v.reader.AttributeOrderFromParent(ctx, v.parentID, v.subID, v.Connector.Exchange(), symbol, parentOrder)
+	if err != nil {
+		return nil, err
+	}
+	if attributed != nil {
+		return attributed, nil
+	}
 	return v.reader.GetOrder(ctx, v.subID, symbol.String(), "", oid)
+}
+
+func (v *virtualSubConnectorView) CancelOrder(ctx context.Context, symbol ctypes.Symbol, orderId string) error {
+	return v.Connector.CancelOrder(ctx, symbol, orderId)
+}
+
+func (v *virtualSubConnectorView) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInput) (*mdtypes.PlaceOrderResult, error) {
+	return nil, errors.New("place order is not supported for virtual sub account")
 }

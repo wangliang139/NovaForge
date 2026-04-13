@@ -403,7 +403,11 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 			return nil, fmt.Errorf("virtual_sub parent must be a real account")
 		}
 		// 先同步一遍父账户
-		parentOrders, err := e.refreshOrders(ctx, conn, parent)
+		parentConn, err := e.GetConnector(ctx, parent.Exchange, parent.ID)
+		if err != nil {
+			return nil, fmt.Errorf("get parent connector: %w", err)
+		}
+		parentOrders, err := e.refreshOrders(ctx, parentConn, parent)
 		if err != nil {
 			return nil, fmt.Errorf("refresh parent orders: %w", err)
 		}
