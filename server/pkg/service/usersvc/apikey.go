@@ -12,7 +12,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/wangliang139/NovaForge/server/pkg/gateway/auth"
-	userapikey "github.com/wangliang139/NovaForge/server/pkg/repos/user_api_key"
+	userapikey "github.com/wangliang139/NovaForge/server/pkg/repos/api_keys"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -39,7 +39,7 @@ func (s *Service) AuthenticateAPIKey(ctx context.Context, rawKey string) (*auth.
 		return nil, ErrInvalidAPIKey
 	}
 
-	row, err := s.db.UserApiKeyRepo.GetUserApiKeyByLookup(ctx, lookup)
+	row, err := s.db.ApiKeysRepo.GetUserApiKeyByLookup(ctx, lookup)
 	if err != nil {
 		log.Warn().Err(err).Msg("api key lookup failed")
 		return nil, ErrInvalidAPIKey
@@ -84,8 +84,10 @@ func (s *Service) AuthenticateAPIKey(ctx context.Context, rawKey string) (*auth.
 	}, nil
 }
 
-var dummyAPIKeyBcryptOnce sync.Once
-var dummyAPIKeyBcryptCached []byte
+var (
+	dummyAPIKeyBcryptOnce   sync.Once
+	dummyAPIKeyBcryptCached []byte
+)
 
 func dummyAPIKeyBcryptHash() []byte {
 	dummyAPIKeyBcryptOnce.Do(func() {
@@ -100,7 +102,7 @@ func dummyAPIKeyBcryptHash() []byte {
 }
 
 // CreateUserApiKey 生成密钥；返回完整可展示 secret（仅此次）与行数据（不含 secret hash）。
-func (s *Service) CreateUserApiKey(ctx context.Context, userID int64, name string, permissions []string) (plainKey string, row *userapikey.UserApiKey, err error) {
+func (s *Service) CreateUserApiKey(ctx context.Context, userID int64, name string, permissions []string) (plainKey string, row *userapikey.ApiKey, err error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", nil, errors.New("name is required")
@@ -118,7 +120,7 @@ func (s *Service) CreateUserApiKey(ctx context.Context, userID int64, name strin
 		return "", nil, errors.New("api key name already exists")
 	}
 
-	activePtr, err := s.db.UserApiKeyRepo.CountActiveUserApiKeysByUserID(ctx, userID)
+	activePtr, err := s.db.ApiKeysRepo.CountActiveUserApiKeysByUserID(ctx, userID)
 	if err != nil {
 		return "", nil, err
 	}
@@ -147,7 +149,7 @@ func (s *Service) CreateUserApiKey(ctx context.Context, userID int64, name strin
 	}
 	prefix := "nf_" + lookup[:minLookupPrefix(8, len(lookup))] + "…"
 
-	created, err := s.db.UserApiKeyRepo.CreateUserApiKey(ctx, userapikey.CreateUserApiKeyParams{
+	created, err := s.db.ApiKeysRepo.CreateUserApiKey(ctx, userapikey.CreateUserApiKeyParams{
 		UserID:      userID,
 		Name:        name,
 		KeyLookup:   lookup,
@@ -198,7 +200,7 @@ func (s *Service) UserApiKeyNameTaken(ctx context.Context, userID int64, name st
 	if name == "" {
 		return false, nil
 	}
-	nPtr, err := s.db.UserApiKeyRepo.CountActiveUserApiKeysByUserIDAndName(ctx, userapikey.CountActiveUserApiKeysByUserIDAndNameParams{
+	nPtr, err := s.db.ApiKeysRepo.CountActiveUserApiKeysByUserIDAndName(ctx, userapikey.CountActiveUserApiKeysByUserIDAndNameParams{
 		UserID: userID,
 		Name:   name,
 	})
@@ -213,8 +215,8 @@ func (s *Service) UserApiKeyNameTaken(ctx context.Context, userID int64, name st
 }
 
 // ListUserApiKeys 列出未删除的密钥（不含 hash）。
-func (s *Service) ListUserApiKeys(ctx context.Context, userID int64) ([]userapikey.UserApiKey, error) {
-	rows, err := s.db.UserApiKeyRepo.ListUserApiKeysByUserID(ctx, userID)
+func (s *Service) ListUserApiKeys(ctx context.Context, userID int64) ([]userapikey.ApiKey, error) {
+	rows, err := s.db.ApiKeysRepo.ListUserApiKeysByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -226,7 +228,7 @@ func (s *Service) ListUserApiKeys(ctx context.Context, userID int64) ([]userapik
 
 // DeleteUserApiKey 软删，且校验归属。
 func (s *Service) DeleteUserApiKey(ctx context.Context, userID, keyID int64) (bool, error) {
-	n, err := s.db.UserApiKeyRepo.SoftDeleteUserApiKey(ctx, userapikey.SoftDeleteUserApiKeyParams{
+	n, err := s.db.ApiKeysRepo.SoftDeleteUserApiKey(ctx, userapikey.SoftDeleteUserApiKeyParams{
 		ID:     keyID,
 		UserID: userID,
 	})

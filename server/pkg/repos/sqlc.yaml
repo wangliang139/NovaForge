@@ -141,14 +141,14 @@ sql:
         sql_package: wpgx
         package: alert
         out: alert
-  - schema: [alert/schema.sql, alert_trigger_event/schema.sql]
-    queries: alert_trigger_event/query.sql
+  - schema: [alert/schema.sql, alert_event/schema.sql]
+    queries: alert_event/query.sql
     engine: postgresql
     gen:
       go:
         sql_package: wpgx
-        package: alert_trigger_event
-        out: alert_trigger_event
+        package: alert_event
+        out: alert_event
   - schema: user/schema.sql
     queries: user/query.sql
     engine: postgresql
@@ -157,14 +157,14 @@ sql:
         sql_package: wpgx
         package: user
         out: user
-  - schema: user_api_key/schema.sql
-    queries: user_api_key/query.sql
+  - schema: api_keys/schema.sql
+    queries: api_keys/query.sql
     engine: postgresql
     gen:
       go:
         sql_package: wpgx
-        package: user_api_key
-        out: user_api_key
+        package: api_keys
+        out: api_keys
   - schema: symbol_equity/schema.sql
     queries: symbol_equity/query.sql
     engine: postgresql

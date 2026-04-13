@@ -5,7 +5,8 @@ import (
 	"github.com/stumble/wpgx"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/alert"
-	"github.com/wangliang139/NovaForge/server/pkg/repos/alert_trigger_event"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/alert_event"
+	"github.com/wangliang139/NovaForge/server/pkg/repos/api_keys"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/backtest"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
@@ -29,7 +30,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/repos/symbol_equity"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/tg_channel"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/user"
-	"github.com/wangliang139/NovaForge/server/pkg/repos/user_api_key"
 )
 
 // Entity acts as a wrapper of db related stuffs.
@@ -47,17 +47,17 @@ type Entity struct {
 	LlmDialogRepo     *llm_dialog.Queries
 	TgChannelRepo     *tg_channel.Queries
 	UserRepo          *user.Queries
-	UserApiKeyRepo    *user_api_key.Queries
+	ApiKeysRepo       *api_keys.Queries
 
-	AssetsRepo            *assets.Queries
-	PositionsRepo         *positions.Queries
-	OrdersRepo            *orders.Queries
-	LedgersRepo           *ledgers.Queries
-	EquityRepo            *equity.Queries
-	SymbolEquityRepo      *symbol_equity.Queries
-	RiskEventRepo         *risk_event.Queries
-	AlertRepo             *alert.Queries
-	AlertTriggerEventRepo *alert_trigger_event.Queries
+	AssetsRepo       *assets.Queries
+	PositionsRepo    *positions.Queries
+	OrdersRepo       *orders.Queries
+	LedgersRepo      *ledgers.Queries
+	EquityRepo       *equity.Queries
+	SymbolEquityRepo *symbol_equity.Queries
+	RiskEventRepo    *risk_event.Queries
+	AlertRepo        *alert.Queries
+	AlertEventRepo   *alert_event.Queries
 
 	StrategyRepo   *strategy.Queries
 	SnapshotRepo   *snapshot.Queries
@@ -82,17 +82,17 @@ func New(connPool *wpgx.Pool, dCache *dcache.DCache) *Entity {
 		LlmDialogRepo:     llm_dialog.New(connPool.WConn(), dCache),
 		TgChannelRepo:     tg_channel.New(connPool.WConn(), dCache),
 		UserRepo:          user.New(connPool.WConn(), dCache),
-		UserApiKeyRepo:    user_api_key.New(connPool.WConn(), dCache),
+		ApiKeysRepo:       api_keys.New(connPool.WConn(), dCache),
 
-		AssetsRepo:            assets.New(connPool.WConn(), dCache),
-		PositionsRepo:         positions.New(connPool.WConn(), dCache),
-		OrdersRepo:            orders.New(connPool.WConn(), dCache),
-		LedgersRepo:           ledgers.New(connPool.WConn(), dCache),
-		EquityRepo:            equity.New(connPool.WConn(), dCache),
-		SymbolEquityRepo:      symbol_equity.New(connPool.WConn(), dCache),
-		RiskEventRepo:         risk_event.New(connPool.WConn(), dCache),
-		AlertRepo:             alert.New(connPool.WConn(), dCache),
-		AlertTriggerEventRepo: alert_trigger_event.New(connPool.WConn(), dCache),
+		AssetsRepo:       assets.New(connPool.WConn(), dCache),
+		PositionsRepo:    positions.New(connPool.WConn(), dCache),
+		OrdersRepo:       orders.New(connPool.WConn(), dCache),
+		LedgersRepo:      ledgers.New(connPool.WConn(), dCache),
+		EquityRepo:       equity.New(connPool.WConn(), dCache),
+		SymbolEquityRepo: symbol_equity.New(connPool.WConn(), dCache),
+		RiskEventRepo:    risk_event.New(connPool.WConn(), dCache),
+		AlertRepo:        alert.New(connPool.WConn(), dCache),
+		AlertEventRepo:   alert_event.New(connPool.WConn(), dCache),
 
 		StrategyRepo:   strategy.New(connPool.WConn(), dCache),
 		SnapshotRepo:   snapshot.New(connPool.WConn(), dCache),

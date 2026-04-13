@@ -5,10 +5,10 @@ import (
 
 	"github.com/wangliang139/NovaForge/server/pkg/action/model"
 	"github.com/wangliang139/NovaForge/server/pkg/service/usersvc"
-	userapikey "github.com/wangliang139/NovaForge/server/pkg/repos/user_api_key"
+	userapikey "github.com/wangliang139/NovaForge/server/pkg/repos/api_keys"
 )
 
-func UserAPIKeyToGql(row *userapikey.UserApiKey) *model.UserAPIKey {
+func UserAPIKeyToGql(row *userapikey.ApiKey) *model.UserAPIKey {
 	if row == nil {
 		return nil
 	}

@@ -19,7 +19,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/internal/push"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	repoalert "github.com/wangliang139/NovaForge/server/pkg/repos/alert"
-	repoevent "github.com/wangliang139/NovaForge/server/pkg/repos/alert_trigger_event"
+	repoevent "github.com/wangliang139/NovaForge/server/pkg/repos/alert_event"
 	"github.com/wangliang139/NovaForge/server/pkg/service/streamsvc"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
@@ -222,7 +222,7 @@ func (s *Service) RemoveAlert(ctx context.Context, id string) (bool, error) {
 }
 
 func (s *Service) CleanupEventsBefore(ctx context.Context, t time.Time) (int64, error) {
-	return s.db.AlertTriggerEventRepo.CleanupAlertTriggerEventsBefore(ctx, t)
+	return s.db.AlertEventRepo.CleanupAlertTriggerEventsBefore(ctx, t)
 }
 
 func (s *Service) addRuntimeAlert(item AlertItem) {
@@ -436,7 +436,7 @@ func (s *Service) handleTriggered(ctx context.Context, ra *runtimeAlert, now tim
 		ErrorMessage:  errorMessage,
 		Meta:          meta,
 	}
-	if _, err := s.db.AlertTriggerEventRepo.CreateAlertTriggerEvent(ctx, params); err != nil {
+	if _, err := s.db.AlertEventRepo.CreateAlertTriggerEvent(ctx, params); err != nil {
 		return err
 	}
 	if err := s.db.AlertRepo.TouchAlertTriggered(ctx, repoalert.TouchAlertTriggeredParams{
