@@ -158,7 +158,7 @@ func mergeVsFillAssetDelta(m map[string]*mergedAssetDelta, wt ctypes.WalletType,
 }
 
 // driveBalanceAndPositionEventByOrderIfNeeded 在订单落库事务提交之后调用：virtual_sub 且本轮有成交增量时，
-// 派生 account_raw（BalanceUpdate / PositionsUpdate）并走 handleAccountMessage，使资金/仓位与订单 Fill 对齐。
+// 派生 account_raw（BalanceUpdate / PositionsUpdate）经 PublishEvent 入队，由账户消费者异步 handleAccountMessage 落库。
 func (e *Entity) driveBalanceAndPositionEventByOrderIfNeeded(ctx context.Context, order *ctypes.Order, prev *orders.Order) error {
 	if e == nil || order == nil || order.AccountID == "" {
 		return nil
@@ -271,7 +271,8 @@ func (e *Entity) buildFuturePositionAfterOrderFill(ctx context.Context, accountI
 	}, nil
 }
 
-// applyVirtualSubOrderFillDerivedRawAccounts 根据订单与 prev 行计算与 sendOrderDerivedFillEvent 一致的成交增量，构造增量 BalanceUpdate（现货划转+手续费；合约已实现盈亏+手续费）及合约仓位 PositionsUpdate，经 account_raw 入站处理落库并对外 Publish。
+// applyVirtualSubOrderFillDerivedRawAccounts 根据订单与 prev 行计算与 sendOrderDerivedFillEvent 一致的成交增量，构造增量 BalanceUpdate（现货划转+手续费；合约已实现盈亏+手续费）及合约仓位 PositionsUpdate，
+// 以 StreamTypeAccountRaw 经 PublishEvent 写入账户原始流，异步解耦落库与下游 Publish。
 func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context, order *ctypes.Order, prev *orders.Order) error {
 	prevExecutedQty := decimal.Zero
 	prevFee := decimal.Zero
@@ -311,9 +312,9 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 		ts = time.Now()
 	}
 
-	tsMillis := time.Now().UnixMilli()
-	if order != nil && !order.UpdatedTs.IsZero() {
-		tsMillis = order.UpdatedTs.UnixMilli()
+	selector := ctypes.StreamSelector{
+		Stream:  ctypes.StreamTypeAccountRaw,
+		Account: lo.ToPtr(order.AccountID),
 	}
 
 	deltas := make(map[string]*mergedAssetDelta)
@@ -381,16 +382,8 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 			Assets:  assets,
 			Detail:  json.RawMessage(detailBytes),
 		}
-
-		env := &ctypes.Envelope{
-			Exchange: order.Exchange.String(),
-			Account:  lo.ToPtr(order.AccountID),
-			Stream:   ctypes.StreamTypeAccountRaw,
-			Payload:  &ctypes.Message{BalanceUpdate: bu},
-			Ts:       tsMillis,
-		}
-		if err := e.handleAccountMessage(ctx, env); err != nil {
-			logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("virtual_sub derived BalanceUpdate")
+		if err := e.PublishEvent(ctx, ctypes.NewMessage(order.Exchange, selector, bu, ts)); err != nil {
+			logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("virtual_sub derived BalanceUpdate publish")
 			return err
 		}
 	}
@@ -411,15 +404,8 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 		Reason:    string(ctypes.LedgerReasonFill),
 		Positions: []*ctypes.Position{pos},
 	}
-	env := &ctypes.Envelope{
-		Exchange: order.Exchange.String(),
-		Account:  lo.ToPtr(order.AccountID),
-		Stream:   ctypes.StreamTypeAccountRaw,
-		Payload:  &ctypes.Message{PositionsUpdate: pu},
-		Ts:       tsMillis,
-	}
-	if err := e.handleAccountMessage(ctx, env); err != nil {
-		logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("virtual_sub derived PositionsUpdate")
+	if err := e.PublishEvent(ctx, ctypes.NewMessage(order.Exchange, selector, pu, ts)); err != nil {
+		logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("virtual_sub derived PositionsUpdate publish")
 		return err
 	}
 	return nil

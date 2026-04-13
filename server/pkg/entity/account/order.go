@@ -516,7 +516,7 @@ func (e *Entity) applyOrderLockedDelta(ctx context.Context, tx *wpgx.WTx, order 
 
 // applyOrderFillBalanceUpdate 处理订单冻结/解冻逻辑以及发送成交事件
 // 注意：普通账户成交资金变更由交易所 asset update 事件触发；virtual_sub 在订单事务提交后由
-// applyVirtualSubOrderFillDerivedRawAccountsIfNeeded 从订单增量派生 account_raw（BalanceUpdate/PositionsUpdate）。
+// driveBalanceAndPositionEventByOrderIfNeeded 经 PublishEvent(account_raw) 异步派生 BalanceUpdate/PositionsUpdate。
 func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, order *ctypes.Order, prev *orders.Order) error {
 	if order == nil {
 		return nil
