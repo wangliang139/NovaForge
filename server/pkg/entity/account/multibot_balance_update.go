@@ -23,13 +23,6 @@ func ledgerReasonSplitToVirtualSubs(r ctypes.LedgerReason) bool {
 	}
 }
 
-func clampNonNegAssetTotal(d decimal.Decimal) decimal.Decimal {
-	if d.IsNegative() {
-		return decimal.Zero
-	}
-	return d
-}
-
 // assetWeightTotalForFanout P2 T12：资金费等分摊权重；仅 asset_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 assets。
 func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, exchangeStr, assetCode string, walletType ctypes.WalletType, asOf time.Time) (decimal.Decimal, error) {
 	snap, err := e.GetAccountAssetSnapshotAtOrBefore(ctx, accountID, AccountStateAtAssetKey{
@@ -44,7 +37,10 @@ func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, excha
 	if snap != nil && snap.Found {
 		st = snap.Total
 	}
-	return clampNonNegAssetTotal(st), nil
+	if st.IsNegative() {
+		st = decimal.Zero
+	}
+	return st, nil
 }
 
 // computeSubWeightsAndUnalloc 按 P2 T0 §3：w_子i / 父 P 均来自 asset_snapshot；w_unalloc = max(0, 父 − Σ子)。

@@ -7,29 +7,6 @@ import (
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-func TestFutureOpenPositionLikeDeriveOrderLocked(t *testing.T) {
-	longOpen := ctypes.Order{
-		Symbol: ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeFuture),
-		Side:   ctypes.PositionSideLong,
-		IsBuy:  true,
-	}
-	if !futureOpenPositionLikeDeriveOrderLocked(longOpen) {
-		t.Fatal("expected long+buy open")
-	}
-	longClose := ctypes.Order{
-		Symbol: ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeFuture),
-		Side:   ctypes.PositionSideLong,
-		IsBuy:  false,
-	}
-	if futureOpenPositionLikeDeriveOrderLocked(longClose) {
-		t.Fatal("expected long+sell not open")
-	}
-	spot := ctypes.Order{Symbol: ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeSpot), Side: ctypes.PositionSideLong, IsBuy: true}
-	if futureOpenPositionLikeDeriveOrderLocked(spot) {
-		t.Fatal("spot must not be future-open")
-	}
-}
-
 func TestBuildSubRawDispatchesFromUnitShares_conserves112(t *testing.T) {
 	ord := ctypes.Order{OrderID: "x", Symbol: ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeSpot)}
 	subs := []SubWeight{

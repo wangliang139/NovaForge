@@ -67,15 +67,16 @@ func subAccountIDsInFirstAppearanceOrder(subs []SubWeight) []string {
 }
 
 // SplitProportionalDeltaRoundLastChild 先按 SplitProportionalDelta 得精确子份额；对前 n-1 个子（按首次出现顺序）
-// 将金额四舍五入到 places 位；**最后一个子**承担子间舍入残差，使 sum(子) = delta - parentExact（与精确拆一致）。
+// 将金额四舍五入到 precision 位；**最后一个子**承担子间舍入残差，使 sum(子) = delta - parentExact（与精确拆一致）。
 // 父吸收 parentAbsorb = delta - sum(子最终)，在仅子间舍入修正时等于 parentExact。
-func SplitProportionalDeltaRoundLastChild(delta decimal.Decimal, subs []SubWeight, wUnalloc decimal.Decimal, places int32) (toSub map[string]decimal.Decimal, parentAbsorb decimal.Decimal, err error) {
+func SplitProportionalDeltaRoundLastChild(delta decimal.Decimal, subs []SubWeight, wUnalloc decimal.Decimal, precision int32) (toSub map[string]decimal.Decimal, parentAbsorb decimal.Decimal, err error) {
+	if len(subs) == 0 {
+		return make(map[string]decimal.Decimal), delta, nil
+	}
+
 	exact, parentExact, err := SplitProportionalDelta(delta, subs, wUnalloc)
 	if err != nil {
 		return nil, decimal.Zero, err
-	}
-	if len(subs) == 0 {
-		return make(map[string]decimal.Decimal), delta, nil
 	}
 
 	order := subAccountIDsInFirstAppearanceOrder(subs)
@@ -87,7 +88,7 @@ func SplitProportionalDeltaRoundLastChild(delta decimal.Decimal, subs []SubWeigh
 	toSub = make(map[string]decimal.Decimal)
 	if len(order) == 1 {
 		id := order[0]
-		toSub[id] = childrenTotal.Round(places)
+		toSub[id] = childrenTotal.Round(precision)
 		parentAbsorb = delta.Sub(toSub[id])
 		return toSub, parentAbsorb, nil
 	}
@@ -96,7 +97,7 @@ func SplitProportionalDeltaRoundLastChild(delta decimal.Decimal, subs []SubWeigh
 	for i := 0; i < len(order)-1; i++ {
 		id := order[i]
 		ex := exact[id]
-		r := ex.Round(places)
+		r := ex.Round(precision)
 		toSub[id] = r
 		sumRoundedMid = sumRoundedMid.Add(r)
 	}

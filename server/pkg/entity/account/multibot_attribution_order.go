@@ -51,15 +51,6 @@ func scaleOrderForShare(ord ctypes.Order, share decimal.Decimal) ctypes.Order {
 	return out
 }
 
-// futureOpenPositionLikeDeriveOrderLocked 与 deriveOrderLocked 中合约「开仓」判定一致。
-func futureOpenPositionLikeDeriveOrderLocked(o ctypes.Order) bool {
-	if o.Symbol.Type != ctypes.MarketTypeFuture {
-		return false
-	}
-	return (o.Side == ctypes.PositionSideLong && o.IsBuy) ||
-		(o.Side == ctypes.PositionSideShort && !o.IsBuy)
-}
-
 // absPositionWeightForFanout 平仓归因权重：仅使用 position_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 positions。
 func (e *Entity) absPositionWeightForFanout(ctx context.Context, accountID, exchangeStr, sym string, side positions.PositionSide, asOf time.Time) (decimal.Decimal, error) {
 	key := AccountStateAtPositionKey{
@@ -128,7 +119,8 @@ func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID s
 		asset := strings.ToUpper(ord.Symbol.Base)
 		return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, ts)
 	case ctypes.MarketTypeFuture:
-		if futureOpenPositionLikeDeriveOrderLocked(ord) {
+		if !(ord.Side == ctypes.PositionSideLong && ord.IsBuy) ||
+			!(ord.Side == ctypes.PositionSideShort && !ord.IsBuy) {
 			asset := strings.ToUpper(ord.Symbol.Quote)
 			fw := ctypes.GetWalletType(exchange, ctypes.MarketTypeFuture)
 			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, fw, subs, ts)
