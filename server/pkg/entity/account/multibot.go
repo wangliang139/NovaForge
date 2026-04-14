@@ -2,12 +2,14 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -127,4 +129,87 @@ func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID str
 		}
 	}
 	return true, nil
+}
+
+// SubWeight 单个子账户在分摊中的正权重（与 P2 T0 文档中 w_子 同量纲）。
+type SubWeight struct {
+	SubAccountID string
+	W            decimal.Decimal
+}
+
+// SplitProportionalDelta 将父侧一条事件量 delta 按权重拆给各子；未分配份额由父吸收（不进入 toSub）。
+// 权重分母 W = sum(subs.W) + wUnalloc；子 i 得到 delta * subs[i].W / W，父保留 delta * wUnalloc / W。
+// 相同 SubAccountID 出现多次时，子份额相加合并。
+// 若 W==0，返回错误（计划：不派发子）。
+func SplitProportionalDelta(delta decimal.Decimal, subs []SubWeight, wUnalloc decimal.Decimal) (toSub map[string]decimal.Decimal, parentAbsorb decimal.Decimal, err error) {
+	var sumW decimal.Decimal
+	for _, s := range subs {
+		if s.W.IsNegative() {
+			return nil, decimal.Zero, errors.New(errors.InvalidArgument, fmt.Sprintf("negative weight for sub %q", s.SubAccountID))
+		}
+		sumW = sumW.Add(s.W)
+	}
+	if wUnalloc.IsNegative() {
+		return nil, decimal.Zero, errors.New(errors.InvalidArgument, "w_unalloc must be non-negative")
+	}
+	W := sumW.Add(wUnalloc)
+	if W.IsZero() {
+		return nil, decimal.Zero, errors.New(errors.InvalidArgument, "total weight is zero: no proportional split")
+	}
+
+	toSub = make(map[string]decimal.Decimal)
+	for _, s := range subs {
+		if s.SubAccountID == "" {
+			return nil, decimal.Zero, errors.New(errors.InvalidArgument, "sub_account_id is required")
+		}
+		part := delta.Mul(s.W).Div(W)
+		toSub[s.SubAccountID] = toSub[s.SubAccountID].Add(part)
+	}
+	parentAbsorb = delta.Mul(wUnalloc).Div(W)
+	return toSub, parentAbsorb, nil
+}
+
+// assetWeightTotalForFanout P2 T12：资金费等分摊权重；仅 asset_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 assets。
+func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, exchangeStr, assetCode string, walletType ctypes.WalletType, asOf time.Time) (decimal.Decimal, error) {
+	snap, err := e.GetAccountAssetSnapshotAtOrBefore(ctx, accountID, AccountStateAtAssetKey{
+		Exchange:   exchangeStr,
+		WalletType: walletType,
+		Asset:      assetCode,
+	}, asOf)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	st := decimal.Zero
+	if snap != nil && snap.Found {
+		st = snap.Total
+	}
+	if st.IsNegative() {
+		st = decimal.Zero
+	}
+	return st, nil
+}
+
+// computeSubWeightsAndUnalloc 按 P2 T0 §3：w_子i / 父 P 均来自 asset_snapshot；w_unalloc = max(0, 父 − Σ子)。
+func (e *Entity) computeSubWeightsAndUnalloc(ctx context.Context, parentID, exchangeStr, assetCode string, walletType ctypes.WalletType, subs []accountrepo.Account, asOf time.Time) ([]SubWeight, decimal.Decimal, error) {
+	var sumSubs decimal.Decimal
+	weights := make([]SubWeight, 0, len(subs))
+	for i := range subs {
+		sid := subs[i].ID
+		w, err := e.assetWeightTotalForFanout(ctx, sid, exchangeStr, assetCode, walletType, asOf)
+		if err != nil {
+			return nil, decimal.Zero, err
+		}
+		weights = append(weights, SubWeight{SubAccountID: sid, W: w})
+		sumSubs = sumSubs.Add(w)
+	}
+
+	P, err := e.assetWeightTotalForFanout(ctx, parentID, exchangeStr, assetCode, walletType, asOf)
+	if err != nil {
+		return nil, decimal.Zero, err
+	}
+	U := P.Sub(sumSubs)
+	if U.IsNegative() {
+		U = decimal.Zero
+	}
+	return weights, U, nil
 }

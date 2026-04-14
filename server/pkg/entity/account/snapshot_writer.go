@@ -37,7 +37,7 @@ func positionUpsertMeaningfulChange(row *positions.UpsertPositionRow) bool {
 	return false
 }
 
-func (e *Entity) recordAccountAssetSnapshotIfChanged(
+func (e *Entity) recordAssetSnapshotIfChanged(
 	ctx context.Context,
 	accountID, exchange string,
 	walletType assets.WalletType,
@@ -72,7 +72,7 @@ func (e *Entity) recordAccountAssetSnapshotIfChanged(
 	}
 }
 
-func (e *Entity) recordAccountAssetSnapshotFromUpsertRow(ctx context.Context, row *assets.UpsertAssetRow) {
+func (e *Entity) recordAssetSnapshotFromUpsertRow(ctx context.Context, row *assets.UpsertAssetRow) {
 	if row == nil {
 		return
 	}
@@ -80,11 +80,11 @@ func (e *Entity) recordAccountAssetSnapshotFromUpsertRow(ctx context.Context, ro
 	prevF := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
 	newT := utils.Decimal.PgNumericToDecimal(row.Total)
 	newF := utils.Decimal.PgNumericToDecimal(row.Frozen)
-	e.recordAccountAssetSnapshotIfChanged(ctx, row.AccountID, row.Exchange, row.WalletType, row.Asset,
+	e.recordAssetSnapshotIfChanged(ctx, row.AccountID, row.Exchange, row.WalletType, row.Asset,
 		prevT, prevF, newT, newF, row.LastUpdatedTs)
 }
 
-func (e *Entity) recordAccountPositionSnapshotFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
+func (e *Entity) recordPositionSnapshotFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
 	if row == nil || !positionUpsertMeaningfulChange(row) {
 		return
 	}
@@ -113,8 +113,8 @@ func (e *Entity) recordAccountPositionSnapshotFromUpsertRow(ctx context.Context,
 	}
 }
 
-// recordAccountPositionSnapshotFromPositionsRow 在 UpsertSymbolLeverage 等仅更新 positions 行但未返回 UpsertPositionRow 时使用。
-func (e *Entity) recordAccountPositionSnapshotFromPositionsRow(ctx context.Context, row *positions.Position, effectiveTs time.Time) {
+// recordPositionSnapshotFromPositionsRow 在 UpsertSymbolLeverage 等仅更新 positions 行但未返回 UpsertPositionRow 时使用。
+func (e *Entity) recordPositionSnapshotFromPositionsRow(ctx context.Context, row *positions.Position, effectiveTs time.Time) {
 	if row == nil {
 		return
 	}
@@ -158,29 +158,6 @@ func (e *Entity) recordPositionSnapshotsForSymbolBothSides(ctx context.Context, 
 		if err != nil || p == nil {
 			continue
 		}
-		e.recordAccountPositionSnapshotFromPositionsRow(ctx, p, effectiveTs)
+		e.recordPositionSnapshotFromPositionsRow(ctx, p, effectiveTs)
 	}
-}
-
-// AccountSnapshotWriter P2 T10：对外写入门面（与计划 SnapshotWriter / Record*IfChanged 命名对齐）。
-type AccountSnapshotWriter struct{ e *Entity }
-
-// AccountSnapshotWriter 返回账户历史快照写入器。
-func (e *Entity) AccountSnapshotWriter() *AccountSnapshotWriter {
-	return &AccountSnapshotWriter{e: e}
-}
-
-// RecordAssetIfChanged 见 recordAccountAssetSnapshotIfChanged。
-func (w *AccountSnapshotWriter) RecordAssetIfChanged(ctx context.Context, accountID, exchange string, walletType assets.WalletType, asset string, prevTotal, prevFrozen, newTotal, newFrozen decimal.Decimal, effectiveTs time.Time) {
-	w.e.recordAccountAssetSnapshotIfChanged(ctx, accountID, exchange, walletType, asset, prevTotal, prevFrozen, newTotal, newFrozen, effectiveTs)
-}
-
-// RecordAssetFromUpsertRow 见 recordAccountAssetSnapshotFromUpsertRow。
-func (w *AccountSnapshotWriter) RecordAssetFromUpsertRow(ctx context.Context, row *assets.UpsertAssetRow) {
-	w.e.recordAccountAssetSnapshotFromUpsertRow(ctx, row)
-}
-
-// RecordPositionFromUpsertRow 见 recordAccountPositionSnapshotFromUpsertRow。
-func (w *AccountSnapshotWriter) RecordPositionFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
-	w.e.recordAccountPositionSnapshotFromUpsertRow(ctx, row)
 }

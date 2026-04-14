@@ -388,7 +388,7 @@ func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID strin
 		return fmt.Errorf("apply symbol leverage update: %w", err)
 	}
 	if posRow != nil {
-		e.recordAccountPositionSnapshotFromPositionsRow(ctx, posRow, upsertTs)
+		e.recordPositionSnapshotFromPositionsRow(ctx, posRow, upsertTs)
 	}
 
 	// 处理后发布到事件总线（供下游订阅）

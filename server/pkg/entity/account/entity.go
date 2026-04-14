@@ -1107,7 +1107,7 @@ func (e *Entity) ApplyAccountPositions(ctx context.Context, accountID string, ex
 		changed := positionUpsertMeaningfulChange(row)
 		if changed {
 			positionsChanged = true
-			e.recordAccountPositionSnapshotFromUpsertRow(ctx, row)
+			e.recordPositionSnapshotFromUpsertRow(ctx, row)
 		}
 		if !row.UpdatedTs.IsZero() && (maxTs.IsZero() || row.UpdatedTs.After(maxTs)) {
 			maxTs = row.UpdatedTs

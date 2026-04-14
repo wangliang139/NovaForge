@@ -59,23 +59,3 @@ func TestSplitProportionalDelta_zeroDenominator(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
-
-func TestSplitProportionalDeltaRoundLastChild_conserves(t *testing.T) {
-	delta := decimal.RequireFromString("100.001")
-	subs := []SubWeight{
-		{SubAccountID: "a", W: decimal.NewFromInt(1)},
-		{SubAccountID: "b", W: decimal.NewFromInt(1)},
-	}
-	wUnalloc := decimal.NewFromInt(2)
-	toSub, parent, err := SplitProportionalDeltaRoundLastChild(delta, subs, wUnalloc, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var sum decimal.Decimal
-	for _, v := range toSub {
-		sum = sum.Add(v)
-	}
-	if !sum.Add(parent).Equal(delta) {
-		t.Fatalf("conservation failed: children+parent=%s delta=%s", sum.Add(parent), delta)
-	}
-}

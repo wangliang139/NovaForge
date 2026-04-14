@@ -6,7 +6,6 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
@@ -21,51 +20,6 @@ func ledgerReasonSplitToVirtualSubs(r ctypes.LedgerReason) bool {
 	default:
 		return false
 	}
-}
-
-// assetWeightTotalForFanout P2 T12：资金费等分摊权重；仅 asset_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 assets。
-func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, exchangeStr, assetCode string, walletType ctypes.WalletType, asOf time.Time) (decimal.Decimal, error) {
-	snap, err := e.GetAccountAssetSnapshotAtOrBefore(ctx, accountID, AccountStateAtAssetKey{
-		Exchange:   exchangeStr,
-		WalletType: walletType,
-		Asset:      assetCode,
-	}, asOf)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	st := decimal.Zero
-	if snap != nil && snap.Found {
-		st = snap.Total
-	}
-	if st.IsNegative() {
-		st = decimal.Zero
-	}
-	return st, nil
-}
-
-// computeSubWeightsAndUnalloc 按 P2 T0 §3：w_子i / 父 P 均来自 asset_snapshot；w_unalloc = max(0, 父 − Σ子)。
-func (e *Entity) computeSubWeightsAndUnalloc(ctx context.Context, parentID, exchangeStr, assetCode string, walletType ctypes.WalletType, subs []accountrepo.Account, asOf time.Time) ([]SubWeight, decimal.Decimal, error) {
-	var sumSubs decimal.Decimal
-	weights := make([]SubWeight, 0, len(subs))
-	for i := range subs {
-		sid := subs[i].ID
-		w, err := e.assetWeightTotalForFanout(ctx, sid, exchangeStr, assetCode, walletType, asOf)
-		if err != nil {
-			return nil, decimal.Zero, err
-		}
-		weights = append(weights, SubWeight{SubAccountID: sid, W: w})
-		sumSubs = sumSubs.Add(w)
-	}
-
-	P, err := e.assetWeightTotalForFanout(ctx, parentID, exchangeStr, assetCode, walletType, asOf)
-	if err != nil {
-		return nil, decimal.Zero, err
-	}
-	U := P.Sub(sumSubs)
-	if U.IsNegative() {
-		U = decimal.Zero
-	}
-	return weights, U, nil
 }
 
 // fanoutMultiBotBalanceUpdateIfNeeded 父 multi_bot 在父侧增量落库成功后，将可归因的 BalanceUpdate 的可用余额增量按权重拆到各 virtual_sub（方案 1：父已持全额真值）。

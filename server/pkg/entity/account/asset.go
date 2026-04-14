@@ -12,10 +12,10 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stumble/wpgx"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
@@ -313,7 +313,7 @@ func (e *Entity) ApplyAssetSnapshot(ctx context.Context, accountID string, excha
 	}
 	row := result.(*assets.UpsertAssetRow)
 	if row != nil {
-		e.recordAccountAssetSnapshotFromUpsertRow(ctx, row)
+		e.recordAssetSnapshotFromUpsertRow(ctx, row)
 	}
 	return row, nil
 }
@@ -445,7 +445,7 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 		}
 		newT := utils.Decimal.PgNumericToDecimal(pair.newRow.Total)
 		newF := utils.Decimal.PgNumericToDecimal(pair.newRow.Frozen)
-		e.recordAccountAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset,
+		e.recordAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset,
 			prevT, prevF, newT, newF, pair.newRow.LastUpdatedTs)
 	}
 	return pair.newRow, nil
