@@ -64,6 +64,18 @@ func floorToStep(t, step decimal.Decimal) decimal.Decimal {
 	return t.Div(step).Floor().Mul(step)
 }
 
+func deriveQuoteFromBaseMap(
+	baseMap map[string]decimal.Decimal,
+	avgPrice decimal.Decimal,
+	m *ctypes.Market,
+) map[string]decimal.Decimal {
+	out := make(map[string]decimal.Decimal, len(baseMap))
+	for key, value := range baseMap {
+		out[key] = value.Mul(avgPrice)
+	}
+	return out
+}
+
 func floorFieldShare(parentVal decimal.Decimal, row subShare, isFuture bool, kind scaleFieldKind, m *ctypes.Market) decimal.Decimal {
 	t := parentVal.Mul(row.s)
 	switch kind {
@@ -189,6 +201,14 @@ func (e *Entity) buildScaledOrdersForMultiBotFanout(ctx context.Context, ex ctyp
 	execMap := allocateFieldAmongSubs(parent.ExecutedQty, shares, maxSub, isFut, scaleFieldBaseQty, mkt)
 	origQuoteMap := allocateFieldAmongSubs(parent.OriginalQuoteQty, shares, maxSub, isFut, scaleFieldQuoteQty, mkt)
 	execQuoteMap := allocateFieldAmongSubs(parent.ExecutedQuoteQty, shares, maxSub, isFut, scaleFieldQuoteQty, mkt)
+	if parent.AvgPrice.IsPositive() {
+		if parent.OriginalQty.IsPositive() {
+			origQuoteMap = deriveQuoteFromBaseMap(origMap, parent.AvgPrice, mkt)
+		}
+		if parent.ExecutedQty.IsPositive() {
+			execQuoteMap = deriveQuoteFromBaseMap(execMap, parent.AvgPrice, mkt)
+		}
+	}
 
 	var feeMap, pnlMap map[string]decimal.Decimal
 	if parent.Fee != nil {
