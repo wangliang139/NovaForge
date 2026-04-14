@@ -235,6 +235,78 @@ func (q *Queries) InsertAccountPositionSnapshot(ctx context.Context, arg InsertA
 	return nil
 }
 
+const listLatestAccountPositionSnapshotsAtOrBefore = `-- name: ListLatestAccountPositionSnapshotsAtOrBefore :many
+SELECT DISTINCT ON (symbol, side) id, account_id, exchange, symbol, side, qty, entry_price, leverage, effective_ts, created_at
+FROM position_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND effective_ts <= $3
+ORDER BY symbol, side, effective_ts DESC, id DESC
+`
+
+type ListLatestAccountPositionSnapshotsAtOrBeforeParams struct {
+	AccountID   string
+	Exchange    string
+	EffectiveTs time.Time
+}
+
+type ListLatestAccountPositionSnapshotsAtOrBeforeRow struct {
+	ID          int64
+	AccountID   string
+	Exchange    string
+	Symbol      string
+	Side        PositionSide
+	Qty         pgtype.Numeric
+	EntryPrice  pgtype.Numeric
+	Leverage    int32
+	EffectiveTs time.Time
+	CreatedAt   time.Time
+}
+
+// -- timeout: 2s
+func (q *Queries) ListLatestAccountPositionSnapshotsAtOrBefore(ctx context.Context, arg ListLatestAccountPositionSnapshotsAtOrBeforeParams) ([]ListLatestAccountPositionSnapshotsAtOrBeforeRow, error) {
+	return _ListLatestAccountPositionSnapshotsAtOrBefore(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListLatestAccountPositionSnapshotsAtOrBefore(ctx context.Context, arg ListLatestAccountPositionSnapshotsAtOrBeforeParams) ([]ListLatestAccountPositionSnapshotsAtOrBeforeRow, error) {
+	return _ListLatestAccountPositionSnapshotsAtOrBefore(ctx, q, arg)
+}
+
+func _ListLatestAccountPositionSnapshotsAtOrBefore(ctx context.Context, q CacheQuerierConn, arg ListLatestAccountPositionSnapshotsAtOrBeforeParams) ([]ListLatestAccountPositionSnapshotsAtOrBeforeRow, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*2000)
+	defer cancel()
+	q.GetConn().CountIntent("acct_snapshot.ListLatestAccountPositionSnapshotsAtOrBefore")
+	rows, err := q.GetConn().WQuery(qctx, "acct_snapshot.ListLatestAccountPositionSnapshotsAtOrBefore", listLatestAccountPositionSnapshotsAtOrBefore, arg.AccountID, arg.Exchange, arg.EffectiveTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLatestAccountPositionSnapshotsAtOrBeforeRow
+	for rows.Next() {
+		var i *ListLatestAccountPositionSnapshotsAtOrBeforeRow = new(ListLatestAccountPositionSnapshotsAtOrBeforeRow)
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Exchange,
+			&i.Symbol,
+			&i.Side,
+			&i.Qty,
+			&i.EntryPrice,
+			&i.Leverage,
+			&i.EffectiveTs,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
 //// auto generated functions
 
 func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, error) {

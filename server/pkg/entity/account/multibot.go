@@ -3,12 +3,16 @@ package account
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
+	acctsnapshotrepo "github.com/wangliang139/NovaForge/server/pkg/repos/acct_snapshot"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
 )
@@ -212,4 +216,111 @@ func (e *Entity) computeSubWeightsAndUnalloc(ctx context.Context, parentID, exch
 		U = decimal.Zero
 	}
 	return weights, U, nil
+}
+
+func (e *Entity) fundingRateAtOrBefore(ctx context.Context, exchange ctypes.Exchange, sym ctypes.Symbol, asOf time.Time) (decimal.Decimal, error) {
+	if e.engine == nil || e.engine.GetMarketProvider() == nil {
+		return decimal.Zero, fmt.Errorf("market provider unavailable")
+	}
+	limit := 20
+	rates, err := e.engine.GetMarketProvider().GetHisFundingRates(ctx, exchange, sym, nil, &asOf, &limit)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	var (
+		found bool
+		best  ctypes.FundingRate
+	)
+	for _, r := range rates {
+		if r == nil {
+			continue
+		}
+		if r.Ts.After(asOf) {
+			continue
+		}
+		if !found || r.Ts.After(best.Ts) {
+			found = true
+			best = *r
+		}
+	}
+	if !found {
+		return decimal.Zero, fmt.Errorf("funding rate not found at or before asOf for %s", sym.String())
+	}
+	return best.FundingRate, nil
+}
+
+// fundingFeeByAssetAtOrBefore 计算账户在 asOf 的理论资金费（按 quote 资产聚合）：
+// 1) 按 symbol 聚合净仓位；2) 按 asOf 价格转净现金敞口；3) 乘该 symbol 的资金费率；4) 按 quote 聚合。
+func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID string, exchange ctypes.Exchange, asOf time.Time) (map[string]decimal.Decimal, error) {
+	exchangeStr := exchange.String()
+	if accountID == "" || exchangeStr == "" || asOf.IsZero() {
+		return map[string]decimal.Decimal{}, nil
+	}
+	rows, err := e.db.AcctSnapshotRepo.ListLatestAccountPositionSnapshotsAtOrBefore(ctx, acctsnapshotrepo.ListLatestAccountPositionSnapshotsAtOrBeforeParams{
+		AccountID:   accountID,
+		Exchange:    exchangeStr,
+		EffectiveTs: asOf,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if e.engine == nil || e.engine.GetMarketProvider() == nil {
+		return nil, fmt.Errorf("market provider unavailable")
+	}
+	netQtyBySymbol := make(map[string]decimal.Decimal)
+	symBySymbol := make(map[string]ctypes.Symbol)
+	for i := range rows {
+		sym, err := ctypes.ParseSymbol(rows[i].Symbol)
+		if err != nil || sym.Type != ctypes.MarketTypeFuture {
+			continue
+		}
+		q := utils.Decimal.PgNumericToDecimal(rows[i].Qty).Abs()
+		if q.IsZero() {
+			continue
+		}
+		symBySymbol[rows[i].Symbol] = sym
+		switch rows[i].Side {
+		case acctsnapshotrepo.PositionSideLONG:
+			netQtyBySymbol[rows[i].Symbol] = netQtyBySymbol[rows[i].Symbol].Add(q)
+		case acctsnapshotrepo.PositionSideSHORT:
+			netQtyBySymbol[rows[i].Symbol] = netQtyBySymbol[rows[i].Symbol].Sub(q)
+		default:
+			continue
+		}
+	}
+	priceBySymbol := make(map[string]decimal.Decimal)
+	rateBySymbol := make(map[string]decimal.Decimal)
+	feesByAsset := make(map[string]decimal.Decimal)
+	for symbol, netQty := range netQtyBySymbol {
+		if netQty.IsZero() {
+			continue
+		}
+		sym := symBySymbol[symbol]
+		price, ok := priceBySymbol[symbol]
+		if !ok {
+			p, err := e.engine.GetMarketProvider().GetPriceAt(ctx, exchange, sym, asOf, ctypes.Interval1m)
+			if err != nil || !p.IsPositive() {
+				return nil, fmt.Errorf("price at asOf unavailable for %s: %w", sym.String(), err)
+			}
+			priceBySymbol[symbol] = p
+			price = p
+		}
+		rate, ok := rateBySymbol[symbol]
+		if !ok {
+			r, err := e.fundingRateAtOrBefore(ctx, exchange, sym, asOf)
+			if err != nil {
+				return nil, err
+			}
+			rateBySymbol[symbol] = r
+			rate = r
+		}
+		fee := netQty.Mul(price).Mul(rate)
+		quote := strings.ToUpper(sym.Quote)
+		feesByAsset[quote] = feesByAsset[quote].Add(fee)
+	}
+	return feesByAsset, nil
+}
+
+func roundFundingFeeAmount(d decimal.Decimal) decimal.Decimal {
+	return d.RoundDown(int32(consts.DefaultAssetPrecision))
 }

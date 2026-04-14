@@ -31,3 +31,12 @@ WHERE account_id = $1
   AND effective_ts <= $5
 ORDER BY effective_ts DESC, id DESC
 LIMIT 1;
+
+-- name: ListLatestAccountPositionSnapshotsAtOrBefore :many
+-- -- timeout: 2s
+SELECT DISTINCT ON (symbol, side) *
+FROM position_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND effective_ts <= $3
+ORDER BY symbol, side, effective_ts DESC, id DESC;
