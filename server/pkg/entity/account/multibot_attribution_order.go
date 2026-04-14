@@ -192,8 +192,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	pid := parentID
-	subs, err := e.db.AccountRepo.ListVirtualSubByParent(ctx, &pid)
+	subs, err := e.db.AccountRepo.ListVirtualSubByParent(ctx, &parentID)
 	if err != nil {
 		return nil, err
 	}
@@ -218,6 +217,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 				}}, nil
 			}
 		}
+		return nil, nil
 	}
 
 	lookup, err := e.loadMultiBotOrderLookup(ctx, parentID, exchange, ord)

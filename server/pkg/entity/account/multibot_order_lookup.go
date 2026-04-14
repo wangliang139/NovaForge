@@ -16,7 +16,7 @@ type multiBotOrderLookup struct {
 	UnderParentByClientOrderID *orders.Order
 }
 
-func (e *Entity) loadMultiBotOrderLookup(ctx context.Context, streamAccountID string, exchange ctypes.Exchange, ord *ctypes.Order) (multiBotOrderLookup, error) {
+func (e *Entity) loadMultiBotOrderLookup(ctx context.Context, parentAcctId string, exchange ctypes.Exchange, ord *ctypes.Order) (multiBotOrderLookup, error) {
 	var out multiBotOrderLookup
 	if ord == nil {
 		return out, nil
@@ -29,14 +29,14 @@ func (e *Entity) loadMultiBotOrderLookup(ctx context.Context, streamAccountID st
 
 	if oid != "" {
 		out.ParentByOrderID, err = e.db.OrdersRepo.GetOrderByOrderId(ctx, orders.GetOrderByOrderIdParams{
-			AccountID: streamAccountID,
+			AccountID: parentAcctId,
 			OrderID:   oid,
 		})
 		if err != nil {
 			return out, err
 		}
 		if out.ParentByOrderID == nil {
-			pid := streamAccountID
+			pid := parentAcctId
 			out.ChildByOrderID, err = e.db.OrdersRepo.GetOrderByOrderIdUnderVirtualSubs(ctx, orders.GetOrderByOrderIdUnderVirtualSubsParams{
 				OrderID:         oid,
 				Exchange:        exStr,
@@ -50,7 +50,7 @@ func (e *Entity) loadMultiBotOrderLookup(ctx context.Context, streamAccountID st
 
 	if cid != "" {
 		out.ParentByClientOrderID, err = e.db.OrdersRepo.GetOrderByClientOrderId(ctx, orders.GetOrderByClientOrderIdParams{
-			AccountID:     streamAccountID,
+			AccountID:     parentAcctId,
 			ClientOrderID: cid,
 		})
 		if err != nil {
@@ -60,7 +60,7 @@ func (e *Entity) loadMultiBotOrderLookup(ctx context.Context, streamAccountID st
 			out.UnderParentByClientOrderID, err = e.db.OrdersRepo.GetOrderByClientOrderIdUnderParent(ctx, orders.GetOrderByClientOrderIdUnderParentParams{
 				ClientOrderID: cid,
 				Exchange:      exStr,
-				AccountID:     streamAccountID,
+				AccountID:     parentAcctId,
 			})
 			if err != nil {
 				return out, err

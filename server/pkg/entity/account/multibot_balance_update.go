@@ -108,9 +108,9 @@ func (e *Entity) computeSubWeightsAndUnalloc(ctx context.Context, parentID, exch
 	return weights, U, nil
 }
 
-// fanoutMultiBotAttributedBalanceUpdateIfNeeded 父 multi_bot 在父侧增量落库成功后，将可归因的 BalanceUpdate 按权重拆到各 virtual_sub（方案 1：父已持全额真值）。
+// fanoutMultiBotBalanceUpdateIfNeeded 父 multi_bot 在父侧增量落库成功后，将可归因的 BalanceUpdate 按权重拆到各 virtual_sub（方案 1：父已持全额真值）。
 // 子份额经合成 account_raw + handleAccountMessage（与 T4 一致），由 HandleAssetUpdates 统一写子 assets/ledger/Publish。
-func (e *Entity) fanoutMultiBotAttributedBalanceUpdateIfNeeded(
+func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 	ctx context.Context,
 	parentID string,
 	exchange ctypes.Exchange,
