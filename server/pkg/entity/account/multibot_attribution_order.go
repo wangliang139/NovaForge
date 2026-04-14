@@ -27,30 +27,6 @@ func cloneOrderForSub(ord ctypes.Order, subID string) ctypes.Order {
 	return cp
 }
 
-// scaleOrderForShare 将订单数量/成交额/费用等按归因份额缩放（同一 exchange order_id，多子各记逻辑份额）。
-func scaleOrderForShare(ord ctypes.Order, share decimal.Decimal) ctypes.Order {
-	if share.LessThanOrEqual(decimal.Zero) || share.GreaterThan(decimal.NewFromInt(1)) {
-		return ord
-	}
-	if share.Equal(decimal.NewFromInt(1)) {
-		return ord
-	}
-	out := ord
-	out.OriginalQty = ord.OriginalQty.Mul(share)
-	out.ExecutedQty = ord.ExecutedQty.Mul(share)
-	out.OriginalQuoteQty = ord.OriginalQuoteQty.Mul(share)
-	out.ExecutedQuoteQty = ord.ExecutedQuoteQty.Mul(share)
-	if ord.Fee != nil {
-		f := ord.Fee.Mul(share)
-		out.Fee = &f
-	}
-	if ord.RealizedPnl != nil {
-		p := ord.RealizedPnl.Mul(share)
-		out.RealizedPnl = &p
-	}
-	return out
-}
-
 // absPositionWeightForFanout 平仓归因权重：仅使用 position_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 positions。
 func (e *Entity) absPositionWeightForFanout(ctx context.Context, accountID, exchangeStr, sym string, side positions.PositionSide, asOf time.Time) (decimal.Decimal, error) {
 	key := AccountStateAtPositionKey{
@@ -257,13 +233,17 @@ func (e *Entity) AttributeOrdersFromParent(ctx context.Context, parentID, subID 
 		if err != nil {
 			return nil, err
 		}
+		scaled, err := e.buildScaledOrdersForMultiBotFanout(ctx, exchange, po, disp)
+		if err != nil {
+			return nil, err
+		}
 		for _, d := range disp {
 			if d.SubAccountID != subID {
 				continue
 			}
-			o := d.Order
-			if !d.Share.Equal(decimal.NewFromInt(1)) {
-				o = scaleOrderForShare(o, d.Share)
+			o, ok := scaled[d.SubAccountID]
+			if !ok {
+				o = d.Order
 			}
 			cp := o
 			out = append(out, &cp)
@@ -282,13 +262,17 @@ func (e *Entity) AttributeOrderFromParent(ctx context.Context, parentID, subID s
 	if err != nil {
 		return nil, err
 	}
+	scaled, err := e.buildScaledOrdersForMultiBotFanout(ctx, exchange, parentOrder, disp)
+	if err != nil {
+		return nil, err
+	}
 	for _, d := range disp {
 		if d.SubAccountID != subID {
 			continue
 		}
-		o := d.Order
-		if !d.Share.Equal(decimal.NewFromInt(1)) {
-			o = scaleOrderForShare(o, d.Share)
+		o, ok := scaled[d.SubAccountID]
+		if !ok {
+			o = d.Order
 		}
 		cp := o
 		return &cp, nil

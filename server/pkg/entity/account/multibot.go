@@ -96,13 +96,17 @@ func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID str
 	if len(disp) == 0 {
 		return false, nil
 	}
+	scaled, err := e.buildScaledOrdersForMultiBotFanout(ctx, exchange, ord, disp)
+	if err != nil {
+		return false, err
+	}
 	for _, d := range disp {
-		o := d.Order
 		if d.Share.LessThanOrEqual(decimal.Zero) {
 			continue
 		}
-		if !d.Share.LessThan(decimal.NewFromInt(1)) {
-			o = scaleOrderForShare(o, d.Share)
+		o, ok := scaled[d.SubAccountID]
+		if !ok {
+			o = d.Order
 		}
 		ts := time.Now()
 		if !ord.UpdatedTs.IsZero() {

@@ -40,30 +40,36 @@ func TestBuildSubRawDispatchesFromUnitShares_conserves112(t *testing.T) {
 	}
 }
 
-func TestScaleOrderForShare(t *testing.T) {
-	share := decimal.RequireFromString("0.25")
-	fee := decimal.RequireFromString("4")
-	pnl := decimal.RequireFromString("-8")
-	ord := ctypes.Order{
-		OriginalQty:      decimal.NewFromInt(100),
-		ExecutedQty:      decimal.NewFromInt(40),
-		OriginalQuoteQty: decimal.NewFromInt(200),
-		ExecutedQuoteQty: decimal.NewFromInt(80),
-		Fee:              &fee,
-		RealizedPnl:      &pnl,
+func TestAllocateFieldAmongSubs_spotBaseRemainderToMax(t *testing.T) {
+	m := &ctypes.Market{BaseAssetPrecision: 0, QuoteAssetPrecision: 2}
+	shares := []subShare{{id: "a", s: decimal.RequireFromString("0.3")}, {id: "b", s: decimal.RequireFromString("0.3")}}
+	maxSub := "b"
+	// sumShares=0.6, sumTicks=100*0.6=60; a floor(30)=30, b gets 60-30=30
+	got := allocateFieldAmongSubs(decimal.NewFromInt(100), shares, maxSub, false, scaleFieldBaseQty, m)
+	if !got["a"].Equal(decimal.NewFromInt(30)) || !got["b"].Equal(decimal.NewFromInt(30)) {
+		t.Fatalf("got %#v", got)
 	}
-	out := scaleOrderForShare(ord, share)
-	if !out.OriginalQty.Equal(decimal.NewFromInt(25)) {
-		t.Fatalf("OriginalQty %s", out.OriginalQty)
+}
+
+func TestAllocateFieldAmongSubs_futureLotRemainderToMax(t *testing.T) {
+	lot := decimal.NewFromInt(1)
+	m := &ctypes.Market{BaseAssetPrecision: 8, Rules: ctypes.MarketRules{LotSize: lot}}
+	shares := []subShare{{id: "a", s: decimal.RequireFromString("0.31")}, {id: "b", s: decimal.RequireFromString("0.31")}}
+	maxSub := "b"
+	// t_a=3.1 floor lot 3, sumTicks=10*0.62=6.2, b=6.2-3=3.2
+	got := allocateFieldAmongSubs(decimal.NewFromInt(10), shares, maxSub, true, scaleFieldBaseQty, m)
+	if !got["a"].Equal(decimal.NewFromInt(3)) || !got["b"].Equal(decimal.RequireFromString("3.2")) {
+		t.Fatalf("got %#v", got)
 	}
-	if !out.ExecutedQty.Equal(decimal.NewFromInt(10)) {
-		t.Fatalf("ExecutedQty %s", out.ExecutedQty)
-	}
-	if out.Fee == nil || !out.Fee.Equal(decimal.NewFromInt(1)) {
-		t.Fatalf("Fee %+v", out.Fee)
-	}
-	if out.RealizedPnl == nil || !out.RealizedPnl.Equal(decimal.NewFromInt(-2)) {
-		t.Fatalf("Pnl %+v", out.RealizedPnl)
+}
+
+func TestAllocateFieldAmongSubs_moneyDefaultPrecision(t *testing.T) {
+	m := (*ctypes.Market)(nil)
+	shares := []subShare{{id: "a", s: decimal.RequireFromString("0.25")}, {id: "b", s: decimal.RequireFromString("0.25")}}
+	maxSub := "b"
+	got := allocateFieldAmongSubs(decimal.NewFromInt(4), shares, maxSub, false, scaleFieldMoney, m)
+	if !got["a"].Equal(decimal.NewFromInt(1)) || !got["b"].Equal(decimal.NewFromInt(1)) {
+		t.Fatalf("fee split got %#v", got)
 	}
 }
 

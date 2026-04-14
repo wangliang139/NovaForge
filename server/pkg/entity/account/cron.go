@@ -428,12 +428,25 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 						Msg("attribute parent order for virtual_sub failed")
 					continue
 				}
+				scaled, err := e.buildScaledOrdersForMultiBotFanout(ctx, parent.Exchange, ord, dispatches)
+				if err != nil {
+					logger.Ctx(ctx).Err(err).
+						Str("parent_account_id", parent.ID).
+						Str("sub_account_id", accountID).
+						Str("order_id", ord.OrderID.String()).
+						Msg("scale multi_bot order for virtual_sub failed")
+					continue
+				}
 				for _, d := range dispatches {
 					if d.SubAccountID != accountID {
 						continue
 					}
-					o := d.Order
-					ordersList = append(ordersList, &o)
+					o, ok := scaled[d.SubAccountID]
+					if !ok {
+						o = d.Order
+					}
+					cp := o
+					ordersList = append(ordersList, &cp)
 				}
 			}
 		}
