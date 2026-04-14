@@ -276,6 +276,7 @@ const AccountsComponent: React.FC = () => {
                     minWidth: 0,
                     verticalAlign: 'middle',
                     marginRight: 10,
+                    paddingRight: 10,
                   }}
                 >
                   <img
