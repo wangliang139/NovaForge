@@ -10,7 +10,6 @@ import (
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
-	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -61,41 +60,21 @@ func futureOpenPositionLikeDeriveOrderLocked(o ctypes.Order) bool {
 		(o.Side == ctypes.PositionSideShort && !o.IsBuy)
 }
 
-func absPositionQty(p *positions.Position) decimal.Decimal {
-	if p == nil {
-		return decimal.Zero
-	}
-	q := utils.Decimal.PgNumericToDecimal(p.Qty)
-	return q.Abs()
-}
-
-// absPositionWeightForFanout 平仓归因权重：asOf 非零时用 position_snapshot floor；否则用当前 positions 行（兼容无创建时间的订单）。
+// absPositionWeightForFanout 平仓归因权重：仅使用 position_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 positions。
 func (e *Entity) absPositionWeightForFanout(ctx context.Context, accountID, exchangeStr, sym string, side positions.PositionSide, asOf time.Time) (decimal.Decimal, error) {
 	key := AccountStateAtPositionKey{
 		Exchange: exchangeStr,
 		Symbol:   sym,
 		Side:     side,
 	}
-	if !asOf.IsZero() {
-		snap, err := e.GetAccountPositionSnapshotAtOrBefore(ctx, accountID, key, asOf)
-		if err != nil {
-			return decimal.Zero, err
-		}
-		if snap != nil && snap.Found {
-			return snap.Qty.Abs(), nil
-		}
-		return decimal.Zero, nil
-	}
-	pos, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
-		AccountID: accountID,
-		Exchange:  exchangeStr,
-		Symbol:    sym,
-		Side:      side,
-	})
+	snap, err := e.GetAccountPositionSnapshotAtOrBefore(ctx, accountID, key, asOf)
 	if err != nil {
 		return decimal.Zero, err
 	}
-	return absPositionQty(pos), nil
+	if snap != nil && snap.Found {
+		return snap.Qty.Abs(), nil
+	}
+	return decimal.Zero, nil
 }
 
 func (e *Entity) accountIsVirtualSubOfParent(ctx context.Context, parentID, accountID string) bool {

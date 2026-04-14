@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/mow/logger"
 )
 
 // ledgerReasonSplitToVirtualSubs P2 T7：可归因到 virtual_sub 的 BalanceUpdate 原因（与 docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §6 一致）。
@@ -29,7 +30,7 @@ func clampNonNegAssetTotal(d decimal.Decimal) decimal.Decimal {
 	return d
 }
 
-// assetWeightTotalForFanout P2 T12：资金费等分摊权重；在 update.UpdatedTs 非零时优先读 asset_snapshot AtOrBefore(asOf)，无行则降级为当前 assets 行（与 docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §3「同一键」时序一致）。
+// assetWeightTotalForFanout P2 T12：资金费等分摊权重；仅 asset_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 assets。
 func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, exchangeStr, assetCode string, walletType ctypes.WalletType, asOf time.Time) (decimal.Decimal, error) {
 	snap, err := e.GetAccountAssetSnapshotAtOrBefore(ctx, accountID, AccountStateAtAssetKey{
 		Exchange:   exchangeStr,
@@ -46,7 +47,7 @@ func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, excha
 	return clampNonNegAssetTotal(st), nil
 }
 
-// computeSubWeightsAndUnalloc 按 P2 T0 §3：w_子i / 父 P 在 asOf 非零时优先取快照 floor，否则取当前 assets；w_unalloc = max(0, 父 − Σ子)。
+// computeSubWeightsAndUnalloc 按 P2 T0 §3：w_子i / 父 P 均来自 asset_snapshot；w_unalloc = max(0, 父 − Σ子)。
 func (e *Entity) computeSubWeightsAndUnalloc(ctx context.Context, parentID, exchangeStr, assetCode string, walletType ctypes.WalletType, subs []accountrepo.Account, asOf time.Time) ([]SubWeight, decimal.Decimal, error) {
 	var sumSubs decimal.Decimal
 	weights := make([]SubWeight, 0, len(subs))
@@ -113,12 +114,12 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 
 	sharesTotal, _, err := SplitProportionalDelta(totalDelta, weights, wUnalloc)
 	if err != nil {
-		logP2T6BalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts, false)
+		logBalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts, false)
 		return nil
 	}
 	sharesFrozen, _, err := SplitProportionalDelta(frozenDelta, weights, wUnalloc)
 	if err != nil {
-		logP2T6BalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts, true)
+		logBalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts, true)
 		return nil
 	}
 
@@ -163,4 +164,35 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 		}
 	}
 	return nil
+}
+
+func logBalanceFanoutZeroTotalWeight(
+	ctx context.Context,
+	parentID, exchangeStr string,
+	walletType ctypes.WalletType,
+	assetCode string,
+	ledgerReason string,
+	wUnalloc decimal.Decimal,
+	weights []SubWeight,
+	ts time.Time,
+	frozenLeg bool,
+) {
+	ev := logger.Ctx(ctx).Warn().
+		Str("p2_obs", p2ObsBalanceFanoutZeroW).
+		Str("parent_id", parentID).
+		Str("exchange", exchangeStr).
+		Str("asset", assetCode).
+		Str("wallet_type", string(walletType)).
+		Str("ledger_reason", ledgerReason).
+		Str("w_unalloc", wUnalloc.String()).
+		Str("sum_sub_w", sumSubWeightsForObs(weights).String()).
+		Int("sub_count", len(weights))
+	if !ts.IsZero() {
+		ev = ev.Time("as_of", ts)
+	}
+	if frozenLeg {
+		ev.Msg("multi_bot balance fanout skipped: zero total weight (frozen leg)")
+	} else {
+		ev.Msg("multi_bot balance fanout skipped: zero total weight (total leg)")
+	}
 }
