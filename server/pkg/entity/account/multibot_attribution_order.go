@@ -8,8 +8,10 @@ import (
 
 	"github.com/shopspring/decimal"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
+	ordersrepo "github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -80,6 +82,47 @@ func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string
 		})
 	}
 	return out
+}
+
+func (e *Entity) getOrderMatchedSubSharesByOrderID(ctx context.Context, parentID string, exchange ctypes.Exchange, orderID string) (map[string]decimal.Decimal, bool, error) {
+	if strings.TrimSpace(orderID) == "" {
+		return nil, false, nil
+	}
+	rows, err := e.db.OrdersRepo.ListOrdersByOrderIdUnderVirtualSubs(ctx, ordersrepo.ListOrdersByOrderIdUnderVirtualSubsParams{
+		OrderID:         orderID,
+		Exchange:        exchange.String(),
+		ParentAccountID: &parentID,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if len(rows) == 0 {
+		return nil, false, nil
+	}
+
+	weights := make(map[string]decimal.Decimal)
+	var total decimal.Decimal
+	for i := range rows {
+		sid := rows[i].AccountID
+		if sid == "" {
+			continue
+		}
+		qty := utils.Decimal.PgNumericToDecimal(rows[i].Quantity)
+		if qty.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+		weights[sid] = weights[sid].Add(qty)
+		total = total.Add(qty)
+	}
+	if total.LessThanOrEqual(decimal.Zero) {
+		return nil, true, nil
+	}
+
+	shares := make(map[string]decimal.Decimal, len(weights))
+	for sid, w := range weights {
+		shares[sid] = w.Div(total)
+	}
+	return shares, true, nil
 }
 
 // computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重
@@ -182,7 +225,16 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	// 2) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
+	// 2) 按 order_id 命中子账户订单：按子账户订单 quantity 占比直接分摊。
+	sharesByOrderID, hasOrderIDHit, err := e.getOrderMatchedSubSharesByOrderID(ctx, parentID, exchange, ord.OrderID.String())
+	if err != nil {
+		return nil, err
+	}
+	if hasOrderIDHit {
+		return buildSubRawDispatchesFromUnitShares(ordCopy, sharesByOrderID), nil
+	}
+
+	// 3) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
 	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs, ord.CreatedTs)
 	if err != nil {
 		return nil, err
