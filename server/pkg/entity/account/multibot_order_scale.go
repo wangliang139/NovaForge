@@ -51,8 +51,8 @@ func floorDecimalPlaces(d decimal.Decimal, places int32) decimal.Decimal {
 	if places < 0 {
 		places = 0
 	}
-	if places > 80 {
-		places = 80
+	if places > consts.DefaultAssetPrecision {
+		places = consts.DefaultAssetPrecision
 	}
 	return d.RoundDown(places)
 }
@@ -190,15 +190,12 @@ func (e *Entity) buildScaledOrdersForMultiBotFanout(ctx context.Context, ex ctyp
 	origQuoteMap := allocateFieldAmongSubs(parent.OriginalQuoteQty, shares, maxSub, isFut, scaleFieldQuoteQty, mkt)
 	execQuoteMap := allocateFieldAmongSubs(parent.ExecutedQuoteQty, shares, maxSub, isFut, scaleFieldQuoteQty, mkt)
 
-	var feeMap, pnlMap, lockedMap map[string]decimal.Decimal
+	var feeMap, pnlMap map[string]decimal.Decimal
 	if parent.Fee != nil {
 		feeMap = allocateFieldAmongSubs(*parent.Fee, shares, maxSub, false, scaleFieldMoney, mkt)
 	}
 	if parent.RealizedPnl != nil {
 		pnlMap = allocateFieldAmongSubs(*parent.RealizedPnl, shares, maxSub, false, scaleFieldMoney, mkt)
-	}
-	if parent.Locked != nil {
-		lockedMap = allocateFieldAmongSubs(*parent.Locked, shares, maxSub, false, scaleFieldMoney, mkt)
 	}
 
 	out := make(map[string]ctypes.Order, len(disp))
@@ -221,12 +218,7 @@ func (e *Entity) buildScaledOrdersForMultiBotFanout(ctx context.Context, ex ctyp
 		} else {
 			o.RealizedPnl = nil
 		}
-		if lockedMap != nil {
-			l := lockedMap[sid]
-			o.Locked = &l
-		} else {
-			o.Locked = nil
-		}
+		o.Locked = nil
 		out[sid] = o
 	}
 	return out, nil
