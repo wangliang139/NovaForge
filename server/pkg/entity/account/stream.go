@@ -107,6 +107,9 @@ func (e *Entity) handleAccountMessage(ctx context.Context, envelope *ctypes.Enve
 		return e.handlePositionsSnapshot(ctx, accountID, exchange, envelope.Payload.PositionSnapshot.Positions, true)
 	}
 	if envelope.Payload.PositionsUpdate != nil {
+		if envelope.Payload.PositionsUpdate.Type == ctypes.UpdateTypeIncrement {
+			return e.handlePositionsIncrement(ctx, accountID, exchange, envelope.Payload.PositionsUpdate)
+		}
 		return e.handlePositionsSnapshot(ctx, accountID, exchange, envelope.Payload.PositionsUpdate.Positions, false)
 	}
 	if envelope.Payload.Order != nil {
@@ -360,6 +363,143 @@ func (e *Entity) handlePositionsSnapshot(ctx context.Context, accountID string, 
 		return nil
 	}
 	return e.ApplyAccountPositions(ctx, accountID, exchange, positions, closeOthers)
+}
+
+// 增量仓位更新事件处理（对外发布增量快照事件）
+func (e *Entity) handlePositionsIncrement(ctx context.Context, accountID string, exchange ctypes.Exchange, update *ctypes.PositionsUpdate) error {
+	if update == nil || len(update.Positions) == 0 {
+		return nil
+	}
+
+	exchangeStr := exchange.String()
+	existingRows, err := e.db.PositionsRepo.ListPositionsByAccountAndExchange(ctx, positions.ListPositionsByAccountAndExchangeParams{
+		AccountID: accountID,
+		Exchange:  exchangeStr,
+	})
+	if err != nil {
+		return fmt.Errorf("list positions for increment: %w", err)
+	}
+
+	type posKey struct {
+		symbol string
+		side   positions.PositionSide
+	}
+
+	existing := make(map[posKey]positions.Position, len(existingRows))
+	for _, row := range existingRows {
+		existing[posKey{symbol: row.Symbol, side: row.Side}] = row
+	}
+
+	outPositions := make([]*ctypes.Position, 0, len(update.Positions))
+	maxTs := time.Time{}
+	for _, delta := range update.Positions {
+		if delta == nil {
+			continue
+		}
+
+		side := positions.PositionSideLONG
+		if delta.Side == ctypes.PositionSideShort {
+			side = positions.PositionSideSHORT
+		}
+		key := posKey{symbol: delta.Symbol.String(), side: side}
+
+		ts := delta.UpdatedTs
+		if ts.IsZero() {
+			ts = time.Now()
+		}
+
+		currentQty := decimal.Zero
+		currentEntry := decimal.Zero
+		currentLeverage := 0
+		if row, ok := existing[key]; ok {
+			currentQty = utils.Decimal.PgNumericToDecimal(row.Qty)
+			currentEntry = utils.Decimal.PgNumericToDecimal(row.EntryPrice)
+			currentLeverage = int(row.Leverage)
+		}
+
+		nextQty := currentQty.Add(delta.Amount)
+		if nextQty.IsNegative() {
+			nextQty = decimal.Zero
+		}
+
+		nextEntry := currentEntry
+		if nextQty.IsZero() {
+			nextEntry = decimal.Zero
+		} else if delta.Amount.GreaterThan(decimal.Zero) {
+			totalCost := currentEntry.Mul(currentQty).Add(delta.EntryPrice.Mul(delta.Amount))
+			nextEntry = totalCost.Div(nextQty)
+		}
+
+		nextLeverage := currentLeverage
+		if delta.Leverage > 0 {
+			nextLeverage = delta.Leverage
+		}
+
+		snapshotPos := &ctypes.Position{
+			AccountID:  accountID,
+			Exchange:   exchange,
+			Symbol:     delta.Symbol,
+			Side:       delta.Side,
+			Isolated:   delta.Isolated,
+			Amount:     nextQty,
+			EntryPrice: nextEntry,
+			Leverage:   nextLeverage,
+			UpdatedTs:  ts,
+		}
+
+		row, err := e.applyPositionSnapshotRow(ctx, accountID, exchange, snapshotPos)
+		if err != nil {
+			return fmt.Errorf("apply position increment snapshot: %w", err)
+		}
+		if row == nil {
+			continue
+		}
+		existing[key] = positions.Position{
+			AccountID:  row.AccountID,
+			Exchange:   row.Exchange,
+			Symbol:     row.Symbol,
+			Side:       row.Side,
+			Qty:        row.Qty,
+			Leverage:   row.Leverage,
+			EntryPrice: row.EntryPrice,
+			UpdatedTs:  row.UpdatedTs,
+		}
+
+		if !positionUpsertMeaningfulChange(row) {
+			continue
+		}
+
+		e.recordPositionSnapshotFromUpsertRow(ctx, row)
+		outPositions = append(outPositions, snapshotPos)
+		if maxTs.IsZero() || ts.After(maxTs) {
+			maxTs = ts
+		}
+	}
+
+	if len(outPositions) == 0 {
+		return nil
+	}
+	if maxTs.IsZero() {
+		maxTs = time.Now()
+	}
+
+	outUpdate := &ctypes.PositionsUpdate{
+		EventID:   update.EventID,
+		Type:      ctypes.UpdateTypeSnapshot,
+		Reason:    update.Reason,
+		Positions: outPositions,
+	}
+	selector := ctypes.StreamSelector{
+		Stream:  ctypes.StreamTypeAccount,
+		Account: lo.ToPtr(accountID),
+	}
+	msg := ctypes.NewMessage(exchange, selector, outUpdate, maxTs)
+	if e.engine != nil {
+		if err := e.engine.Publish(ctx, msg); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID string, exchange ctypes.Exchange, update *ctypes.SymbolLeverage) error {

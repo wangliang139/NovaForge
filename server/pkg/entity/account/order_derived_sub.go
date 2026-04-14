@@ -12,7 +12,6 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
-	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
@@ -174,94 +173,37 @@ func (e *Entity) driveBalanceAndPositionEventByOrderIfNeeded(ctx context.Context
 	return e.applyVirtualSubOrderFillDerivedRawAccounts(ctx, order, prev)
 }
 
-// 加仓：返回新仓位量和新的平均入场价
-// 减仓：返回新仓位量和原来的平均入场价
-func calcFuturePositionAfterOrderFill(side ctypes.PositionSide, isBuy bool, fillQty decimal.Decimal, prevAmt decimal.Decimal, prevEntry decimal.Decimal, fillAvgPrice decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
-	if !fillQty.GreaterThan(decimal.Zero) {
-		return prevAmt, prevEntry
-	}
-	switch side {
-	case ctypes.PositionSideLong:
-		if isBuy {
-			newAmt := prevAmt.Add(fillQty)
-			return newAmt, prevEntry.Mul(prevAmt).Add(fillAvgPrice.Mul(fillQty)).Div(newAmt)
-		}
-		newAmt := prevAmt.Sub(fillQty)
-		newEntry := prevEntry
-		if newAmt.LessThan(decimal.Zero) {
-			newAmt = decimal.Zero
-			newEntry = decimal.Zero
-		}
-		return newAmt, newEntry
-	case ctypes.PositionSideShort:
-		if isBuy {
-			newAmt := prevAmt.Sub(fillQty)
-			newEntry := prevEntry
-			if newAmt.LessThan(decimal.Zero) {
-				newAmt = decimal.Zero
-				newEntry = decimal.Zero
-			}
-			return newAmt, newEntry
-		}
-		newAmt := prevAmt.Add(fillQty)
-		return newAmt, prevEntry.Mul(prevAmt).Add(fillAvgPrice.Mul(fillQty)).Div(newAmt)
-	}
-	return prevAmt, prevEntry
-}
-
-func (e *Entity) buildFuturePositionAfterOrderFill(ctx context.Context, accountID string, exchange ctypes.Exchange, order *ctypes.Order, fillQtyDelta decimal.Decimal, fillAvgPrice decimal.Decimal) (*ctypes.Position, error) {
+func (e *Entity) sendFuturePositionEventByOrderIfNeeded(ctx context.Context, accountID string, exchange ctypes.Exchange, order *ctypes.Order, fillQtyDelta decimal.Decimal, fillAvgPrice decimal.Decimal) error {
 	if order.Symbol.Type != ctypes.MarketTypeFuture {
-		return nil, nil
+		return nil
 	}
-	posSide := positions.PositionSideLONG
-	if order.Side == ctypes.PositionSideShort {
-		posSide = positions.PositionSideSHORT
+
+	if (!order.IsBuy && order.Side == ctypes.PositionSideLong) || (!order.IsBuy && order.Side == ctypes.PositionSideShort) {
+		fillQtyDelta = fillQtyDelta.Neg()
 	}
-	row, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
-		AccountID: accountID,
-		Exchange:  exchange.String(),
-		Symbol:    order.Symbol.String(),
-		Side:      posSide,
-	})
-	if err != nil {
-		return nil, err
-	}
-	prevAmt := decimal.Zero
-	prevEntry := decimal.Zero
-	lev := int32(0)
-	if row != nil {
-		prevAmt = utils.Decimal.PgNumericToDecimal(row.Qty)
-		prevEntry = utils.Decimal.PgNumericToDecimal(row.EntryPrice)
-		lev = row.Leverage
-	}
-	newAmt, newEntry := calcFuturePositionAfterOrderFill(order.Side, order.IsBuy, fillQtyDelta, prevAmt, prevEntry, fillAvgPrice)
-	if newAmt.Equal(prevAmt) {
-		return nil, nil
-	}
-	logger.Ctx(ctx).Info().
-		Str("account_id", accountID).
-		Str("exchange", exchange.String()).
-		Str("order_id", order.OrderID.String()).
-		Str("symbol", order.Symbol.String()).
-		Str("side", order.Side.String()).
-		Str("fill_qty_delta", fillQtyDelta.String()).
-		Str("fill_avg_price", fillAvgPrice.String()).
-		Str("new_amt", newAmt.String()).
-		Str("new_entry", newEntry.String()).
-		Str("prev_amt", prevAmt.String()).
-		Str("prev_entry", prevEntry.String()).
-		Time("updated_ts", order.UpdatedTs).
-		Msg("buildFuturePositionAfterOrderFill")
-	return &ctypes.Position{
+
+	pos := &ctypes.Position{
 		AccountID:  accountID,
 		Exchange:   exchange,
 		Symbol:     order.Symbol,
 		Side:       order.Side,
-		Amount:     newAmt,
-		EntryPrice: newEntry,
-		Leverage:   int(lev),
+		Amount:     fillQtyDelta,
+		EntryPrice: fillAvgPrice,
 		UpdatedTs:  order.UpdatedTs,
-	}, nil
+	}
+
+	ts := order.UpdatedTs
+	selector := ctypes.StreamSelector{
+		Stream:  ctypes.StreamTypeAccountRaw,
+		Account: lo.ToPtr(order.AccountID),
+	}
+	pu := &ctypes.PositionsUpdate{
+		EventID:   snowflake.Generate().String(),
+		Type:      ctypes.UpdateTypeIncrement,
+		Reason:    string(ctypes.LedgerReasonFill),
+		Positions: []*ctypes.Position{pos},
+	}
+	return e.PublishEvent(ctx, ctypes.NewMessage(order.Exchange, selector, pu, ts))
 }
 
 // applyVirtualSubOrderFillDerivedRawAccounts 根据订单与 prev 行计算与 sendOrderDerivedFillEvent 一致的成交增量，构造增量 BalanceUpdate（现货划转+手续费；合约已实现盈亏+手续费）及合约仓位 PositionsUpdate，
@@ -389,21 +331,7 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 	if !fillAvgPrice.GreaterThan(decimal.Zero) {
 		return errors.New("fillAvgPrice is zero")
 	}
-	pos, err := e.buildFuturePositionAfterOrderFill(ctx, order.AccountID, order.Exchange, order, fillQtyDelta, fillAvgPrice)
-	if err != nil {
-		return err
-	}
-	if pos == nil {
-		return nil
-	}
-	pu := &ctypes.PositionsUpdate{
-		EventID:   snowflake.Generate().String(),
-		Type:      ctypes.UpdateTypeSnapshot,
-		Reason:    string(ctypes.LedgerReasonFill),
-		Positions: []*ctypes.Position{pos},
-	}
-	if err := e.PublishEvent(ctx, ctypes.NewMessage(order.Exchange, selector, pu, ts)); err != nil {
-		logger.Ctx(ctx).Err(err).Str("account_id", order.AccountID).Msg("virtual_sub derived PositionsUpdate publish")
+	if err := e.sendFuturePositionEventByOrderIfNeeded(ctx, order.AccountID, order.Exchange, order, fillQtyDelta, fillAvgPrice); err != nil {
 		return err
 	}
 	return nil
