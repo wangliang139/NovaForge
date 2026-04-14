@@ -7,6 +7,7 @@ type EllipsisMiddleTextProps = {
   suffixCount: number;
   children: string;
   className?: string;
+  style?: React.CSSProperties;
   onClick?: () => void;
 };
 
@@ -15,12 +16,13 @@ const EllipsisMiddleText: React.FC<EllipsisMiddleTextProps> = ({
   children,
   onClick,
   className,
+  style,
 }) => {
   const start = children.slice(0, children.length - suffixCount);
   const suffix = children.slice(-suffixCount).trim();
   return (
     <Text
-      style={{ maxWidth: '100%' }}
+      style={{ maxWidth: '100%', ...style }}
       ellipsis={{ suffix, tooltip: children }}
       onClick={onClick}
       className={className}

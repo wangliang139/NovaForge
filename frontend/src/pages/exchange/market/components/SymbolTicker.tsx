@@ -1,11 +1,12 @@
+import { EllipsisMiddleText } from '@/components';
 import { Exchange, MarketType } from '@/global.types';
 import { api } from '@/services/gateway';
 import { Account, AccountStatus, queryAccounts } from '@/services/gateway/account';
 import type {
   FundingRate,
   IndexPrice,
-  MarkPrice,
   MarketInfo,
+  MarkPrice,
   OpenInterest,
   Ticker,
 } from '@/services/gateway/market';
@@ -413,7 +414,7 @@ const SymbolTicker: React.FC<SymbolTickerProps> = ({
                               label: '账户',
                               options: accountList.map((acc) => ({
                                 label: (
-                                  <div
+                                  <span
                                     key={acc.id}
                                     style={{
                                       display: 'flex',
@@ -426,10 +427,10 @@ const SymbolTicker: React.FC<SymbolTickerProps> = ({
                                       alt={acc.exchange}
                                       style={{ width: 16, height: 16, borderRadius: 2 }}
                                     />
-                                    <span>
-                                      {acc.name} · #{acc.id.slice(-5)}
+                                    <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                      <EllipsisMiddleText suffixCount={10}>{acc.name + ' · #' + acc.id.slice(-5)}</EllipsisMiddleText>
                                     </span>
-                                  </div>
+                                  </span>
                                 ),
                                 value: `account:${acc.id}`,
                               })),
@@ -459,8 +460,8 @@ const SymbolTicker: React.FC<SymbolTickerProps> = ({
                     <div style={{ color: token.colorTextSecondary, fontSize: 12, marginBottom: 6, height: 19 }}>
                     </div>
                     <Button
-                      type="primary"
-                      shape="circle"
+                      variant="outlined"
+                      style={{ color: "#95de64", borderColor: "#d9f7be" }}
                       loading={symbolOptionsLoading || selectionSubmitting}
                       disabled={!draftSymbol}
                       icon={<CheckOutlined />}
@@ -500,18 +501,16 @@ const SymbolTicker: React.FC<SymbolTickerProps> = ({
             </Space>
           </Dropdown>
           {accountId && (
-            <div style={{ paddingTop: 0, fontSize: 11, color: '#8c8c8c' }}>
-              <Space size={4}>
+            <div style={{ paddingTop: 0,  color: '#8c8c8c' }}>
+              <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                 {(() => {
                   const account = accountList.find((a) => a.id === accountId);
                   if (!account) return null;
                   return (
-                    <span>
-                      {account.name} · #{account.id.slice(-5)}
-                    </span>
+                    <EllipsisMiddleText suffixCount={10} style={{ fontSize: 11, color: '#8c8c8c' }}>{account.name + ' · #' + account.id.slice(-5)}</EllipsisMiddleText>
                   );
                 })()}
-              </Space>
+              </span>
             </div>
           )}
         </div>
