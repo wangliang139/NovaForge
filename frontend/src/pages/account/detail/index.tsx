@@ -22,6 +22,7 @@ import {
   onlineAccount,
   Order,
   OrderSource,
+  OrderStatus,
   OrderType,
   placeOrder,
   Position,
@@ -77,6 +78,47 @@ import { LineChart, ResponsiveContainer, Line as RLine, XAxis, YAxis } from 'rec
 import AccountDebugModal from './components/AccountDebugModal';
 import AccountMetricsCard from './components/AccountMetricsCard';
 import useStyles from './style.style';
+
+const CLOSE_ORDER_TERMINAL_STATUSES = new Set<string>([
+  OrderStatus.Done,
+  OrderStatus.Canceled,
+  OrderStatus.Rejected,
+  OrderStatus.Expired,
+]);
+
+function sleepMs(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/** 轮询订单状态，直至进入终结态或超时（最多约 10s）。 */
+async function waitUntilCloseOrderSettled(
+  accountId: string,
+  orderId: string,
+  symbol: string,
+): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  const intervalMs = 400;
+  while (Date.now() < deadline) {
+    try {
+      const response = await getOrders({
+        accountId,
+        symbol,
+        includeFinished: true,
+        page: 1,
+        size: 50,
+      });
+      const order = response?.list?.find((o) => o.orderId === orderId);
+      if (order?.status && CLOSE_ORDER_TERMINAL_STATUSES.has(order.status)) {
+        return;
+      }
+    } catch {
+      // 单次查询失败不中断，继续轮询直到超时
+    }
+    await sleepMs(intervalMs);
+  }
+}
 
 function renderAccountTypeTag(accountType: AccountType) {
   const typeMap: Record<AccountType, { text: string; color: string }> = {
@@ -596,6 +638,7 @@ const AccountDetail: FC = () => {
           });
           if (res?.orderId) {
             message.success('平仓下单成功');
+            await waitUntilCloseOrderSettled(id, res.orderId, record.symbol);
             await Promise.all([
               loadAccountPositions(),
               loadAccountOrders(orderFilters, {

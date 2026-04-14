@@ -78,6 +78,36 @@ const terminalStreamOrderStatuses = new Set<string>([
 ]);
 
 function mergePositionsByUpdatedTs(prev: Position[], incoming: Position[]): Position[] {
+  type PositionMetricsField =
+    | 'markPrice'
+    | 'liquidationPrice'
+    | 'notional'
+    | 'initialMargin'
+    | 'maintMargin'
+    | 'unRealizedProfit';
+  const metricsFields: PositionMetricsField[] = [
+    'markPrice',
+    'liquidationPrice',
+    'notional',
+    'initialMargin',
+    'maintMargin',
+    'unRealizedProfit',
+  ];
+  const isZeroLike = (v: unknown) => {
+    const n = Number(String(v ?? '').replace(/,/g, '').trim());
+    return Number.isFinite(n) ? Math.abs(n) < 1e-12 : true;
+  };
+  const mergeOne = (base: Position, patch: Position): Position => {
+    if (Number(patch.amount) <= 0) return patch;
+    const next = { ...patch };
+    for (const field of metricsFields) {
+      if (isZeroLike(next[field]) && !isZeroLike(base[field])) {
+        next[field] = base[field];
+      }
+    }
+    return next;
+  };
+
   const map = new Map<string, Position>();
   for (const p of prev) {
     map.set(`${p.symbol}\0${p.side}`, p);
@@ -86,7 +116,7 @@ function mergePositionsByUpdatedTs(prev: Position[], incoming: Position[]): Posi
     const k = `${p.symbol}\0${p.side}`;
     const cur = map.get(k);
     if (!cur || p.updatedTs >= cur.updatedTs) {
-      map.set(k, p);
+      map.set(k, cur ? mergeOne(cur, p) : p);
     }
   }
   return [...map.values()].filter((p) => Number(p.amount) > 0);
@@ -329,6 +359,7 @@ const MarketPage: React.FC = () => {
   const fullPollPositionsMaxTsRef = useRef(0);
   const fullPollOpenOrdersMaxTsRef = useRef(0);
   const fullPollBalanceMaxTsRef = useRef(0);
+  const positionsFastRefreshLastAtRef = useRef(0);
   const symbolLeverageStreamTsRef = useRef(0);
   const topLayoutRef = useRef<HTMLDivElement | null>(null);
 
@@ -754,6 +785,23 @@ const MarketPage: React.FC = () => {
    * 账户私有流：在下方 useEffect 已通过 HTTP 完成仓位/余额/委托等首屏全量加载后，此处仅做增量合并与对齐。
    * （当前委托另在选中账户时立即拉一次全量，不依赖 Tab。）
    */
+  const fastRefreshPositions = useCallback(async () => {
+    if (!selectedAccountId || !isPerp) return;
+    const now = Date.now();
+    // 避免成交/部分成交高频回报导致的重复全量请求
+    if (now - positionsFastRefreshLastAtRef.current < 1200) return;
+    positionsFastRefreshLastAtRef.current = now;
+    try {
+      const data = await getPositions(selectedAccountId);
+      const rows = (data || []).filter((p) => Number(p.amount) > 0);
+      const rowMax = rows.reduce((m, p) => Math.max(m, Number(p.updatedTs) || 0), 0);
+      fullPollPositionsMaxTsRef.current = Math.max(fullPollPositionsMaxTsRef.current, rowMax);
+      setPositions(rows);
+    } catch (err) {
+      console.error('Failed to fast refresh positions:', err);
+    }
+  }, [isPerp, selectedAccountId]);
+
   useSubscriptionWithReconnect<{ Stream: StreamEvent }>(SUB_STREAM, {
     variables: {
       input: {
@@ -798,6 +846,9 @@ const MarketPage: React.FC = () => {
         const rowMax = inc.reduce((m, p) => Math.max(m, Number(p.updatedTs) || 0), 0);
         fullPollPositionsMaxTsRef.current = Math.max(fullPollPositionsMaxTsRef.current, ets, rowMax);
         setPositions((prev) => mergePositionsByUpdatedTs(prev, inc));
+        if (String(event.positionsUpdate.reason || '').toUpperCase() === 'FILL') {
+          void fastRefreshPositions();
+        }
       }
 
       if (event.order) {

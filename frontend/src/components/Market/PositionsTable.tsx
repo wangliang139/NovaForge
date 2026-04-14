@@ -3,6 +3,7 @@ import utils from '@/utils';
 import type { ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Tag } from 'antd';
+import Decimal from 'decimal.js';
 import React, { useMemo } from 'react';
 
 export type PositionsProTableProps = {
@@ -26,6 +27,33 @@ export type PositionsProTableProps = {
 const toNumber = (value: any) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const safeDecimal = (raw: any): Decimal => {
+  const s = String(raw ?? '')
+    .replace(/,/g, '')
+    .trim();
+  if (!s) return new Decimal(0);
+  try {
+    const d = new Decimal(s);
+    return d.isFinite() ? d : new Decimal(0);
+  } catch {
+    return new Decimal(0);
+  }
+};
+
+/** 与单元格展示的字符串一致：按字面小数位数（不剥末尾 0），科学计数法回退到 math 工具推断。 */
+const displayFractionDigits = (raw: any): number => {
+  const t = String(raw ?? '')
+    .replace(/,/g, '')
+    .trim();
+  if (!t) return 0;
+  if (t.includes('e') || t.includes('E')) {
+    return utils.math.getDecimalPrecision(t);
+  }
+  const dot = t.indexOf('.');
+  if (dot < 0) return 0;
+  return Math.max(0, t.length - dot - 1);
 };
 
 const PositionsProTable: React.FC<PositionsProTableProps> = ({
@@ -199,11 +227,14 @@ const PositionsProTable: React.FC<PositionsProTableProps> = ({
         (acc, item) => {
           acc.netValue += toNumber(item.notional);
           acc.margin += toNumber(item.initialMargin);
-          acc.unRealized += toNumber(item.unRealizedProfit);
+          acc.unRealized = acc.unRealized.plus(safeDecimal(item.unRealizedProfit));
+          acc.unRealizedFrac = Math.max(acc.unRealizedFrac, displayFractionDigits(item.unRealizedProfit));
           return acc;
         },
-        { netValue: 0, margin: 0, unRealized: 0 },
+        { netValue: 0, margin: 0, unRealized: new Decimal(0), unRealizedFrac: 0 },
       );
+      const unRealizedText = totals.unRealized.toFixed(totals.unRealizedFrac);
+      const unRealizedNum = totals.unRealized.toNumber();
       return (
         <ProTable.Summary>
           <ProTable.Summary.Row>
@@ -215,10 +246,10 @@ const PositionsProTable: React.FC<PositionsProTableProps> = ({
             </ProTable.Summary.Cell>
             <ProTable.Summary.Cell index={3} colSpan={2} />
             <ProTable.Summary.Cell index={4} align="right">
-              {totals.unRealized >= 0 ? (
-                <span style={{ color: '#52c41a' }}>{`+${totals.unRealized}`}</span>
+              {unRealizedNum >= 0 ? (
+                <span style={{ color: '#52c41a' }}>{unRealizedText}</span>
               ) : (
-                <span style={{ color: '#ff4d4f' }}>{totals.unRealized}</span>
+                <span style={{ color: '#ff4d4f' }}>{unRealizedText}</span>
               )}
             </ProTable.Summary.Cell>
             <ProTable.Summary.Cell index={5} colSpan={1} />
