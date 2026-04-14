@@ -10,6 +10,51 @@ import (
 	"github.com/wangliang139/mow/logger"
 )
 
+const (
+	p2ObsBalanceFanoutZeroW   = "p2.multi_bot.balance_fanout_zero_total_weight"
+	p2ObsOrderPropEmptyWeights = "p2.multi_bot.order_proportional_empty_weights"
+	p2ObsOrderPropZeroDenom = "p2.multi_bot.order_proportional_zero_total_weight"
+)
+
+func sumSubWeightsForObs(ws []SubWeight) decimal.Decimal {
+	var s decimal.Decimal
+	for _, w := range ws {
+		s = s.Add(w.W)
+	}
+	return s
+}
+
+func logP2T6BalanceFanoutZeroTotalWeight(
+	ctx context.Context,
+	parentID, exchangeStr string,
+	walletType ctypes.WalletType,
+	assetCode string,
+	ledgerReason string,
+	wUnalloc decimal.Decimal,
+	weights []SubWeight,
+	ts time.Time,
+	frozenLeg bool,
+) {
+	ev := logger.Ctx(ctx).Warn().
+		Str("p2_obs", p2ObsBalanceFanoutZeroW).
+		Str("parent_id", parentID).
+		Str("exchange", exchangeStr).
+		Str("asset", assetCode).
+		Str("wallet_type", string(walletType)).
+		Str("ledger_reason", ledgerReason).
+		Str("w_unalloc", wUnalloc.String()).
+		Str("sum_sub_w", sumSubWeightsForObs(weights).String()).
+		Int("sub_count", len(weights))
+	if !ts.IsZero() {
+		ev = ev.Time("as_of", ts)
+	}
+	if frozenLeg {
+		ev.Msg("multi_bot balance fanout skipped: zero total weight (frozen leg)")
+	} else {
+		ev.Msg("multi_bot balance fanout skipped: zero total weight (total leg)")
+	}
+}
+
 // fanoutMultiBotSymbolLeverageIfNeeded P2 T8：父 real+multi_bot 在父侧 UpsertSymbolLeverage 并发布后，对每个 virtual_sub 合成 account_raw 再走 handleAccountMessage（子表落库与 account 流发布）。
 func (e *Entity) fanoutMultiBotSymbolLeverageIfNeeded(ctx context.Context, parentID string, exchange ctypes.Exchange, update *ctypes.SymbolLeverage) error {
 	if update == nil {

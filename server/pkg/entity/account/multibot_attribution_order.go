@@ -11,6 +11,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
+	"github.com/wangliang139/mow/logger"
 )
 
 // SubRawDispatch P2 T1/T4：归因模块对单条父事件的子派发单元（未分配份额由父吸收，不进入本列表）。
@@ -106,13 +107,12 @@ func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string
 	return out
 }
 
-// computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重（与 P2 T0 §3/§4 对齐）。
+// computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重
 func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account) ([]SubWeight, decimal.Decimal, error) {
 	wt := ctypes.GetWalletType(exchange, ord.Symbol.Type)
 
 	switch ord.Symbol.Type {
 	case ctypes.MarketTypeSpot:
-		// P2 T0: spot dimension see docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §4
 		if ord.IsBuy {
 			asset := strings.ToUpper(ord.Symbol.Quote)
 			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, time.Time{})
@@ -226,14 +226,33 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, err
 	}
 	if len(weights) == 0 {
-		logP2T6OrderProportionalEmptyWeights(ctx, parentID, exchange, &ordCopy)
+		logger.Ctx(ctx).Warn().
+			Str("p2_obs", p2ObsOrderPropEmptyWeights).
+			Str("parent_id", parentID).
+			Str("exchange", exchange.String()).
+			Str("order_id", ord.OrderID.String()).
+			Str("client_order_id", ord.ClientOrderID.String()).
+			Int64("bot_id", ord.BotID).
+			Str("symbol", ord.Symbol.String()).
+			Msg("multi_bot order fanout: proportional branch has no weights (falls through to parent row)")
 		return nil, nil
 	}
 
 	unit := decimal.NewFromInt(1)
 	shares, _, err := SplitProportionalDelta(unit, weights, wUnalloc)
 	if err != nil {
-		logP2T6OrderProportionalZeroDenom(ctx, parentID, exchange, &ordCopy, weights, wUnalloc)
+		logger.Ctx(ctx).Warn().
+			Str("p2_obs", p2ObsOrderPropZeroDenom).
+			Str("parent_id", parentID).
+			Str("exchange", exchange.String()).
+			Str("order_id", ord.OrderID.String()).
+			Str("client_order_id", ord.ClientOrderID.String()).
+			Int64("bot_id", ord.BotID).
+			Str("symbol", ord.Symbol.String()).
+			Str("w_unalloc", wUnalloc.String()).
+			Str("sum_sub_w", sumSubWeightsForObs(weights).String()).
+			Int("sub_count", len(weights)).
+			Msg("multi_bot order fanout: proportional split W=0 (falls through to parent row)")
 		return nil, nil
 	}
 	return buildSubRawDispatchesFromUnitShares(ordCopy, shares), nil
