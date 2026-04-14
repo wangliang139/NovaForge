@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"time"
@@ -170,45 +171,45 @@ func (e *Entity) driveBalanceAndPositionEventByOrderIfNeeded(ctx context.Context
 	if acct == nil || acct.AccountType != ctypes.AccountTypeVirtualSub {
 		return nil
 	}
-	prevExecutedQty := decimal.Zero
-	if prev != nil {
-		prevExecutedQty = utils.Decimal.PgNumericToDecimal(prev.ExecutedQty)
-	}
-	fillQtyDelta := order.ExecutedQty.Sub(prevExecutedQty)
-	if !fillQtyDelta.GreaterThan(decimal.Zero) {
-		return nil
-	}
-	prevExec := decimal.Zero
-	if prev != nil {
-		prevExec = utils.Decimal.PgNumericToDecimal(prev.ExecutedQty)
-	}
-	if !order.ExecutedQty.GreaterThan(prevExec) {
-		return nil
-	}
 	return e.applyVirtualSubOrderFillDerivedRawAccounts(ctx, order, prev)
 }
 
-func futureFillPositionQtyDelta(side ctypes.PositionSide, isBuy bool, fillQty decimal.Decimal) decimal.Decimal {
+// 加仓：返回新仓位量和新的平均入场价
+// 减仓：返回新仓位量和原来的平均入场价
+func calcFuturePositionAfterOrderFill(side ctypes.PositionSide, isBuy bool, fillQty decimal.Decimal, prevAmt decimal.Decimal, prevEntry decimal.Decimal, fillAvgPrice decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
 	if !fillQty.GreaterThan(decimal.Zero) {
-		return decimal.Zero
+		return prevAmt, prevEntry
 	}
 	switch side {
 	case ctypes.PositionSideLong:
 		if isBuy {
-			return fillQty
+			newAmt := prevAmt.Add(fillQty)
+			return newAmt, prevEntry.Mul(prevAmt).Add(fillAvgPrice.Mul(fillQty)).Div(newAmt)
 		}
-		return fillQty.Neg()
+		newAmt := prevAmt.Sub(fillQty)
+		newEntry := prevEntry
+		if newAmt.LessThan(decimal.Zero) {
+			newAmt = decimal.Zero
+			newEntry = decimal.Zero
+		}
+		return newAmt, newEntry
 	case ctypes.PositionSideShort:
 		if isBuy {
-			return fillQty.Neg()
+			newAmt := prevAmt.Sub(fillQty)
+			newEntry := prevEntry
+			if newAmt.LessThan(decimal.Zero) {
+				newAmt = decimal.Zero
+				newEntry = decimal.Zero
+			}
+			return newAmt, newEntry
 		}
-		return fillQty
-	default:
-		return decimal.Zero
+		newAmt := prevAmt.Add(fillQty)
+		return newAmt, prevEntry.Mul(prevAmt).Add(fillAvgPrice.Mul(fillQty)).Div(newAmt)
 	}
+	return prevAmt, prevEntry
 }
 
-func (e *Entity) buildFuturePositionAfterOrderFill(ctx context.Context, accountID string, exchange ctypes.Exchange, order *ctypes.Order, fillQtyDelta decimal.Decimal) (*ctypes.Position, error) {
+func (e *Entity) buildFuturePositionAfterOrderFill(ctx context.Context, accountID string, exchange ctypes.Exchange, order *ctypes.Order, fillQtyDelta decimal.Decimal, fillAvgPrice decimal.Decimal) (*ctypes.Position, error) {
 	if order.Symbol.Type != ctypes.MarketTypeFuture {
 		return nil, nil
 	}
@@ -216,12 +217,10 @@ func (e *Entity) buildFuturePositionAfterOrderFill(ctx context.Context, accountI
 	if order.Side == ctypes.PositionSideShort {
 		posSide = positions.PositionSideSHORT
 	}
-	symStr := order.Symbol.String()
-	exStr := exchange.String()
 	row, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
 		AccountID: accountID,
-		Exchange:  exStr,
-		Symbol:    symStr,
+		Exchange:  exchange.String(),
+		Symbol:    order.Symbol.String(),
 		Side:      posSide,
 	})
 	if err != nil {
@@ -235,39 +234,33 @@ func (e *Entity) buildFuturePositionAfterOrderFill(ctx context.Context, accountI
 		prevEntry = utils.Decimal.PgNumericToDecimal(row.EntryPrice)
 		lev = row.Leverage
 	}
-	d := futureFillPositionQtyDelta(order.Side, order.IsBuy, fillQtyDelta)
-	newAmt := prevAmt.Add(d)
-	if newAmt.LessThan(decimal.Zero) {
-		newAmt = decimal.Zero
+	newAmt, newEntry := calcFuturePositionAfterOrderFill(order.Side, order.IsBuy, fillQtyDelta, prevAmt, prevEntry, fillAvgPrice)
+	if newAmt.Equal(prevAmt) {
+		return nil, nil
 	}
-	var newEntry decimal.Decimal
-	switch {
-	case newAmt.IsZero():
-		newEntry = decimal.Zero
-	case prevAmt.IsZero():
-		newEntry = order.AvgPrice
-	case d.GreaterThan(decimal.Zero):
-		newEntry = prevEntry.Mul(prevAmt).Add(order.AvgPrice.Mul(d)).Div(newAmt)
-	default:
-		newEntry = prevEntry
-	}
-	ctpSide := ctypes.PositionSideLong
-	if posSide == positions.PositionSideSHORT {
-		ctpSide = ctypes.PositionSideShort
-	}
-	ts := order.UpdatedTs
-	if ts.IsZero() {
-		ts = time.Now()
-	}
+	logger.Ctx(ctx).Info().
+		Str("account_id", accountID).
+		Str("exchange", exchange.String()).
+		Str("order_id", order.OrderID.String()).
+		Str("symbol", order.Symbol.String()).
+		Str("side", order.Side.String()).
+		Str("fill_qty_delta", fillQtyDelta.String()).
+		Str("fill_avg_price", fillAvgPrice.String()).
+		Str("new_amt", newAmt.String()).
+		Str("new_entry", newEntry.String()).
+		Str("prev_amt", prevAmt.String()).
+		Str("prev_entry", prevEntry.String()).
+		Time("updated_ts", order.UpdatedTs).
+		Msg("buildFuturePositionAfterOrderFill")
 	return &ctypes.Position{
 		AccountID:  accountID,
 		Exchange:   exchange,
 		Symbol:     order.Symbol,
-		Side:       ctpSide,
+		Side:       order.Side,
 		Amount:     newAmt,
 		EntryPrice: newEntry,
 		Leverage:   int(lev),
-		UpdatedTs:  ts,
+		UpdatedTs:  order.UpdatedTs,
 	}, nil
 }
 
@@ -308,9 +301,6 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 	}
 
 	ts := order.UpdatedTs
-	if ts.IsZero() {
-		ts = time.Now()
-	}
 
 	selector := ctypes.StreamSelector{
 		Stream:  ctypes.StreamTypeAccountRaw,
@@ -391,7 +381,15 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 	if order.Symbol.Type != ctypes.MarketTypeFuture {
 		return nil
 	}
-	pos, err := e.buildFuturePositionAfterOrderFill(ctx, order.AccountID, order.Exchange, order, fillQtyDelta)
+	fillExecQuoteDelta := order.ExecutedQuoteQty.Sub(prevExecQuote)
+	fillAvgPrice := decimal.Zero
+	if fillQtyDelta.GreaterThan(decimal.Zero) && fillExecQuoteDelta.GreaterThan(decimal.Zero) {
+		fillAvgPrice = fillExecQuoteDelta.Div(fillQtyDelta)
+	}
+	if !fillAvgPrice.GreaterThan(decimal.Zero) {
+		return errors.New("fillAvgPrice is zero")
+	}
+	pos, err := e.buildFuturePositionAfterOrderFill(ctx, order.AccountID, order.Exchange, order, fillQtyDelta, fillAvgPrice)
 	if err != nil {
 		return err
 	}
