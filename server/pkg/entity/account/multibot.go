@@ -98,7 +98,10 @@ func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID str
 	}
 	for _, d := range disp {
 		o := d.Order
-		if !d.Share.Equal(decimal.NewFromInt(1)) {
+		if d.Share.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+		if !d.Share.LessThan(decimal.NewFromInt(1)) {
 			o = scaleOrderForShare(o, d.Share)
 		}
 		ts := time.Now()
