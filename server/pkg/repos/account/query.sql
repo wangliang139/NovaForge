@@ -113,6 +113,16 @@ WHERE parent_account_id = $1
   AND deleted_at IS NULL
 ORDER BY created_at ASC;
 
+-- name: ListVirtualSubByParentAsOf :many
+-- -- timeout: 5s
+-- 在 as_of 时点仍挂在父下的子账户（含 as_of 之后才软删的），用于 multi_bot 按订单/事件时点稳定分摊。
+SELECT *
+FROM public.account
+WHERE parent_account_id = $1
+  AND created_at <= $2
+  AND (deleted_at IS NULL OR deleted_at > $2)
+ORDER BY created_at ASC;
+
 -- name: DeleteAccount :execrows
 -- -- timeout: 5s
 UPDATE public.account

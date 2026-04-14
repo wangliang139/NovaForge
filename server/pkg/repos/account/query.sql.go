@@ -479,6 +479,71 @@ func _ListVirtualSubByParent(ctx context.Context, q CacheQuerierConn, parentAcco
 	return items, err
 }
 
+const listVirtualSubByParentAsOf = `-- name: ListVirtualSubByParentAsOf :many
+SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
+FROM public.account
+WHERE parent_account_id = $1
+  AND created_at <= $2
+  AND (deleted_at IS NULL OR deleted_at > $2)
+ORDER BY created_at ASC
+`
+
+type ListVirtualSubByParentAsOfParams struct {
+	ParentAccountID *string
+	CreatedAt       time.Time
+}
+
+// -- timeout: 5s
+// 在 as_of 时点仍挂在父下的子账户（含 as_of 之后才软删的），用于 multi_bot 按订单/事件时点稳定分摊。
+func (q *Queries) ListVirtualSubByParentAsOf(ctx context.Context, arg ListVirtualSubByParentAsOfParams) ([]Account, error) {
+	return _ListVirtualSubByParentAsOf(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListVirtualSubByParentAsOf(ctx context.Context, arg ListVirtualSubByParentAsOfParams) ([]Account, error) {
+	return _ListVirtualSubByParentAsOf(ctx, q, arg)
+}
+
+func _ListVirtualSubByParentAsOf(ctx context.Context, q CacheQuerierConn, arg ListVirtualSubByParentAsOfParams) ([]Account, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*5000)
+	defer cancel()
+	q.GetConn().CountIntent("account.ListVirtualSubByParentAsOf")
+	rows, err := q.GetConn().WQuery(qctx, "account.ListVirtualSubByParentAsOf", listVirtualSubByParentAsOf, arg.ParentAccountID, arg.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Account
+	for rows.Next() {
+		var i *Account = new(Account)
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Exchange,
+			&i.Config,
+			&i.ApiKey,
+			&i.ApiSecret,
+			&i.Passphrase,
+			&i.Algorithm,
+			&i.Tags,
+			&i.Status,
+			&i.AccountType,
+			&i.ParentAccountID,
+			&i.MultiBotMode,
+			&i.DeletedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
 const queryAccounts = `-- name: QueryAccounts :many
 SELECT id, name, exchange, config, api_key, api_secret, passphrase, algorithm, tags, status, account_type, parent_account_id, multi_bot_mode, deleted_at, created_at, updated_at
 FROM public.account

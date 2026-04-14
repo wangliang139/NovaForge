@@ -98,8 +98,7 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 		return nil
 	}
 
-	pid := parentID
-	subs, err := e.db.AccountRepo.ListVirtualSubByParent(ctx, &pid)
+	subs, err := e.listVirtualSubsForParentFanoutAt(ctx, parentID, ts)
 	if err != nil {
 		return err
 	}

@@ -69,6 +69,35 @@ func absPositionQty(p *positions.Position) decimal.Decimal {
 	return q.Abs()
 }
 
+// absPositionWeightForFanout 平仓归因权重：asOf 非零时用 position_snapshot floor；否则用当前 positions 行（兼容无创建时间的订单）。
+func (e *Entity) absPositionWeightForFanout(ctx context.Context, accountID, exchangeStr, sym string, side positions.PositionSide, asOf time.Time) (decimal.Decimal, error) {
+	key := AccountStateAtPositionKey{
+		Exchange: exchangeStr,
+		Symbol:   sym,
+		Side:     side,
+	}
+	if !asOf.IsZero() {
+		snap, err := e.GetAccountPositionSnapshotAtOrBefore(ctx, accountID, key, asOf)
+		if err != nil {
+			return decimal.Zero, err
+		}
+		if snap != nil && snap.Found {
+			return snap.Qty.Abs(), nil
+		}
+		return decimal.Zero, nil
+	}
+	pos, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
+		AccountID: accountID,
+		Exchange:  exchangeStr,
+		Symbol:    sym,
+		Side:      side,
+	})
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return absPositionQty(pos), nil
+}
+
 func (e *Entity) accountIsVirtualSubOfParent(ctx context.Context, parentID, accountID string) bool {
 	if accountID == "" || accountID == parentID {
 		return false
@@ -139,31 +168,19 @@ func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID
 	sym := ord.Symbol.String()
 	side := positions.PositionSide(ord.Side.String())
 
-	parentPos, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
-		AccountID: parentID,
-		Exchange:  exStr,
-		Symbol:    sym,
-		Side:      side,
-	})
+	parentAbs, err := e.absPositionWeightForFanout(ctx, parentID, exStr, sym, side, ts)
 	if err != nil {
 		return nil, decimal.Zero, err
 	}
-	parentAbs := absPositionQty(parentPos)
 
 	var sumChild decimal.Decimal
 	weights := make([]SubWeight, 0, len(subs))
 	for i := range subs {
 		sid := subs[i].ID
-		pos, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
-			AccountID: sid,
-			Exchange:  exStr,
-			Symbol:    sym,
-			Side:      side,
-		})
+		w, err := e.absPositionWeightForFanout(ctx, sid, exStr, sym, side, ts)
 		if err != nil {
 			return nil, decimal.Zero, err
 		}
-		w := absPositionQty(pos)
 		weights = append(weights, SubWeight{SubAccountID: sid, W: w})
 		sumChild = sumChild.Add(w)
 	}
@@ -190,7 +207,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	subs, err := e.db.AccountRepo.ListVirtualSubByParent(ctx, &parentID)
+	subs, err := e.listVirtualSubsForParentFanoutAt(ctx, parentID, ord.CreatedTs)
 	if err != nil {
 		return nil, err
 	}

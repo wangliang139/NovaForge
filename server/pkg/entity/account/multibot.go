@@ -6,6 +6,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
@@ -22,6 +23,22 @@ func sumSubWeightsForObs(ws []SubWeight) decimal.Decimal {
 		s = s.Add(w.W)
 	}
 	return s
+}
+
+// listVirtualSubsForParentFanoutAt 返回在 asOf 时点挂在父下的子账户（含 asOf 之后才软删的），用于 multi_bot 分摊/归因与「当前 ListVirtualSubByParent」解耦。
+// asOf 为零时退化为仅未删除子账户（与历史行为一致）。
+func (e *Entity) listVirtualSubsForParentFanoutAt(ctx context.Context, parentID string, asOf time.Time) ([]accountrepo.Account, error) {
+	if parentID == "" {
+		return nil, nil
+	}
+	pid := parentID
+	if asOf.IsZero() {
+		return e.db.AccountRepo.ListVirtualSubByParent(ctx, &pid)
+	}
+	return e.db.AccountRepo.ListVirtualSubByParentAsOf(ctx, accountrepo.ListVirtualSubByParentAsOfParams{
+		ParentAccountID: &pid,
+		CreatedAt:       asOf,
+	})
 }
 
 func logP2T6BalanceFanoutZeroTotalWeight(
@@ -67,8 +84,7 @@ func (e *Entity) fanoutMultiBotSymbolLeverageIfNeeded(ctx context.Context, paren
 	if acct.AccountType != ctypes.AccountTypeReal || !acct.MultiBotMode {
 		return nil
 	}
-	pid := parentID
-	subs, err := e.db.AccountRepo.ListVirtualSubByParent(ctx, &pid)
+	subs, err := e.listVirtualSubsForParentFanoutAt(ctx, parentID, time.Time{})
 	if err != nil {
 		return err
 	}
