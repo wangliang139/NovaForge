@@ -452,7 +452,13 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 }
 
 func (e *Entity) CheckAndApplyAssetOrderOccupiedUpdate(ctx context.Context, accountID string, exchange ctypes.Exchange, asset *ctypes.AssetEvent, reason ctypes.LedgerReason, detail any) error {
-	return e.CheckAndApplyAssetOrderOccupiedUpdateWithTx(ctx, nil, accountID, exchange, asset, reason, detail)
+	if AccountWriteSkipped(ctx) {
+		return e.CheckAndApplyAssetOrderOccupiedUpdateWithTx(ctx, nil, accountID, exchange, asset, reason, detail)
+	}
+	return e.WithSortedAccountWrites(ctx, []string{accountID}, func(ctx context.Context) error {
+		ctx = WithAccountWriteSkip(ctx)
+		return e.CheckAndApplyAssetOrderOccupiedUpdateWithTx(ctx, nil, accountID, exchange, asset, reason, detail)
+	})
 }
 
 func (e *Entity) CheckAndApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context, tx *wpgx.WTx, accountID string, exchange ctypes.Exchange, asset *ctypes.AssetEvent, reason ctypes.LedgerReason, detail any) error {

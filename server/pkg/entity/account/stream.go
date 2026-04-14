@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -95,30 +96,39 @@ func (e *Entity) handleAccountMessage(ctx context.Context, envelope *ctypes.Enve
 	if envelope.Payload == nil {
 		return nil
 	}
-	accountID := *envelope.Account
+	if envelope.Account == nil {
+		return nil
+	}
+	accountID := strings.TrimSpace(*envelope.Account)
+	if accountID == "" {
+		return nil
+	}
 	exchange := ctypes.Exchange(envelope.Exchange)
-	if envelope.Payload.BalanceSnapshot != nil {
-		return e.handleAssetSnapshot(ctx, accountID, exchange, envelope.Payload.BalanceSnapshot)
-	}
-	if envelope.Payload.BalanceUpdate != nil {
-		return e.HandleAssetUpdates(ctx, accountID, exchange, envelope.Payload.BalanceUpdate)
-	}
-	if envelope.Payload.PositionSnapshot != nil {
-		return e.handlePositionsSnapshot(ctx, accountID, exchange, envelope.Payload.PositionSnapshot.Positions, true)
-	}
-	if envelope.Payload.PositionsUpdate != nil {
-		if envelope.Payload.PositionsUpdate.Type == ctypes.UpdateTypeIncrement {
-			return e.handlePositionsIncrement(ctx, accountID, exchange, envelope.Payload.PositionsUpdate)
+	return e.WithSortedAccountWrites(ctx, []string{accountID}, func(ctx context.Context) error {
+		ctx = WithAccountWriteSkip(ctx)
+		if envelope.Payload.BalanceSnapshot != nil {
+			return e.handleAssetSnapshot(ctx, accountID, exchange, envelope.Payload.BalanceSnapshot)
 		}
-		return e.handlePositionsSnapshot(ctx, accountID, exchange, envelope.Payload.PositionsUpdate.Positions, false)
-	}
-	if envelope.Payload.Order != nil {
-		return e.handleOrderUpdate(ctx, accountID, exchange, envelope.Payload.Order)
-	}
-	if envelope.Payload.SymbolLeverage != nil {
-		return e.handleSymbolLeverageUpdate(ctx, accountID, exchange, envelope.Payload.SymbolLeverage)
-	}
-	return nil
+		if envelope.Payload.BalanceUpdate != nil {
+			return e.HandleAssetUpdates(ctx, accountID, exchange, envelope.Payload.BalanceUpdate)
+		}
+		if envelope.Payload.PositionSnapshot != nil {
+			return e.handlePositionsSnapshot(ctx, accountID, exchange, envelope.Payload.PositionSnapshot.Positions, true)
+		}
+		if envelope.Payload.PositionsUpdate != nil {
+			if envelope.Payload.PositionsUpdate.Type == ctypes.UpdateTypeIncrement {
+				return e.handlePositionsIncrement(ctx, accountID, exchange, envelope.Payload.PositionsUpdate)
+			}
+			return e.handlePositionsSnapshot(ctx, accountID, exchange, envelope.Payload.PositionsUpdate.Positions, false)
+		}
+		if envelope.Payload.Order != nil {
+			return e.handleOrderUpdate(ctx, accountID, exchange, envelope.Payload.Order)
+		}
+		if envelope.Payload.SymbolLeverage != nil {
+			return e.handleSymbolLeverageUpdate(ctx, accountID, exchange, envelope.Payload.SymbolLeverage)
+		}
+		return nil
+	})
 }
 
 func (e *Entity) handleAssetSnapshot(ctx context.Context, accountID string, exchange ctypes.Exchange, snapshot *ctypes.BalanceSnapshot) error {

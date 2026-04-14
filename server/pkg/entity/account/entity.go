@@ -53,6 +53,8 @@ type Entity struct {
 
 	cache redis.UniversalClient
 
+	writeLocks accountWriteLocker
+
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 
@@ -1396,6 +1398,16 @@ func (e *Entity) GetRiskIndex(ctx context.Context, accountID string) (decimal.De
 }
 
 func (e *Entity) UpdatePositionLeverage(ctx context.Context, accountID string, exchange ctypes.Exchange, symbol ctypes.Symbol, leverage int) error {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
+		return errors.New(errors.InvalidArgument, "account_id is required")
+	}
+	return e.WithSortedAccountWrites(ctx, []string{accountID}, func(ctx context.Context) error {
+		return e.updatePositionLeverageUnlocked(ctx, accountID, exchange, symbol, leverage)
+	})
+}
+
+func (e *Entity) updatePositionLeverageUnlocked(ctx context.Context, accountID string, exchange ctypes.Exchange, symbol ctypes.Symbol, leverage int) error {
 	now := time.Now()
 	_, err := e.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
 		_, err := e.db.PositionsRepo.WithTx(tx).UpsertSymbolLeverage(ctx, positions.UpsertSymbolLeverageParams{
@@ -1461,3 +1473,4 @@ func (e *Entity) UpdatePositionLeverage(ctx context.Context, accountID string, e
 	e.recordPositionSnapshotsForSymbolBothSides(ctx, accountID, exchange.String(), symbol.String(), now)
 	return nil
 }
+

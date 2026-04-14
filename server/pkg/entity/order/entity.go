@@ -73,6 +73,29 @@ func (s *Entity) PlaceOrder(ctx context.Context, acct *types.Account, order *cty
 		return nil, errors.New(errors.InvalidArgument, "account is required")
 	}
 
+	if account.AccountWriteSkipped(ctx) {
+		return s.placeOrderUnlocked(ctx, acct, order)
+	}
+
+	lockIDs, err := s.acctEntity.AccountWriteLockIDsForTradingAccountChain(ctx, acct)
+	if err != nil {
+		return nil, err
+	}
+
+	var out *types.PlaceOrderOutput
+	var placeErr error
+	wrapErr := s.acctEntity.WithSortedAccountWrites(ctx, lockIDs, func(ctx context.Context) error {
+		ctx = account.WithAccountWriteSkip(ctx)
+		out, placeErr = s.placeOrderUnlocked(ctx, acct, order)
+		return placeErr
+	})
+	if wrapErr != nil {
+		return nil, wrapErr
+	}
+	return out, placeErr
+}
+
+func (s *Entity) placeOrderUnlocked(ctx context.Context, acct *types.Account, order *ctypes.Order) (*types.PlaceOrderOutput, error) {
 	var (
 		botId = order.BotID
 

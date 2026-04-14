@@ -410,88 +410,104 @@ func (s *Service) CancelOrder(ctx context.Context, req *types.CancelOrderRequest
 		return nil, err
 	}
 
-	conn, err := entity.Account.GetConnector(ctx, acct.Exchange, acct.ID)
-	if err != nil {
-		return &types.CancelOrderResponse{Success: false, Error: lo.ToPtr(err.Error())}, nil
-	}
-
-	// 撤单 + 解冻 + 更新订单状态尽量在一个事务中完成
-	now := time.Now()
-
-	_, err = s.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
-		// 1) 锁定订单行（优先使用 client_order_id，失败则使用 order_id）
-		var lockedOrder *ordersrepo.Order
-		if clientOrderID != "" {
-			lockedOrder, err = s.db.OrdersRepo.WithTx(tx).GetOrderByClientOrderIdWithLock(ctx, ordersrepo.GetOrderByClientOrderIdWithLockParams{
-				AccountID:     acct.ID,
-				ClientOrderID: clientOrderID,
-			})
-		}
-		if (err != nil || lockedOrder == nil) && orderID != "" {
-			lockedOrder, err = s.db.OrdersRepo.WithTx(tx).GetOrderByOrderIdWithLock(ctx, ordersrepo.GetOrderByOrderIdWithLockParams{
-				AccountID: acct.ID,
-				OrderID:   orderID,
-			})
-		}
-		if err != nil {
-			return nil, err
-		}
-		if lockedOrder == nil {
-			return nil, fmt.Errorf("order not found")
-		}
-
-		// 2) 调用交易所撤单（使用 exchange order_id）
-		if err := conn.CancelOrder(ctx, symbol, lockedOrder.OrderID); err != nil {
-			return nil, err
-		}
-
-		// 3) 解冻资金
-		lockedAmt := utils.Decimal.PgNumericToDecimal(lockedOrder.Locked)
-		lockedAsset := ""
-		if lockedOrder.LockedAsset != nil {
-			lockedAsset = strings.ToUpper(strings.TrimSpace(*lockedOrder.LockedAsset))
-		}
-		if lockedAsset != "" && lockedAmt.GreaterThan(decimal.Zero) {
-			reason := types.LedgerReasonFundsUnfreeze
-			if symbol.Type == types.MarketTypeFuture {
-				reason = types.LedgerReasonOrderMarginUnfreeze
-			}
-			order, _ := converter.OrderDb2Types(*lockedOrder)
-			err := entity.Account.CheckAndApplyAssetOrderOccupiedUpdate(ctx, acct.ID, acct.Exchange, &types.AssetEvent{
-				WalletType: types.GetWalletType(acct.Exchange, symbol.Type),
-				Code:       lockedAsset,
-				Locked:     lo.ToPtr(lockedAmt.Neg()),
-				UpdatedTs:  now,
-			}, reason, order)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// 4) 更新订单状态（CANCELED + locked=0）
-		reasonStr := "canceled"
-		finished := now
-		_, err = s.db.OrdersRepo.WithTx(tx).CancelOrderStatusWithReason(ctx, ordersrepo.CancelOrderStatusWithReasonParams{
-			AccountID:    acct.ID,
-			OrderID:      lockedOrder.OrderID,
-			RejectReason: &reasonStr,
-			FinishedTs:   &finished,
-			UpdatedTs:    now,
-		})
-		if err != nil {
-			logger.Ctx(ctx).Err(err).Str("account_id", acct.ID).
-				Str("exchange", acct.Exchange.String()).
-				Str("symbol", symbol.String()).
-				Str("client_order_id", clientOrderID).
-				Msg("failed to cancel order status")
-		}
-		return nil, nil
-	})
+	lockIDs, err := entity.Account.AccountWriteLockIDsForTradingAccountChain(ctx, acct)
 	if err != nil {
 		return nil, err
 	}
 
-	return &types.CancelOrderResponse{Success: true}, nil
+	var resp *types.CancelOrderResponse
+	wrapErr := entity.Account.WithSortedAccountWrites(ctx, lockIDs, func(ctx context.Context) error {
+		ctx = account.WithAccountWriteSkip(ctx)
+
+		conn, connErr := entity.Account.GetConnector(ctx, acct.Exchange, acct.ID)
+		if connErr != nil {
+			resp = &types.CancelOrderResponse{Success: false, Error: lo.ToPtr(connErr.Error())}
+			return nil
+		}
+
+		// 撤单 + 解冻 + 更新订单状态尽量在一个事务中完成
+		now := time.Now()
+
+		_, transactErr := s.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
+			// 1) 锁定订单行（优先使用 client_order_id，失败则使用 order_id）
+			var lockedOrder *ordersrepo.Order
+			var qErr error
+			if clientOrderID != "" {
+				lockedOrder, qErr = s.db.OrdersRepo.WithTx(tx).GetOrderByClientOrderIdWithLock(ctx, ordersrepo.GetOrderByClientOrderIdWithLockParams{
+					AccountID:     acct.ID,
+					ClientOrderID: clientOrderID,
+				})
+			}
+			if (qErr != nil || lockedOrder == nil) && orderID != "" {
+				lockedOrder, qErr = s.db.OrdersRepo.WithTx(tx).GetOrderByOrderIdWithLock(ctx, ordersrepo.GetOrderByOrderIdWithLockParams{
+					AccountID: acct.ID,
+					OrderID:   orderID,
+				})
+			}
+			if qErr != nil {
+				return nil, qErr
+			}
+			if lockedOrder == nil {
+				return nil, fmt.Errorf("order not found")
+			}
+
+			// 2) 调用交易所撤单（使用 exchange order_id）
+			if err := conn.CancelOrder(ctx, symbol, lockedOrder.OrderID); err != nil {
+				return nil, err
+			}
+
+			// 3) 解冻资金
+			lockedAmt := utils.Decimal.PgNumericToDecimal(lockedOrder.Locked)
+			lockedAsset := ""
+			if lockedOrder.LockedAsset != nil {
+				lockedAsset = strings.ToUpper(strings.TrimSpace(*lockedOrder.LockedAsset))
+			}
+			if lockedAsset != "" && lockedAmt.GreaterThan(decimal.Zero) {
+				reason := types.LedgerReasonFundsUnfreeze
+				if symbol.Type == types.MarketTypeFuture {
+					reason = types.LedgerReasonOrderMarginUnfreeze
+				}
+				order, _ := converter.OrderDb2Types(*lockedOrder)
+				occErr := entity.Account.CheckAndApplyAssetOrderOccupiedUpdate(ctx, acct.ID, acct.Exchange, &types.AssetEvent{
+					WalletType: types.GetWalletType(acct.Exchange, symbol.Type),
+					Code:       lockedAsset,
+					Locked:     lo.ToPtr(lockedAmt.Neg()),
+					UpdatedTs:  now,
+				}, reason, order)
+				if occErr != nil {
+					return nil, occErr
+				}
+			}
+
+			// 4) 更新订单状态（CANCELED + locked=0）
+			reasonStr := "canceled"
+			finished := now
+			_, cancelStatusErr := s.db.OrdersRepo.WithTx(tx).CancelOrderStatusWithReason(ctx, ordersrepo.CancelOrderStatusWithReasonParams{
+				AccountID:    acct.ID,
+				OrderID:      lockedOrder.OrderID,
+				RejectReason: &reasonStr,
+				FinishedTs:   &finished,
+				UpdatedTs:    now,
+			})
+			if cancelStatusErr != nil {
+				logger.Ctx(ctx).Err(cancelStatusErr).Str("account_id", acct.ID).
+					Str("exchange", acct.Exchange.String()).
+					Str("symbol", symbol.String()).
+					Str("client_order_id", clientOrderID).
+					Msg("failed to cancel order status")
+			}
+			return nil, nil
+		})
+		if transactErr != nil {
+			return transactErr
+		}
+		resp = &types.CancelOrderResponse{Success: true}
+		return nil
+	})
+	if wrapErr != nil {
+		return nil, wrapErr
+	}
+	return resp, nil
 }
 
 func parseOrderCursor(cursor string) (*time.Time, *string, error) {
