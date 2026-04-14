@@ -45,7 +45,6 @@ func (e *Entity) fanoutMultiBotSymbolLeverageIfNeeded(ctx context.Context, paren
 	return nil
 }
 
-
 // applyMultiBotParentOrderStage P2 T4：在父账户已完成与交易所对齐的订单落库之后调用。
 // 父 real+multi_bot 且 T1 归因产生子派发时，对每个子经 PublishEvent 写入账户原始流（Synthetic + source_parent_id），由 ListenAccountEvent 消费并 handleAccountMessage（P2 3.3），与父侧 WS 主路径解耦。
 func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) (handled bool, err error) {
@@ -72,7 +71,7 @@ func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID str
 			o = scaleOrderForShare(o, d.Share)
 		}
 		ts := time.Now()
-		if ord != nil && !ord.UpdatedTs.IsZero() {
+		if !ord.UpdatedTs.IsZero() {
 			ts = ord.UpdatedTs
 		}
 		selector := ctypes.StreamSelector{
