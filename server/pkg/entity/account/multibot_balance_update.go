@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
@@ -190,11 +191,12 @@ func (e *Entity) fanoutMultiBotAttributedBalanceUpdateIfNeeded(
 			},
 			Detail: update.Detail,
 		}
-		env := newSyntheticAccountRawBalanceUpdateEnvelope(parentID, exchange, sid, childUpdate)
-		if env == nil {
-			continue
+		selector := ctypes.StreamSelector{
+			Stream:  ctypes.StreamTypeAccountRaw,
+			Account: lo.ToPtr(sid),
 		}
-		if err := e.handleAccountMessage(ctx, env); err != nil {
+		msg := ctypes.NewMessage(exchange, selector, childUpdate, ts)
+		if err := e.PublishEvent(ctx, msg); err != nil {
 			return err
 		}
 	}

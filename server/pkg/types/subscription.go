@@ -246,9 +246,6 @@ type Envelope struct {
 	Ts        int64      `json:"ts,omitempty"`         // event generated timestamp in unix millisecond
 	ReceiveAt int64      `json:"receive_at,omitempty"` // event received timestamp in unix millisecond
 	PublishAt int64      `json:"publish_at,omitempty"` // event published timestamp in unix millisecond
-	// P2 T4：父 multi_bot Fanout 合成 account_raw 溯源（见 docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §3.3）
-	Synthetic      bool   `json:"synthetic,omitempty"`
-	SourceParentID string `json:"source_parent_id,omitempty"`
 }
 
 func TopicName(exchange Exchange, selector StreamSelector) string {

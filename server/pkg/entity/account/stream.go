@@ -416,7 +416,7 @@ func (e *Entity) handleOrderUpdate(ctx context.Context, accountID string, exchan
 	ord.AccountID = accountID
 	ord.Exchange = exchange
 
-	// 父行先与交易所对齐落库，再 multi_bot 向子 synthetic fanout（子 envelope 上 account=virtual_sub，不会再次 fanout）
+	// 父行先与交易所对齐落库，再 multi_bot 向子派发经 PublishEvent 入账户原始流（子 envelope account=virtual_sub，不会再次 fanout）
 	if err := e.applyOrderPipeline(ctx, accountID, exchange, ord, false); err != nil {
 		return err
 	}

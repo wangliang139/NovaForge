@@ -178,7 +178,7 @@ func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID
 }
 
 // AttributeMultiBotOrderForFanout：父 multi_bot 下将交易所 Order 归因到 0/1/N 个 virtual_sub（BotId → DB 子行 → 比例；比例与分摊内核一致）。
-// 非 multi_bot 父、无子、或无可分摊权重时返回 (nil, nil)。T4 由 applyMultiBotParentOrderStage 在父行落库之后合成 account_raw 并调用 handleAccountMessage。
+// 非 multi_bot 父、无子、或无可分摊权重时返回 (nil, nil)。T4 由 applyMultiBotParentOrderStage 在父行落库之后经 PublishEvent 入队，由账户消费者 handleAccountMessage。
 func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) ([]SubRawDispatch, error) {
 	if ord == nil || parentID == "" {
 		return nil, nil

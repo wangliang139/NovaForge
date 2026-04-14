@@ -12,12 +12,12 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stumble/wpgx"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/entity/account"
 	mtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
@@ -38,6 +38,31 @@ type Entity struct {
 
 func New(db *repos.Entity, cache redis.UniversalClient, acctEntity *account.Entity, riskChecker OrderRiskChecker) *Entity {
 	return &Entity{db: db, cache: cache, acctEntity: acctEntity, riskChecker: riskChecker}
+}
+
+// resolveTradingAccountForConnector 将 virtual_sub 沿 parent_account_id 递归解析到用于调用交易所的账户（通常为父 real）；其它类型原样返回。
+func (s *Entity) resolveParentAccount(ctx context.Context, acct *types.Account) (*types.Account, error) {
+	cur := acct
+	for cur != nil && cur.AccountType == types.AccountTypeVirtualSub {
+		if cur.ParentAccountID == nil || strings.TrimSpace(*cur.ParentAccountID) == "" {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub account missing parent_account_id")
+		}
+		parent, err := s.acctEntity.GetAccount(ctx, strings.TrimSpace(*cur.ParentAccountID))
+		if err != nil {
+			return nil, err
+		}
+		if parent == nil {
+			return nil, errors.New(errors.NotFound, "parent account not found")
+		}
+		if parent.Exchange != cur.Exchange {
+			return nil, errors.New(errors.InvalidArgument, "virtual_sub parent exchange mismatch")
+		}
+		cur = parent
+	}
+	if cur == nil {
+		return nil, errors.New(errors.InvalidArgument, "account is required")
+	}
+	return cur, nil
 }
 
 func (s *Entity) PlaceOrder(ctx context.Context, acct *types.Account, order *ctypes.Order) (*types.PlaceOrderOutput, error) {
@@ -153,12 +178,10 @@ func (s *Entity) PlaceOrder(ctx context.Context, acct *types.Account, order *cty
 	}
 
 	// 6) 生成/透传 ClientOrderID
-	clientOrderID := func() ctypes.OrderId {
-		if order.ClientOrderID != "" {
-			return order.ClientOrderID
-		}
-		return ctypes.OrderId(snowflake.Generate().String())
-	}()
+	if order.ClientOrderID == "" {
+		order.ClientOrderID = ctypes.OrderId(snowflake.Generate().String())
+	}
+	clientOrderID := order.ClientOrderID
 
 	// 6) 资金/保证金校验 + 冻结估算（通过订单快照 locked 写入，驱动 frozen delta）
 	totalLocked, lockedAsset, err := calcOrderFrozen(order, symbolCfg)
@@ -215,7 +238,7 @@ func (s *Entity) PlaceOrder(ctx context.Context, acct *types.Account, order *cty
 		}()
 	}
 
-	exchangeOrderID := ""
+	var exchangeOrderID string
 	_, err = s.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
 		// 7.2) 落库订单快照
 		dbOrderType := orders.OrderType(string(orderType))
@@ -239,7 +262,7 @@ func (s *Entity) PlaceOrder(ctx context.Context, acct *types.Account, order *cty
 			lockedAssetPtr = &la
 		}
 
-		order, err := s.db.OrdersRepo.WithTx(tx).UpsertOrder(ctx, orders.UpsertOrderParams{
+		orderPo, err := s.db.OrdersRepo.WithTx(tx).UpsertOrder(ctx, orders.UpsertOrderParams{
 			BotID:         int32(botId),
 			AccountID:     acct.ID,
 			OrderID:       clientOrderID.String(), // 先使用 clientOrderID 占位
@@ -295,15 +318,29 @@ func (s *Entity) PlaceOrder(ctx context.Context, acct *types.Account, order *cty
 			ReduceOnly:    &reduceOnly,
 			ClosePosition: &closePosition,
 		}
-		res, err := conn.PlaceOrder(ctx, input)
-		if err != nil {
-			return nil, err
+
+		if acct.AccountType == types.AccountTypeVirtualSub {
+			parentAcct, err := s.resolveParentAccount(ctx, acct)
+			if err != nil {
+				return nil, err
+			}
+			order.AccountID = parentAcct.ID
+			res, err := s.PlaceOrder(ctx, parentAcct, order)
+			if err != nil {
+				return nil, err
+			}
+			exchangeOrderID = res.OrderId.String()
+		} else {
+			res, err := conn.PlaceOrder(ctx, input)
+			if err != nil {
+				return nil, err
+			}
+			exchangeOrderID = res.OrderID.String()
 		}
-		exchangeOrderID = res.OrderID.String()
 
 		// 7.4) 更新订单 ID
 		return s.db.OrdersRepo.WithTx(tx).UpdateOrderId(ctx, orders.UpdateOrderIdParams{
-			ID:      order.ID,
+			ID:      orderPo.ID,
 			OrderID: exchangeOrderID,
 		})
 	})
