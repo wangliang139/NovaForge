@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
@@ -17,11 +18,9 @@ import (
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-const defaultAssetPrecision = 18
-
 func formatAmountWithPrecision(amount decimal.Decimal, precision int) decimal.Decimal {
 	if precision <= 0 {
-		precision = defaultAssetPrecision
+		precision = consts.DefaultAssetPrecision
 	}
 	return amount.Round(int32(precision))
 }
@@ -53,7 +52,7 @@ var _ strategy.AccountEngine = (*account)(nil)
 
 func NewAccount(accountID string, config AccountConfig, bus mb.Bus, clk clock.Clock) *account {
 	if config.AssetPrecision <= 0 {
-		config.AssetPrecision = defaultAssetPrecision
+		config.AssetPrecision = consts.DefaultAssetPrecision
 	}
 	account := &account{
 		accountID:     accountID,
@@ -77,7 +76,7 @@ func (a *account) GetExchange() ctypes.Exchange {
 
 func (a *account) assetPrecision() int {
 	if a.config.AssetPrecision <= 0 {
-		return defaultAssetPrecision
+		return consts.DefaultAssetPrecision
 	}
 	return a.config.AssetPrecision
 }

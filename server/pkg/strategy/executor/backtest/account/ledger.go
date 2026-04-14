@@ -2,6 +2,7 @@ package account
 
 import (
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
@@ -15,7 +16,7 @@ type AssetLedger struct {
 	UnrealizedPnL decimal.Decimal // 未实现盈亏
 	RealizedPnL   decimal.Decimal // 已实现盈亏
 
-	MarginUsed  decimal.Decimal // 已占用保证金（由持仓计算）
+	MarginUsed decimal.Decimal // 已占用保证金（由持仓计算）
 
 	// 合约持仓（按symbol-side组织）
 	Positions map[PositionKey]*ctypes.Position
@@ -39,13 +40,13 @@ func (a *AssetLedger) Balance() decimal.Decimal {
 
 // NewAssetLedger 创建新的AssetLedger
 func NewAssetLedger(asset string) *AssetLedger {
-	return NewAssetLedgerWithPrecision(asset, defaultAssetPrecision)
+	return NewAssetLedgerWithPrecision(asset, consts.DefaultAssetPrecision)
 }
 
 // NewAssetLedgerWithPrecision 创建新的AssetLedger并指定精度
 func NewAssetLedgerWithPrecision(asset string, precision int) *AssetLedger {
 	if precision <= 0 {
-		precision = defaultAssetPrecision
+		precision = consts.DefaultAssetPrecision
 	}
 	return &AssetLedger{
 		Asset:         asset,

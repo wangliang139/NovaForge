@@ -2,13 +2,12 @@ package misc
 
 import (
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-const defaultAssetPrecision = 18
-
 func NormalizeSymbolPrice(price decimal.Decimal, orderType ctypes.OrderType, market *ctypes.Market) decimal.Decimal {
-	precision := defaultAssetPrecision
+	precision := consts.DefaultAssetPrecision
 	if market == nil {
 		return price.Round(int32(precision))
 	}
@@ -40,7 +39,7 @@ func NormalizeSymbolPrice(price decimal.Decimal, orderType ctypes.OrderType, mar
 }
 
 func NormalizeBaseAssetQty(qty decimal.Decimal, orderType ctypes.OrderType, market *ctypes.Market) decimal.Decimal {
-	precision := defaultAssetPrecision
+	precision := consts.DefaultAssetPrecision
 	if market == nil {
 		return qty.Round(int32(precision))
 	}
@@ -73,7 +72,7 @@ func NormalizeBaseAssetQty(qty decimal.Decimal, orderType ctypes.OrderType, mark
 
 // NormalizeQuoteAssetQty 根据 market 的 QuoteAssetPrecision 归一化报价资产数量（金额）。
 func NormalizeQuoteAssetQty(qty decimal.Decimal, market *ctypes.Market) decimal.Decimal {
-	precision := defaultAssetPrecision
+	precision := consts.DefaultAssetPrecision
 	if market == nil {
 		return qty.Round(int32(precision))
 	}

@@ -2,13 +2,12 @@ package order
 
 import (
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-const defaultAssetPrecision = 18
-
 func NormalizeSymbolPrice(price decimal.Decimal, orderType ctypes.OrderType, market ctypes.Market) decimal.Decimal {
-	precision := defaultAssetPrecision
+	precision := consts.DefaultAssetPrecision
 	var tickSize *decimal.Decimal
 	rules := getOrderTypeRules(&market, orderType)
 	if rules != nil && !rules.TickSize.IsZero() {
@@ -28,7 +27,7 @@ func NormalizeSymbolPrice(price decimal.Decimal, orderType ctypes.OrderType, mar
 }
 
 func NormalizeBaseAssetQty(qty decimal.Decimal, orderType ctypes.OrderType, market ctypes.Market) decimal.Decimal {
-	precision := defaultAssetPrecision
+	precision := consts.DefaultAssetPrecision
 	var lotSize *decimal.Decimal
 	rules := getOrderTypeRules(&market, orderType)
 	if rules != nil && !rules.LotSize.IsZero() {
