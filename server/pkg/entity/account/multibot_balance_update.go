@@ -31,42 +31,8 @@ func clampNonNegAssetTotal(d decimal.Decimal) decimal.Decimal {
 	return d
 }
 
-// assetTotalFromAssetsRow 当前 assets 表 total（非负钳制），与 GetBalance 总量口径一致。
-func (e *Entity) assetTotalFromAssetsRow(ctx context.Context, accountID, assetCode string, walletType ctypes.WalletType) (decimal.Decimal, error) {
-	code := ctypes.ParseAssetCode(assetCode)
-	wt := assets.WalletType(walletType)
-	row, err := e.db.AssetsRepo.GetAsset(ctx, assets.GetAssetParams{
-		AccountID:  accountID,
-		Asset:      code,
-		WalletType: wt,
-	})
-	if err != nil {
-		return decimal.Zero, err
-	}
-	w := decimal.Zero
-	if row != nil {
-		w = utils.Decimal.PgNumericToDecimal(row.Total)
-	}
-	return clampNonNegAssetTotal(w), nil
-}
-
-// assetWeightPickMultiBot P2 T12：asOf 非零且快照命中时用 snapTotal，否则用 liveTotal（均非负钳制）。与 assetWeightTotalForFanout 择路一致，供单测覆盖边界。
-func assetWeightPickMultiBot(asOf time.Time, snapFound bool, snapTotal, liveTotal decimal.Decimal) decimal.Decimal {
-	if !asOf.IsZero() && snapFound {
-		return clampNonNegAssetTotal(snapTotal)
-	}
-	return clampNonNegAssetTotal(liveTotal)
-}
-
 // assetWeightTotalForFanout P2 T12：资金费等分摊权重；在 update.UpdatedTs 非零时优先读 asset_snapshot AtOrBefore(asOf)，无行则降级为当前 assets 行（与 docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §3「同一键」时序一致）。
 func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, exchangeStr, assetCode string, walletType ctypes.WalletType, asOf time.Time) (decimal.Decimal, error) {
-	live, err := e.assetTotalFromAssetsRow(ctx, accountID, assetCode, walletType)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	if asOf.IsZero() {
-		return live, nil
-	}
 	snap, err := e.GetAccountAssetSnapshotAtOrBefore(ctx, accountID, AccountStateAtAssetKey{
 		Exchange:   exchangeStr,
 		WalletType: walletType,
@@ -75,12 +41,11 @@ func (e *Entity) assetWeightTotalForFanout(ctx context.Context, accountID, excha
 	if err != nil {
 		return decimal.Zero, err
 	}
-	found := snap != nil && snap.Found
 	st := decimal.Zero
-	if found {
+	if snap != nil && snap.Found {
 		st = snap.Total
 	}
-	return assetWeightPickMultiBot(asOf, found, st, live), nil
+	return clampNonNegAssetTotal(st), nil
 }
 
 // computeSubWeightsAndUnalloc 按 P2 T0 §3：w_子i / 父 P 在 asOf 非零时优先取快照 floor，否则取当前 assets；w_unalloc = max(0, 父 − Σ子)。

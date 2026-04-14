@@ -108,32 +108,30 @@ func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string
 }
 
 // computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重
-func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account) ([]SubWeight, decimal.Decimal, error) {
+func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account, ts time.Time) ([]SubWeight, decimal.Decimal, error) {
 	wt := ctypes.GetWalletType(exchange, ord.Symbol.Type)
 
 	switch ord.Symbol.Type {
 	case ctypes.MarketTypeSpot:
 		if ord.IsBuy {
 			asset := strings.ToUpper(ord.Symbol.Quote)
-			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, time.Time{})
+			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, ts)
 		}
 		asset := strings.ToUpper(ord.Symbol.Base)
-		return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, time.Time{})
-
+		return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, ts)
 	case ctypes.MarketTypeFuture:
 		if futureOpenPositionLikeDeriveOrderLocked(ord) {
 			asset := strings.ToUpper(ord.Symbol.Quote)
 			fw := ctypes.GetWalletType(exchange, ctypes.MarketTypeFuture)
-			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, fw, subs, time.Time{})
+			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, fw, subs, ts)
 		}
-		return e.computeFutureClosePositionWeights(ctx, parentID, exchange, ord, subs)
-
+		return e.computeFutureClosePositionWeights(ctx, parentID, exchange, ord, subs, ts)
 	default:
 		return nil, decimal.Zero, nil
 	}
 }
 
-func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account) ([]SubWeight, decimal.Decimal, error) {
+func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account, ts time.Time) ([]SubWeight, decimal.Decimal, error) {
 	if !ord.Symbol.IsValid() {
 		return nil, decimal.Zero, nil
 	}
@@ -220,8 +218,8 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	// 2) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout）
-	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs)
+	// 2) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
+	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs, ord.CreatedTs)
 	if err != nil {
 		return nil, err
 	}
