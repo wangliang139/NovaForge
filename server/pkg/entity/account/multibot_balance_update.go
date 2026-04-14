@@ -68,7 +68,8 @@ func (e *Entity) computeSubWeightsAndUnalloc(ctx context.Context, parentID, exch
 	return weights, U, nil
 }
 
-// fanoutMultiBotBalanceUpdateIfNeeded 父 multi_bot 在父侧增量落库成功后，将可归因的 BalanceUpdate 按权重拆到各 virtual_sub（方案 1：父已持全额真值）。
+// fanoutMultiBotBalanceUpdateIfNeeded 父 multi_bot 在父侧增量落库成功后，将可归因的 BalanceUpdate 的可用余额增量按权重拆到各 virtual_sub（方案 1：父已持全额真值）。
+// 不向子账户分摊冻结资金（Locked）；冻结变化仅在父侧体现。
 // 子份额经合成 account_raw + handleAccountMessage（与 T4 一致），由 HandleAssetUpdates 统一写子 assets/ledger/Publish。
 func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 	ctx context.Context,
@@ -77,13 +78,13 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 	update *ctypes.BalanceUpdate,
 	walletType ctypes.WalletType,
 	assetCode string,
-	totalDelta, frozenDelta decimal.Decimal,
+	totalDelta decimal.Decimal,
 	ts time.Time,
 ) error {
 	if update == nil || !ledgerReasonSplitToVirtualSubs(update.Reason) {
 		return nil
 	}
-	if totalDelta.IsZero() && frozenDelta.IsZero() {
+	if totalDelta.IsZero() {
 		return nil
 	}
 
@@ -110,32 +111,17 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 
 	sharesTotal, _, err := SplitProportionalDelta(totalDelta, weights, wUnalloc)
 	if err != nil {
-		logBalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts, false)
-		return nil
-	}
-	sharesFrozen, _, err := SplitProportionalDelta(frozenDelta, weights, wUnalloc)
-	if err != nil {
-		logBalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts, true)
+		logBalanceFanoutZeroTotalWeight(ctx, parentID, exchange.String(), walletType, assetCode, string(update.Reason), wUnalloc, weights, ts)
 		return nil
 	}
 
 	for _, sub := range subs {
 		sid := sub.ID
 		st := sharesTotal[sid]
-		sf := sharesFrozen[sid]
-		var td *decimal.Decimal
-		var fd *decimal.Decimal
-		if !st.IsZero() {
-			x := st
-			td = &x
-		}
-		if !sf.IsZero() {
-			y := sf
-			fd = &y
-		}
-		if td == nil && fd == nil {
+		if st.IsZero() {
 			continue
 		}
+		td := st
 		childUpdate := &ctypes.BalanceUpdate{
 			Type:   ctypes.UpdateTypeIncrement,
 			Reason: update.Reason,
@@ -143,8 +129,8 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 				{
 					WalletType: walletType,
 					Code:       assetCode,
-					Balance:    td,
-					Locked:     fd,
+					Balance:    &td,
+					Locked:     nil,
 					UpdatedTs:  ts,
 				},
 			},
@@ -171,7 +157,6 @@ func logBalanceFanoutZeroTotalWeight(
 	wUnalloc decimal.Decimal,
 	weights []SubWeight,
 	ts time.Time,
-	frozenLeg bool,
 ) {
 	ev := logger.Ctx(ctx).Warn().
 		Str("p2_obs", p2ObsBalanceFanoutZeroW).
@@ -186,9 +171,5 @@ func logBalanceFanoutZeroTotalWeight(
 	if !ts.IsZero() {
 		ev = ev.Time("as_of", ts)
 	}
-	if frozenLeg {
-		ev.Msg("multi_bot balance fanout skipped: zero total weight (frozen leg)")
-	} else {
-		ev.Msg("multi_bot balance fanout skipped: zero total weight (total leg)")
-	}
+	ev.Msg("multi_bot balance fanout skipped: zero total weight")
 }

@@ -247,7 +247,7 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 						return err
 					}
 				}
-				if err := e.fanoutMultiBotBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, totalDelta, frozenDelta, ts); err != nil {
+				if err := e.fanoutMultiBotBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, totalDelta, ts); err != nil {
 					logger.Ctx(ctx).Err(err).
 						Str("account_id", accountID).
 						Str("asset", asset.Code).
@@ -331,7 +331,7 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 				}
 			}
 			if assetPo != nil {
-				if err := e.fanoutMultiBotBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, td, fd, ts); err != nil {
+				if err := e.fanoutMultiBotBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, td, ts); err != nil {
 					logger.Ctx(ctx).Err(err).
 						Str("account_id", accountID).
 						Str("asset", asset.Code).
