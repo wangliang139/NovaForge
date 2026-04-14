@@ -178,7 +178,7 @@ func (e *Entity) sendFuturePositionEventByOrderIfNeeded(ctx context.Context, acc
 		return nil
 	}
 
-	if (!order.IsBuy && order.Side == ctypes.PositionSideLong) || (!order.IsBuy && order.Side == ctypes.PositionSideShort) {
+	if (!order.IsBuy && order.Side == ctypes.PositionSideLong) || (order.IsBuy && order.Side == ctypes.PositionSideShort) {
 		fillQtyDelta = fillQtyDelta.Neg()
 	}
 
