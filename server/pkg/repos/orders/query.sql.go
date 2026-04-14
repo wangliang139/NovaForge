@@ -1016,6 +1016,93 @@ func _ListOrdersByAccountAndTimeRange(ctx context.Context, q CacheQuerierConn, a
 	return items, err
 }
 
+const listOrdersByClientOrderIdUnderVirtualSubs = `-- name: ListOrdersByClientOrderIdUnderVirtualSubs :many
+SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.created_at, o.updated_at
+FROM orders o
+INNER JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
+WHERE o.client_order_id = $1
+  AND o.exchange = $2
+  AND a.parent_account_id = $3
+ORDER BY o.updated_at DESC NULLS LAST, o.id DESC
+`
+
+type ListOrdersByClientOrderIdUnderVirtualSubsParams struct {
+	ClientOrderID   string
+	Exchange        string
+	ParentAccountID *string
+}
+
+// -- timeout: 1s
+func (q *Queries) ListOrdersByClientOrderIdUnderVirtualSubs(ctx context.Context, arg ListOrdersByClientOrderIdUnderVirtualSubsParams) ([]Order, error) {
+	return _ListOrdersByClientOrderIdUnderVirtualSubs(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListOrdersByClientOrderIdUnderVirtualSubs(ctx context.Context, arg ListOrdersByClientOrderIdUnderVirtualSubsParams) ([]Order, error) {
+	return _ListOrdersByClientOrderIdUnderVirtualSubs(ctx, q, arg)
+}
+
+func _ListOrdersByClientOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuerierConn, arg ListOrdersByClientOrderIdUnderVirtualSubsParams) ([]Order, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
+	defer cancel()
+	q.GetConn().CountIntent("orders.ListOrdersByClientOrderIdUnderVirtualSubs")
+	rows, err := q.GetConn().WQuery(qctx, "orders.ListOrdersByClientOrderIdUnderVirtualSubs", listOrdersByClientOrderIdUnderVirtualSubs, arg.ClientOrderID, arg.Exchange, arg.ParentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i *Order = new(Order)
+		if err := rows.Scan(
+			&i.ID,
+			&i.BotID,
+			&i.AccountID,
+			&i.OrderID,
+			&i.ClientOrderID,
+			&i.DrivedOrderID,
+			&i.OrderType,
+			&i.AlgoType,
+			&i.Source,
+			&i.Exchange,
+			&i.Symbol,
+			&i.Side,
+			&i.IsBuy,
+			&i.Price,
+			&i.Quantity,
+			&i.ExecutedQty,
+			&i.ExecutedPrice,
+			&i.AvgPrice,
+			&i.ReduceOnly,
+			&i.PostOnly,
+			&i.Tif,
+			&i.Conditions,
+			&i.Detail,
+			&i.Status,
+			&i.RejectReason,
+			&i.CreatedTs,
+			&i.WorkingTs,
+			&i.FinishedTs,
+			&i.UpdatedTs,
+			&i.Locked,
+			&i.LockedAsset,
+			&i.Fee,
+			&i.FeeAsset,
+			&i.RealizedPnl,
+			&i.PnlAsset,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
 const listOrdersByCursor = `-- name: ListOrdersByCursor :many
 SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
 WHERE account_id = $1

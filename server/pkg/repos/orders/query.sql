@@ -93,6 +93,16 @@ WHERE o.order_id = $1
   AND a.parent_account_id = $3
 ORDER BY o.updated_at DESC NULLS LAST, o.id DESC;
 
+-- name: ListOrdersByClientOrderIdUnderVirtualSubs :many
+-- -- timeout: 1s
+SELECT o.*
+FROM orders o
+INNER JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
+WHERE o.client_order_id = $1
+  AND o.exchange = $2
+  AND a.parent_account_id = $3
+ORDER BY o.updated_at DESC NULLS LAST, o.id DESC;
+
 -- name: ListOrders :many
 -- -- timeout: 1s
 SELECT * FROM orders

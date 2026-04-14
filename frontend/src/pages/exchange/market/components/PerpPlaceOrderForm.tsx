@@ -633,7 +633,10 @@ const PerpPlaceOrderForm: React.FC<PerpPlaceOrderFormProps> = ({
       <Modal
         title="调整杠杆"
         open={leverageModalVisible}
-        onCancel={() => setLeverageModalVisible(false)}
+        onCancel={() => {
+          setLeverageModalVisible(false);
+          setShowLeverageInput(false);
+        }}
         confirmLoading={!!leverageLoading}
         footer={[
           <Button key="submit" type="primary" style={{ width: '100%' }} onClick={() => {
@@ -686,11 +689,23 @@ const PerpPlaceOrderForm: React.FC<PerpPlaceOrderFormProps> = ({
                   max={100}
                   step={1}
                   precision={0}
-                  value={tempLeverage ? tempLeverage : leverage ? leverage : 1}
+                  value={tempLeverage ?? leverage ?? 1}
+                  onChange={(v) => {
+                    if (v === null || v === undefined) {
+                      setTempLeverage(undefined);
+                      return;
+                    }
+                    const parsed = Number(v);
+                    if (!Number.isFinite(parsed)) {
+                      return;
+                    }
+                    const clamped = Math.min(100, Math.max(1, Math.round(parsed)));
+                    setTempLeverage(clamped);
+                  }}
                   onBlur={() => setShowLeverageInput(false)}
                 />
               ) : (
-                <span>{tempLeverage ? `${tempLeverage}` : leverage ? `${leverage}` : '1'}</span>
+                <span>{`${tempLeverage ?? leverage ?? 1}`}</span>
               )}
               <span>x</span>
             </div>

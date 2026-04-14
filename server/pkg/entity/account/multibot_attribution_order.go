@@ -125,6 +125,47 @@ func (e *Entity) getOrderMatchedSubSharesByOrderID(ctx context.Context, parentID
 	return shares, true, nil
 }
 
+func (e *Entity) getOrderMatchedSubSharesByClientOrderID(ctx context.Context, parentID string, exchange ctypes.Exchange, clientOrderID string) (map[string]decimal.Decimal, bool, error) {
+	if strings.TrimSpace(clientOrderID) == "" {
+		return nil, false, nil
+	}
+	rows, err := e.db.OrdersRepo.ListOrdersByClientOrderIdUnderVirtualSubs(ctx, ordersrepo.ListOrdersByClientOrderIdUnderVirtualSubsParams{
+		ClientOrderID:   clientOrderID,
+		Exchange:        exchange.String(),
+		ParentAccountID: &parentID,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	if len(rows) == 0 {
+		return nil, false, nil
+	}
+
+	weights := make(map[string]decimal.Decimal)
+	var total decimal.Decimal
+	for i := range rows {
+		sid := rows[i].AccountID
+		if sid == "" {
+			continue
+		}
+		qty := utils.Decimal.PgNumericToDecimal(rows[i].Quantity)
+		if qty.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+		weights[sid] = weights[sid].Add(qty)
+		total = total.Add(qty)
+	}
+	if total.LessThanOrEqual(decimal.Zero) {
+		return nil, true, nil
+	}
+
+	shares := make(map[string]decimal.Decimal, len(weights))
+	for sid, w := range weights {
+		shares[sid] = w.Div(total)
+	}
+	return shares, true, nil
+}
+
 // computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重
 func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account, ts time.Time) ([]SubWeight, decimal.Decimal, error) {
 	wt := ctypes.GetWalletType(exchange, ord.Symbol.Type)
@@ -215,6 +256,14 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		}
 		if bot != nil && strings.TrimSpace(bot.AccountID) != "" {
 			if e.accountIsVirtualSubOfParent(ctx, parentID, bot.AccountID) {
+				logger.Ctx(ctx).Info().
+					Str("parent_id", parentID).
+					Str("exchange", exchange.String()).
+					Str("order_id", ord.OrderID.String()).
+					Str("client_order_id", ord.ClientOrderID.String()).
+					Int64("bot_id", ord.BotID).
+					Str("symbol", ord.Symbol.String()).
+					Msg("multi_bot order fanout: bot_id hit")
 				return []SubRawDispatch{{
 					SubAccountID: bot.AccountID,
 					Share:        decimal.NewFromInt(1),
@@ -231,10 +280,37 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, err
 	}
 	if hasOrderIDHit {
+		logger.Ctx(ctx).Info().
+			Interface("shares", sharesByOrderID).
+			Str("parent_id", parentID).
+			Str("exchange", exchange.String()).
+			Str("order_id", ord.OrderID.String()).
+			Str("client_order_id", ord.ClientOrderID.String()).
+			Int64("bot_id", ord.BotID).
+			Str("symbol", ord.Symbol.String()).
+			Msg("multi_bot order fanout: order_id hit")
 		return buildSubRawDispatchesFromUnitShares(ordCopy, sharesByOrderID), nil
 	}
 
-	// 3) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
+	// 3) 按 client_order_id 命中子账户订单：按子账户订单 quantity 占比直接分摊。
+	sharesByClientOrderID, hasClientOrderIDHit, err := e.getOrderMatchedSubSharesByClientOrderID(ctx, parentID, exchange, ord.ClientOrderID.String())
+	if err != nil {
+		return nil, err
+	}
+	if hasClientOrderIDHit {
+		logger.Ctx(ctx).Info().
+			Interface("shares", sharesByClientOrderID).
+			Str("parent_id", parentID).
+			Str("exchange", exchange.String()).
+			Str("order_id", ord.OrderID.String()).
+			Str("client_order_id", ord.ClientOrderID.String()).
+			Int64("bot_id", ord.BotID).
+			Str("symbol", ord.Symbol.String()).
+			Msg("multi_bot order fanout: client_order_id hit")
+		return buildSubRawDispatchesFromUnitShares(ordCopy, sharesByClientOrderID), nil
+	}
+
+	// 4) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
 	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs, ord.CreatedTs)
 	if err != nil {
 		return nil, err
@@ -269,6 +345,15 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 			Msg("multi_bot order fanout: proportional split W=0 (falls through to parent row)")
 		return nil, nil
 	}
+	logger.Ctx(ctx).Info().
+		Interface("shares", shares).
+		Str("parent_id", parentID).
+		Str("exchange", exchange.String()).
+		Str("order_id", ord.OrderID.String()).
+		Str("client_order_id", ord.ClientOrderID.String()).
+		Int64("bot_id", ord.BotID).
+		Str("symbol", ord.Symbol.String()).
+		Msg("multi_bot order fanout: proportional split")
 	return buildSubRawDispatchesFromUnitShares(ordCopy, shares), nil
 }
 
