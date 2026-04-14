@@ -220,34 +220,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	lookup, err := e.loadMultiBotOrderLookup(ctx, parentID, exchange, ord)
-	if err != nil {
-		return nil, err
-	}
-
-	// 2) DB：子账户上已有 order_id 行
-	if lookup.ChildByOrderID != nil && e.accountIsVirtualSubOfParent(ctx, parentID, lookup.ChildByOrderID.AccountID) {
-		sid := lookup.ChildByOrderID.AccountID
-		return []SubRawDispatch{{
-			SubAccountID: sid,
-			Share:        decimal.NewFromInt(1),
-			Order:        cloneOrderForSub(ordCopy, sid),
-		}}, nil
-	}
-
-	// 3) DB：父树下 client_order_id 命中子账户行
-	if lookup.UnderParentByClientOrderID != nil {
-		sid := lookup.UnderParentByClientOrderID.AccountID
-		if sid != parentID && e.accountIsVirtualSubOfParent(ctx, parentID, sid) {
-			return []SubRawDispatch{{
-				SubAccountID: sid,
-				Share:        decimal.NewFromInt(1),
-				Order:        cloneOrderForSub(ordCopy, sid),
-			}}, nil
-		}
-	}
-
-	// 4) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout）
+	// 2) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout）
 	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs)
 	if err != nil {
 		return nil, err
@@ -265,7 +238,6 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 	}
 	return buildSubRawDispatchesFromUnitShares(ordCopy, shares), nil
 }
-
 
 // AttributeOrdersFromParent 将父 connector 拉到的在途订单按 multi_bot 归因到本 virtual_sub（含份额缩放）。
 // 供 connector.VirtualSubAccountReader 实现，与 WS/Cron 侧 AttributeMultiBotOrderForFanout 语义一致。
