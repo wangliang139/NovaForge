@@ -65,20 +65,13 @@ func (e *Entity) casSaveMultibotFanoutToDB(ctx context.Context, parentID, orderI
 		AccountID: parentID,
 		OrderID:   strings.TrimSpace(orderID),
 	})
-	if rowsAffected == 1 {
-		return shares, nil
-	}
-	row, err := e.db.OrdersRepo.GetOrderByOrderId(ctx, ordersrepo.GetOrderByOrderIdParams{
-		AccountID: parentID,
-		OrderID:   orderID,
-	})
 	if err != nil {
 		return nil, err
 	}
-	if row == nil || len(row.Fanout) == 0 {
-		return nil, nil
+	if rowsAffected == 1 {
+		return shares, nil
 	}
-	return converter.ParseMultibotFanoutJSON(row.Fanout), nil
+	return e.getMultibotFanoutFromDB(ctx, parentID, orderID)
 }
 
 // absPositionWeightForFanout 平仓归因权重：仅使用 position_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 positions。
@@ -243,7 +236,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 	}
 	if fanout != nil {
 		logger.Ctx(ctx).Info().
-			Str("shares", formatAnyToJson(ord.Fanout)).
+			Str("shares", formatAnyToJson(fanout)).
 			Str("parent_id", parentID).
 			Str("exchange", exchange.String()).
 			Str("order_id", ord.OrderID.String()).
@@ -259,12 +252,20 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, err
 	}
 
-	fanout, err = e.casSaveMultibotFanoutToDB(ctx, parentID, ord.OrderID.String(), fanout)
+	newFanout, err := e.casSaveMultibotFanoutToDB(ctx, parentID, ord.OrderID.String(), fanout)
 	if err != nil {
-		return nil, err
+		logger.Ctx(ctx).Err(err).
+			Str("parent_id", parentID).
+			Str("exchange", exchange.String()).
+			Str("order_id", ord.OrderID.String()).
+			Str("client_order_id", ord.ClientOrderID.String()).
+			Int64("bot_id", ord.BotID).
+			Str("symbol", ord.Symbol.String()).
+			Msg("multi_bot order fanout: save fanout to db failed")
+	} else {
+		fanout = newFanout
 	}
 	ord.Fanout = fanout
-	
 	return buildSubRawDispatchesFromUnitShares(*ord, fanout), nil
 }
 
