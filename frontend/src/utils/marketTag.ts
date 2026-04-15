@@ -38,7 +38,7 @@ export const getWalletTypeLabel = (walletType?: string, withWalletSuffix = false
   if (!withWalletSuffix || text === '-' || text === '未指定') {
     return text;
   }
-  return `${text}钱包`;
+  return `${text}`;
 };
 
 export const getWalletTypeTagInfo = (

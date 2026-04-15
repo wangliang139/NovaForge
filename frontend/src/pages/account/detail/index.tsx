@@ -1,3 +1,4 @@
+import { EllipsisMiddleText } from '@/components';
 import AssetsProTable from '@/components/Market/AssetsTable';
 import { KlineChartPro } from '@/components/Market/KlineChartPro';
 import LedgersTable from '@/components/Market/LedgersTable';
@@ -45,9 +46,10 @@ import {
   BugOutlined,
   CaretRightOutlined,
   DesktopOutlined,
+  InfoCircleOutlined,
   PoweroffOutlined,
   ReloadOutlined,
-  SyncOutlined,
+  SyncOutlined
 } from '@ant-design/icons';
 import {
   PageContainer,
@@ -73,6 +75,7 @@ import {
   Statistic,
   Table,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import dayjs from 'dayjs';
@@ -257,6 +260,40 @@ const AccountDetail: FC = () => {
       return '-';
     }
     return `${(value * 100).toFixed(2)}%`;
+  };
+
+  const orderTypeLabelMap: Record<string, string> = {
+    [OrderType.Market]: '市价单',
+    [OrderType.Limit]: '限价单',
+    MARKET: '市价单',
+    LIMIT: '限价单',
+  };
+
+  const orderSourceLabelMap: Record<string, string> = {
+    [OrderSource.User]: '用户',
+    [OrderSource.Strategy]: '策略',
+    [OrderSource.Liquidation]: '强平',
+    [OrderSource.Adl]: 'ADL',
+    USER: '用户',
+    STRATEGY: '策略',
+    LIQUIDATION: '强平',
+    ADL: 'ADL',
+  };
+
+  const orderStatusLabelMap: Record<string, string> = {
+    [OrderStatus.New]: '新订单',
+    [OrderStatus.Pending]: '待处理',
+    [OrderStatus.Working]: '处理中',
+    [OrderStatus.PartialDone]: '部分成交',
+    [OrderStatus.Done]: '已成交',
+    [OrderStatus.Canceled]: '已取消',
+    [OrderStatus.Rejected]: '已拒绝',
+    [OrderStatus.Expired]: '已过期',
+  };
+
+  const positionSideLabelMap: Record<string, string> = {
+    [PositionSide.Long]: '多',
+    [PositionSide.Short]: '空',
   };
 
   const decideLimitMode = (amount?: any, ratio?: any): 'amount' | 'ratio' => {
@@ -1086,7 +1123,7 @@ const AccountDetail: FC = () => {
           }}
         />
         <div className={styles.title} style={{ marginTop: 32 }}>
-          订单列表
+          订单列表 <Tooltip title="双击订单行可查看订单详情"><InfoCircleOutlined style={{ marginLeft: 4 }} /></Tooltip>
         </div>
         <OrdersTable
           dataSource={orders}
@@ -1199,16 +1236,32 @@ const AccountDetail: FC = () => {
                 {selectedOrder.clientOrderId || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="交易对">{selectedOrder.symbol || '-'}</Descriptions.Item>
-              <Descriptions.Item label="状态">{selectedOrder.status || '-'}</Descriptions.Item>
               <Descriptions.Item label="方向">
                 {selectedOrder.isBuy ? '买入' : '卖出'}
               </Descriptions.Item>
-              <Descriptions.Item label="仓位方向">{selectedOrder.side || '-'}</Descriptions.Item>
-              <Descriptions.Item label="订单类型">{selectedOrder.orderType || '-'}</Descriptions.Item>
-              <Descriptions.Item label="来源">{selectedOrder.source || '-'}</Descriptions.Item>
+              <Descriptions.Item label="仓位方向">
+                {positionSideLabelMap[selectedOrder.side] || selectedOrder.side || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="订单类型">
+                {orderTypeLabelMap[selectedOrder.orderType] || selectedOrder.orderType || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="来源">
+                {orderSourceLabelMap[selectedOrder.source] || selectedOrder.source || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                {orderStatusLabelMap[selectedOrder.status] || selectedOrder.status || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="委托价格">{selectedOrder.price || '-'}</Descriptions.Item>
-              <Descriptions.Item label="委托数量">{selectedOrder.originalQty || '-'}</Descriptions.Item>
-              <Descriptions.Item label="已成交数量">{selectedOrder.executedQty || '-'}</Descriptions.Item>
+              <Descriptions.Item label="委托数量">
+                {selectedOrder.originalQty
+                  ? `${selectedOrder.originalQty} ${utils.market.parseSymbol(selectedOrder.symbol).base || ''}`.trim()
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="已成交数量">
+                {selectedOrder.executedQty
+                  ? `${selectedOrder.executedQty} ${utils.market.parseSymbol(selectedOrder.symbol).base || ''}`.trim()
+                  : '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="成交均价">{selectedOrder.avgPrice || '-'}</Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {selectedOrder.createdTs > 0
@@ -1222,7 +1275,7 @@ const AccountDetail: FC = () => {
               </Descriptions.Item>
             </Descriptions>
             {!!selectedOrder.allocations?.length && (
-              <Card size="small" title="分摊信息">
+              <Card size="small" title="子账户分摊信息">
                 <Table
                   rowKey={(record) => record.accountId}
                   size="small"
@@ -1251,7 +1304,7 @@ const AccountDetail: FC = () => {
         open={multiBotModalOpen}
         onCancel={() => setMultiBotModalOpen(false)}
         footer={null}
-        width={1200}
+        width={1000}
         destroyOnHidden
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -1282,7 +1335,7 @@ const AccountDetail: FC = () => {
               scroll={{ x: true }}
               dataSource={multiBotAssetRows}
               columns={[
-                { title: '资产', dataIndex: 'asset', align: 'center', width: 100, render: (value: string) => <Tag color="#ffc069">{value}</Tag> },
+                { title: '币种', dataIndex: 'asset', align: 'center', width: 100 },
                 {
                   title: '钱包类型',
                   dataIndex: 'walletType',
@@ -1296,7 +1349,7 @@ const AccountDetail: FC = () => {
                 { title: '总资金', dataIndex: 'parentTotal', width: 120 },
                 { title: '未分配', dataIndex: 'unallocated', width: 120 },
                 ...multiBotSubAccounts.map((sub) => ({
-                  title: sub.name || sub.accountId,
+                  title: <EllipsisMiddleText suffixCount={10} style={{ minWidth: 100 }}>{sub.name || sub.accountId}</EllipsisMiddleText>,
                   key: `sub-${sub.accountId}`,
                   render: (_: unknown, record: any) => {
                     const amount =
@@ -1319,7 +1372,7 @@ const AccountDetail: FC = () => {
                 {
                   title: '交易对', dataIndex: 'symbol', width: 180,
                   align: 'center',
-                  render: (value: string) => <Tag color="#d3f261">{value}</Tag>
+                  render: (value: string) => <Tag color="blue">{value}</Tag>
                 },
                 {
                   title: '方向',
@@ -1334,7 +1387,7 @@ const AccountDetail: FC = () => {
                 { title: '父账户总仓位', dataIndex: 'parentTotal', width: 120 },
                 { title: '未分配仓位', dataIndex: 'unallocated', width: 120 },
                 ...multiBotSubAccounts.map((sub) => ({
-                  title: sub.name || sub.accountId,
+                  title: <EllipsisMiddleText suffixCount={10} style={{ minWidth: 100 }}>{sub.name || sub.accountId}</EllipsisMiddleText>,
                   key: `pos-sub-${sub.accountId}`,
                   render: (_: unknown, record: any) => {
                     const amount =
