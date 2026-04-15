@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/shopspring/decimal"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ordersrepo "github.com/wangliang139/NovaForge/server/pkg/repos/orders"
@@ -63,6 +64,32 @@ func (e *Entity) accountIsVirtualSubOfParent(ctx context.Context, parentID, acco
 	return true
 }
 
+// orderMatchedWeightsToSubFanoutShares 将子单 quantity 聚合权重按父单原始量 P 做比例拆分，与 SplitProportionalDelta 语义一致：
+// 子 i 份额为 w_i/(sum(w)+max(0,P-sum(w)))，未镜像到子单的量 max(0,P-T) 由父吸收（份额不进入子派发）。
+func orderMatchedWeightsToSubFanoutShares(weights map[string]decimal.Decimal, parentOriginalQty decimal.Decimal) (map[string]decimal.Decimal, error) {
+	if len(weights) == 0 {
+		return nil, nil
+	}
+	subs := make([]SubWeight, 0, len(weights))
+	var total decimal.Decimal
+	for sid, w := range weights {
+		if w.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+		subs = append(subs, SubWeight{SubAccountID: sid, W: w})
+		total = total.Add(w)
+	}
+	if len(subs) == 0 {
+		return nil, nil
+	}
+	wUnalloc := decimal.Zero
+	if parentOriginalQty.IsPositive() && total.LessThan(parentOriginalQty) {
+		wUnalloc = parentOriginalQty.Sub(total)
+	}
+	toSub, _, err := SplitProportionalDelta(decimal.NewFromInt(1), subs, wUnalloc)
+	return toSub, err
+}
+
 func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string]decimal.Decimal) []SubRawDispatch {
 	ids := make([]string, 0, len(unitShares))
 	for sid, sh := range unitShares {
@@ -84,48 +111,7 @@ func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string
 	return out
 }
 
-func (e *Entity) getOrderMatchedSubSharesByOrderID(ctx context.Context, parentID string, exchange ctypes.Exchange, orderID string) (map[string]decimal.Decimal, bool, error) {
-	if strings.TrimSpace(orderID) == "" {
-		return nil, false, nil
-	}
-	rows, err := e.db.OrdersRepo.ListOrdersByOrderIdUnderVirtualSubs(ctx, ordersrepo.ListOrdersByOrderIdUnderVirtualSubsParams{
-		OrderID:         orderID,
-		Exchange:        exchange.String(),
-		ParentAccountID: &parentID,
-	})
-	if err != nil {
-		return nil, false, err
-	}
-	if len(rows) == 0 {
-		return nil, false, nil
-	}
-
-	weights := make(map[string]decimal.Decimal)
-	var total decimal.Decimal
-	for i := range rows {
-		sid := rows[i].AccountID
-		if sid == "" {
-			continue
-		}
-		qty := utils.Decimal.PgNumericToDecimal(rows[i].Quantity)
-		if qty.LessThanOrEqual(decimal.Zero) {
-			continue
-		}
-		weights[sid] = weights[sid].Add(qty)
-		total = total.Add(qty)
-	}
-	if total.LessThanOrEqual(decimal.Zero) {
-		return nil, true, nil
-	}
-
-	shares := make(map[string]decimal.Decimal, len(weights))
-	for sid, w := range weights {
-		shares[sid] = w.Div(total)
-	}
-	return shares, true, nil
-}
-
-func (e *Entity) getOrderMatchedSubSharesByClientOrderID(ctx context.Context, parentID string, exchange ctypes.Exchange, clientOrderID string) (map[string]decimal.Decimal, bool, error) {
+func (e *Entity) getOrderMatchedSubWeightsByClientOrderID(ctx context.Context, parentID string, exchange ctypes.Exchange, clientOrderID string) (map[string]decimal.Decimal, bool, error) {
 	if strings.TrimSpace(clientOrderID) == "" {
 		return nil, false, nil
 	}
@@ -159,11 +145,7 @@ func (e *Entity) getOrderMatchedSubSharesByClientOrderID(ctx context.Context, pa
 		return nil, true, nil
 	}
 
-	shares := make(map[string]decimal.Decimal, len(weights))
-	for sid, w := range weights {
-		shares[sid] = w.Div(total)
-	}
-	return shares, true, nil
+	return weights, true, nil
 }
 
 // computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重
@@ -274,32 +256,18 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	// 2) 按 order_id 命中子账户订单：按子账户订单 quantity 占比直接分摊。
-	sharesByOrderID, hasOrderIDHit, err := e.getOrderMatchedSubSharesByOrderID(ctx, parentID, exchange, ord.OrderID.String())
-	if err != nil {
-		return nil, err
-	}
-	if hasOrderIDHit {
-		logger.Ctx(ctx).Info().
-			Interface("shares", sharesByOrderID).
-			Str("parent_id", parentID).
-			Str("exchange", exchange.String()).
-			Str("order_id", ord.OrderID.String()).
-			Str("client_order_id", ord.ClientOrderID.String()).
-			Int64("bot_id", ord.BotID).
-			Str("symbol", ord.Symbol.String()).
-			Msg("multi_bot order fanout: order_id hit")
-		return buildSubRawDispatchesFromUnitShares(ordCopy, sharesByOrderID), nil
-	}
-
-	// 3) 按 client_order_id 命中子账户订单：按子账户订单 quantity 占比直接分摊。
-	sharesByClientOrderID, hasClientOrderIDHit, err := e.getOrderMatchedSubSharesByClientOrderID(ctx, parentID, exchange, ord.ClientOrderID.String())
+	// 2) 按 client_order_id 命中子账户订单
+	weightsByClientOrderID, hasClientOrderIDHit, err := e.getOrderMatchedSubWeightsByClientOrderID(ctx, parentID, exchange, ord.ClientOrderID.String())
 	if err != nil {
 		return nil, err
 	}
 	if hasClientOrderIDHit {
+		sharesByClientOrderID, err := orderMatchedWeightsToSubFanoutShares(weightsByClientOrderID, ordCopy.OriginalQty)
+		if err != nil {
+			return nil, err
+		}
 		logger.Ctx(ctx).Info().
-			Interface("shares", sharesByClientOrderID).
+			Str("shares", formatAnyToJson(sharesByClientOrderID)).
 			Str("parent_id", parentID).
 			Str("exchange", exchange.String()).
 			Str("order_id", ord.OrderID.String()).
@@ -310,7 +278,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return buildSubRawDispatchesFromUnitShares(ordCopy, sharesByClientOrderID), nil
 	}
 
-	// 4) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
+	// 3) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
 	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs, ord.CreatedTs)
 	if err != nil {
 		return nil, err
@@ -346,7 +314,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 	logger.Ctx(ctx).Info().
-		Interface("shares", shares).
+		Str("shares", formatAnyToJson(shares)).
 		Str("parent_id", parentID).
 		Str("exchange", exchange.String()).
 		Str("order_id", ord.OrderID.String()).
@@ -415,4 +383,9 @@ func (e *Entity) AttributeOrderFromParent(ctx context.Context, parentID, subID s
 		return &cp, nil
 	}
 	return nil, nil
+}
+
+func formatAnyToJson(shares map[string]decimal.Decimal) string {
+	raw, _ := sonic.Marshal(shares)
+	return string(raw)
 }

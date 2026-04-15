@@ -403,16 +403,49 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 			return nil, err
 		}
 
-		row, err := e.db.AssetsRepo.WithTx(tx).IncrementAsset(ctx, assets.IncrementAssetParams{
-			AccountID:     accountID,
-			Asset:         asset,
-			WalletType:    assets.WalletType(walletType),
-			Total:         totalNum,
-			Frozen:        frozenNum,
-			LastUpdatedTs: ts,
-		})
-		if err != nil {
-			return nil, err
+		var row *assets.Asset
+		if prevPo != nil {
+			row, err = e.db.AssetsRepo.WithTx(tx).IncrementAsset(ctx, assets.IncrementAssetParams{
+				AccountID:     accountID,
+				Asset:         asset,
+				WalletType:    assets.WalletType(walletType),
+				Total:         totalNum,
+				Frozen:        frozenNum,
+				LastUpdatedTs: ts,
+			})
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			upsertTotalNum := totalNum
+			if !upsertTotalNum.Valid {
+				upsertTotalNum = utils.Decimal.DecimalToPgNumeric(decimal.Zero)
+			}
+			upsertFrozenNum := frozenNum
+			if !upsertFrozenNum.Valid {
+				upsertTotalNum = utils.Decimal.DecimalToPgNumeric(decimal.Zero)
+			}
+			upsertRow, err := e.db.AssetsRepo.WithTx(tx).UpsertAsset(ctx, assets.UpsertAssetParams{
+				AccountID:     accountID,
+				Exchange:      exchange.String(),
+				Asset:         asset,
+				WalletType:    assets.WalletType(walletType),
+				Total:         totalNum,
+				Frozen:        frozenNum,
+				LastUpdatedTs: ts,
+			})
+			if err != nil {
+				return nil, err
+			}
+			row = &assets.Asset{
+				AccountID:     accountID,
+				Exchange:      exchange.String(),
+				Asset:         asset,
+				WalletType:    assets.WalletType(walletType),
+				Total:         upsertRow.Total,
+				Frozen:        upsertRow.Frozen,
+				LastUpdatedTs: upsertRow.LastUpdatedTs,
+			}
 		}
 
 		if row != nil {

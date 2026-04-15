@@ -136,6 +136,8 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
 
     const baseQtyNum = utils.math.toSafeNumber(orderBaseQty);
     const sellAmountBase = baseQtyNum > 0 ? baseQtyNum : 0;
+    const sellQuoteProceeds =
+      sellAmountBase > 0 && priceForCalc > 0 ? sellAmountBase * priceForCalc : 0;
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -195,10 +197,10 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
             <>
               <div>
                 可卖{' '}
-                {sellAmountBase > 0
-                  ? formatVolume(sellAmountBase)
+                {sellQuoteProceeds > 0
+                  ? utils.math.formatByPrecision(sellQuoteProceeds, pricePrecision, '--')
                   : '--'}{' '}
-                {symbolParsed.base}
+                {symbolParsed.quote}
               </div>
             </>
           )}
@@ -216,6 +218,7 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
     orderSide,
     onPlaceOrder,
     formatVolume,
+    pricePrecision,
   ]);
 
   return (

@@ -682,6 +682,15 @@ func (p *MarketProvider) GetPriceAt(ctx context.Context, ex ctypes.Exchange, sym
 	result, err := p.cache.Get(ctx, key, intervalDur, func(ctx context.Context, params ...any) (any, error) {
 		limit := 1
 		endTs := barStart.Add(intervalDur)
+		log.Info().
+			Str("barStart", barStart.Format(time.RFC3339Nano)).
+			Str("endTs", endTs.Format(time.RFC3339Nano)).
+			Int("limit", limit).
+			Str("ex", ex.String()).
+			Str("symbol", symbol.String()).
+			Time("ts", ts).
+			Str("interval", interval.String()).
+			Msg("GetPriceAt")
 		bars, err := p.GetHisKlines(ctx, ex, symbol, interval, &barStart, &endTs, &limit)
 		if err != nil {
 			return nil, err

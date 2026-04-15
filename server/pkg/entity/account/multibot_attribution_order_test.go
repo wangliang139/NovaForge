@@ -73,6 +73,44 @@ func TestAllocateFieldAmongSubs_moneyDefaultPrecision(t *testing.T) {
 	}
 }
 
+func TestOrderMatchedWeightsToSubFanoutShares_reservesParentWhenSubsSumBelowOriginal(t *testing.T) {
+	weights := map[string]decimal.Decimal{
+		"subA": decimal.NewFromInt(1),
+		"subB": decimal.NewFromInt(2),
+	}
+	// T=3, P=10 → 子合计份额 0.3，与「未分配由父吸收」一致
+	got, err := orderMatchedWeightsToSubFanoutShares(weights, decimal.NewFromInt(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got["subA"].Equal(decimal.RequireFromString("0.1")) || !got["subB"].Equal(decimal.RequireFromString("0.2")) {
+		t.Fatalf("got %#v", got)
+	}
+	var sum decimal.Decimal
+	for _, v := range got {
+		sum = sum.Add(v)
+	}
+	if !sum.Equal(decimal.RequireFromString("0.3")) {
+		t.Fatalf("sum child shares %s want 0.3", sum)
+	}
+}
+
+func TestOrderMatchedWeightsToSubFanoutShares_sameAsNormalizeWhenSubsCoverParent(t *testing.T) {
+	weights := map[string]decimal.Decimal{
+		"subA": decimal.NewFromInt(1),
+		"subB": decimal.NewFromInt(2),
+	}
+	got, err := orderMatchedWeightsToSubFanoutShares(weights, decimal.NewFromInt(3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantA := decimal.NewFromInt(1).Div(decimal.NewFromInt(3))
+	wantB := decimal.NewFromInt(2).Div(decimal.NewFromInt(3))
+	if !got["subA"].Equal(wantA) || !got["subB"].Equal(wantB) {
+		t.Fatalf("got subA=%s subB=%s want %s %s", got["subA"], got["subB"], wantA, wantB)
+	}
+}
+
 func TestBuildSubRawDispatchesFromUnitShares_sortedIDs(t *testing.T) {
 	ord := ctypes.Order{}
 	shares := map[string]decimal.Decimal{"z": decimal.RequireFromString("0.1"), "a": decimal.RequireFromString("0.2")}
