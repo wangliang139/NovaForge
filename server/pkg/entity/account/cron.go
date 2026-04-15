@@ -398,8 +398,8 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 
 	var (
 		lastRefreshAt time.Time
-		ordersList []*ctypes.Order
-		err        error
+		ordersList    []*ctypes.Order
+		err           error
 	)
 	switch acct.AccountType {
 	case types.AccountTypeReal:
@@ -435,7 +435,8 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 		if err != nil {
 			return nil, fmt.Errorf("get vs acct parent orders refresh window: %w", err)
 		}
-		dbParentOrders, err := e.db.OrdersRepo.ListOrdersByAccountRefreshWindow(ctx, orders.ListOrdersByAccountRefreshWindowParams{
+		lastRefreshAt = endTime
+		dbParentOrders, err := e.db.OrdersRepo.ListLastOrdersByAccountRefreshWindow(ctx, orders.ListLastOrdersByAccountRefreshWindowParams{
 			AccountID:   parent.ID,
 			CreatedTs:   fromTime,
 			CreatedTs_2: endTime,
@@ -550,9 +551,9 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 	}
 
 	// 更新虚拟子账户的父订单刷新时间
-	if acct.AccountType == types.AccountTypeVirtualSub {
+	if acct.AccountType == types.AccountTypeVirtualSub && !lastRefreshAt.IsZero() {
 		if _, err := e.db.AccountRepo.SetVirtualSubParentOrdersRefreshAt(ctx, accountrepo.SetVirtualSubParentOrdersRefreshAtParams{
-			At: time.Now(),
+			At: lastRefreshAt,
 			ID: accountID,
 		}, &accountID, &acct.Name, lo.ToPtr(accountrepo.Exchange(acct.Exchange))); err != nil {
 			logger.Ctx(ctx).Err(err).Str("account_id", accountID).Msg("set virtual_sub last parent orders refresh time failed")
