@@ -41,6 +41,29 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
   const [orderQtyPercent, setOrderQtyPercent] = useState<number>(0);
   const [priceTouched, setPriceTouched] = useState(false);
 
+  const quantizeDown = useCallback((value: number, precision: number): number => {
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    if (!Number.isFinite(precision) || precision < 0) return value;
+    const factor = 10 ** precision;
+    return Math.floor(value * factor + Number.EPSILON) / factor;
+  }, []);
+
+  const formatDecimal = useCallback((value: number, precision: number): string => {
+    if (!Number.isFinite(value) || value <= 0) return '';
+    if (!Number.isFinite(precision) || precision < 0) return String(value);
+    return value.toFixed(precision).replace(/\.?0+$/, '');
+  }, []);
+
+  const normalizeBaseQty = useCallback(
+    (qty: number, maxBase: number): number => {
+      if (!Number.isFinite(qty) || qty <= 0) return 0;
+      if (!Number.isFinite(maxBase) || maxBase <= 0) return 0;
+      const clamped = Math.min(qty, maxBase);
+      return quantizeDown(clamped, volumePrecision);
+    },
+    [quantizeDown, volumePrecision],
+  );
+
   const getAvailableAmount = useCallback(
     (code: string): number => {
       const walletTypes = utils.market.getWalletTypes(exchange, MarketType.Spot);
@@ -163,9 +186,10 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
               notionalStr = orderQty || '0';
             } else {
               const qtyNum = utils.math.toSafeNumber(orderBaseQty);
-              baseQtyVal = qtyNum;
+              const maxBase = getAvailableAmount(symbolParsed.base);
+              baseQtyVal = normalizeBaseQty(qtyNum, maxBase);
               const notionalNum =
-                finalPrice > 0 && qtyNum > 0 ? qtyNum * finalPrice : 0;
+                finalPrice > 0 && baseQtyVal > 0 ? baseQtyVal * finalPrice : 0;
               notionalStr = notionalNum ? String(notionalNum) : '0';
             }
 
@@ -174,7 +198,10 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
               isBuy,
               orderType,
               price: String(finalPrice || 0),
-              baseQty: String(baseQtyVal || 0),
+              baseQty:
+                orderSide === 'sell'
+                  ? formatDecimal(baseQtyVal, volumePrecision) || '0'
+                  : String(baseQtyVal || 0),
               notional: notionalStr,
               leverage: 1,
             });
@@ -219,6 +246,10 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
     onPlaceOrder,
     formatVolume,
     pricePrecision,
+    getAvailableAmount,
+    normalizeBaseQty,
+    formatDecimal,
+    volumePrecision,
   ]);
 
   return (
@@ -381,7 +412,8 @@ const SpotPlaceOrderForm: React.FC<SpotPlaceOrderFormProps> = ({
                       const maxBase = getAvailableAmount(symbolParsed.base);
                       if (maxBase <= 0) return;
                       const qty = (maxBase * percent) / 100;
-                      setOrderBaseQty(qty > 0 ? String(qty) : '');
+                      const normalizedQty = normalizeBaseQty(qty, maxBase);
+                      setOrderBaseQty(formatDecimal(normalizedQty, volumePrecision));
                     }}
                   />
                 </div>

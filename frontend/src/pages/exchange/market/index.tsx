@@ -1767,13 +1767,13 @@ const MarketPage: React.FC = () => {
           ) : (
             <>
               <div>
-                <Typography.Text type="secondary">可买：</Typography.Text>
+                <Typography.Text type="secondary">{params.isBuy?'买入':'卖出'}：</Typography.Text>
                 <Typography.Text>
                   {formatVolume(baseQty) ?? '—'} {symbolParsed.base}
                 </Typography.Text>
               </div>
               <div>
-                <Typography.Text type="secondary">可卖：</Typography.Text>
+                <Typography.Text type="secondary">{params.isBuy?'卖出':'买入'}：</Typography.Text>
                 <Typography.Text>
                   {formatVolume(quoteQty) ?? '—'} {symbolParsed.quote}
                 </Typography.Text>

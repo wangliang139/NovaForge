@@ -291,11 +291,6 @@ const AccountDetail: FC = () => {
     [OrderStatus.Expired]: '已过期',
   };
 
-  const positionSideLabelMap: Record<string, string> = {
-    [PositionSide.Long]: '多',
-    [PositionSide.Short]: '空',
-  };
-
   const decideLimitMode = (amount?: any, ratio?: any): 'amount' | 'ratio' => {
     const hasAmount = amount !== undefined && amount !== null && amount !== '';
     const hasRatio = ratio !== undefined && ratio !== null && ratio !== '';
@@ -1240,7 +1235,7 @@ const AccountDetail: FC = () => {
                 {selectedOrder.isBuy ? '买入' : '卖出'}
               </Descriptions.Item>
               <Descriptions.Item label="仓位方向">
-                {positionSideLabelMap[selectedOrder.side] || selectedOrder.side || '-'}
+                {getSideTagInfo(selectedOrder.side).text}
               </Descriptions.Item>
               <Descriptions.Item label="订单类型">
                 {orderTypeLabelMap[selectedOrder.orderType] || selectedOrder.orderType || '-'}
@@ -1347,15 +1342,49 @@ const AccountDetail: FC = () => {
                   },
                 },
                 { title: '总资金', dataIndex: 'parentTotal', width: 120 },
-                { title: '未分配', dataIndex: 'unallocated', width: 120 },
+                {
+                  title: '未分配',
+                  dataIndex: 'unallocated',
+                  width: 120,
+                  render: (value: string, record: any) => {
+                    const unallocatedValue = Number(value);
+                    const parentTotalValue = Number(record.parentTotal);
+                    const ratio =
+                      Number.isFinite(unallocatedValue) &&
+                        Number.isFinite(parentTotalValue) &&
+                        parentTotalValue > 0
+                        ? unallocatedValue / parentTotalValue
+                        : 0;
+                    return (
+                      <div>
+                        <div>{value || '0'}</div>
+                        <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
+                      </div>
+                    );
+                  },
+                },
                 ...multiBotSubAccounts.map((sub) => ({
                   title: <EllipsisMiddleText suffixCount={10} style={{ minWidth: 100 }}>{sub.name || sub.accountId}</EllipsisMiddleText>,
                   key: `sub-${sub.accountId}`,
                   render: (_: unknown, record: any) => {
-                    const amount =
-                      record.subAllocations?.find((item: any) => item.accountId === sub.accountId)
-                        ?.amount || '0';
-                    return amount;
+                    const allocation = record.subAllocations?.find(
+                      (item: any) => item.accountId === sub.accountId,
+                    );
+                    const amount = allocation?.amount || '0';
+                    const amountValue = Number(amount);
+                    const parentTotalValue = Number(record.parentTotal);
+                    const ratio =
+                      Number.isFinite(amountValue) &&
+                        Number.isFinite(parentTotalValue) &&
+                        parentTotalValue > 0
+                        ? amountValue / parentTotalValue
+                        : 0;
+                    return (
+                      <div>
+                        <div>{amount}</div>
+                        <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
+                      </div>
+                    );
                   },
                 })),
               ]}
@@ -1385,15 +1414,49 @@ const AccountDetail: FC = () => {
                   },
                 },
                 { title: '父账户总仓位', dataIndex: 'parentTotal', width: 120 },
-                { title: '未分配仓位', dataIndex: 'unallocated', width: 120 },
+                {
+                  title: '未分配仓位',
+                  dataIndex: 'unallocated',
+                  width: 120,
+                  render: (value: string, record: any) => {
+                    const unallocatedValue = Number(value);
+                    const parentTotalValue = Number(record.parentTotal);
+                    const ratio =
+                      Number.isFinite(unallocatedValue) &&
+                        Number.isFinite(parentTotalValue) &&
+                        parentTotalValue > 0
+                        ? unallocatedValue / parentTotalValue
+                        : 0;
+                    return (
+                      <div>
+                        <div>{value || '0'}</div>
+                        <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
+                      </div>
+                    );
+                  },
+                },
                 ...multiBotSubAccounts.map((sub) => ({
                   title: <EllipsisMiddleText suffixCount={10} style={{ minWidth: 100 }}>{sub.name || sub.accountId}</EllipsisMiddleText>,
                   key: `pos-sub-${sub.accountId}`,
                   render: (_: unknown, record: any) => {
-                    const amount =
-                      record.subAllocations?.find((item: any) => item.accountId === sub.accountId)
-                        ?.amount || '0';
-                    return amount;
+                    const allocation = record.subAllocations?.find(
+                      (item: any) => item.accountId === sub.accountId,
+                    );
+                    const amount = allocation?.amount || '0';
+                    const amountValue = Number(amount);
+                    const parentTotalValue = Number(record.parentTotal);
+                    const ratio =
+                      Number.isFinite(amountValue) &&
+                        Number.isFinite(parentTotalValue) &&
+                        parentTotalValue > 0
+                        ? amountValue / parentTotalValue
+                        : 0;
+                    return (
+                      <div>
+                        <div>{amount}</div>
+                        <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
+                      </div>
+                    );
                   },
                 })),
               ]}
