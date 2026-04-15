@@ -1,5 +1,8 @@
 import type { Asset } from '@/services/gateway/account';
-import { WalletType } from '@/services/gateway/account';
+import {
+  getWalletTypeTagInfo,
+  walletTypeFilterOptions,
+} from '@/utils/marketTag';
 import utils from '@/utils';
 import type { ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
@@ -29,23 +32,10 @@ const assetColumns: ProColumns<Asset>[] = [
     align: 'center',
     width: 120,
     sorter: (a, b) => String(a.walletType || '').localeCompare(String(b.walletType || '')),
-    filters: [
-      { text: '现货', value: WalletType.Spot },
-      { text: '合约', value: WalletType.Future },
-      { text: '资金', value: WalletType.Fund },
-      { text: '交易', value: WalletType.Trade },
-      { text: '杠杆', value: WalletType.Margin },
-    ],
+    filters: walletTypeFilterOptions,
     onFilter: (value, record) => record.walletType === value,
     render: (text: any) => {
-      const typeMap: Record<string, { text: string; color: string }> = {
-        [WalletType.Spot]: { text: '现货', color: 'blue' },
-        [WalletType.Future]: { text: '合约', color: 'orange' },
-        [WalletType.Fund]: { text: '资金', color: 'green' },
-        [WalletType.Trade]: { text: '交易', color: 'purple' },
-        [WalletType.Margin]: { text: '杠杆', color: 'red' },
-      };
-      const info = typeMap[text as string] || { text, color: 'default' };
+      const info = getWalletTypeTagInfo(String(text || ''));
       return <Tag color={info.color}>{info.text}</Tag>;
     },
   },

@@ -10,6 +10,7 @@ import {
   AccountConfig,
   AccountEquity,
   AccountInfo,
+  AccountMultiBotDetails,
   AccountType,
   Asset,
   cancelOrder,
@@ -30,6 +31,7 @@ import {
   queryAccount,
   queryAccountInfo,
   queryAccountMetrics,
+  queryAccountMultiBotDetails,
   queryEquitys,
   queryRiskEvents,
   refreshAccountSnapshots,
@@ -37,6 +39,7 @@ import {
 } from '@/services/gateway/account';
 import type { MarketInfo } from '@/services/gateway/market';
 import utils from '@/utils';
+import { getSideTagInfo, getWalletTypeTagInfo } from '@/utils/marketTag';
 import {
   AlertOutlined,
   BugOutlined,
@@ -58,6 +61,7 @@ import {
   Button,
   Card,
   Col,
+  Descriptions,
   Dropdown,
   Empty,
   Flex,
@@ -67,6 +71,7 @@ import {
   Segmented,
   Space,
   Statistic,
+  Table,
   Tag,
   Typography,
 } from 'antd';
@@ -139,6 +144,8 @@ const AccountDetail: FC = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [positionsLoading, setPositionsLoading] = useState(false);
@@ -181,6 +188,9 @@ const AccountDetail: FC = () => {
   const [riskEvents, setRiskEvents] = useState<RiskEvent[]>([]);
   const [riskEventsLoading, setRiskEventsLoading] = useState(false);
   const [riskModalOpen, setRiskModalOpen] = useState(false);
+  const [multiBotModalOpen, setMultiBotModalOpen] = useState(false);
+  const [multiBotLoading, setMultiBotLoading] = useState(false);
+  const [multiBotDetails, setMultiBotDetails] = useState<AccountMultiBotDetails | null>(null);
   const [maxPositionPerSymbolMode, setMaxPositionPerSymbolMode] = useState<'amount' | 'ratio'>(
     'amount',
   );
@@ -239,6 +249,14 @@ const AccountDetail: FC = () => {
       return '0.0';
     }
     return parsed.toFixed(1);
+  };
+
+  const formatRatioAsPercent = (ratio?: string) => {
+    const value = Number(ratio);
+    if (!Number.isFinite(value)) {
+      return '-';
+    }
+    return `${(value * 100).toFixed(2)}%`;
   };
 
   const decideLimitMode = (amount?: any, ratio?: any): 'amount' | 'ratio' => {
@@ -344,6 +362,19 @@ const AccountDetail: FC = () => {
       message.error(`加载风控事件失败：${err}`);
     } finally {
       setRiskEventsLoading(false);
+    }
+  };
+
+  const loadAccountMultiBotDetails = async () => {
+    try {
+      if (!id) return;
+      setMultiBotLoading(true);
+      const res = await queryAccountMultiBotDetails(id);
+      setMultiBotDetails(res || { subAccounts: [], assetAllocations: [], positionAllocations: [] });
+    } catch (err) {
+      message.error(`加载子账户信息失败：${err}`);
+    } finally {
+      setMultiBotLoading(false);
     }
   };
 
@@ -659,6 +690,11 @@ const AccountDetail: FC = () => {
     });
   };
 
+  const handleOpenOrderDetail = (order: Order) => {
+    setSelectedOrder(order);
+    setOrderDetailOpen(true);
+  };
+
   if (!account) {
     return (
       <PageContainer>
@@ -686,6 +722,10 @@ const AccountDetail: FC = () => {
     }
     return <Tag color={enabled ? 'green' : 'default'}>{enabled ? '已开启' : '未开启'}</Tag>;
   };
+
+  const multiBotSubAccounts = multiBotDetails?.subAccounts || [];
+  const multiBotAssetRows = multiBotDetails?.assetAllocations || [];
+  const multiBotPositionRows = multiBotDetails?.positionAllocations || [];
 
   const onClickButtonGroup = async ({ key }: MenuInfo) => {
     if (!id) return;
@@ -936,6 +976,18 @@ const AccountDetail: FC = () => {
               >
                 终端
               </Button>
+              {account.multiBotMode && (
+                <Button
+                  color="purple"
+                  variant="outlined"
+                  onClick={async () => {
+                    setMultiBotModalOpen(true);
+                    await loadAccountMultiBotDetails();
+                  }}
+                >
+                  子账户
+                </Button>
+              )}
               {renderButtonGroup()}
             </Space>
           }
@@ -976,6 +1028,9 @@ const AccountDetail: FC = () => {
           )}
           <ProDescriptions.Item label="账户类型">
             {renderAccountTypeTag(account.accountType)}
+          </ProDescriptions.Item>
+          <ProDescriptions.Item label="多 Bot 模式">
+            {account.multiBotMode ? '是' : '否'}
           </ProDescriptions.Item>
           <ProDescriptions.Item label="状态">
             <Tag color={account.status === 'online' ? 'green' : 'default'}>
@@ -1055,6 +1110,7 @@ const AccountDetail: FC = () => {
           getCancelButtonProps={(order) => ({
             loading: cancelingOrderId === order.orderId,
           })}
+          onRowDoubleClick={handleOpenOrderDetail}
           onChange={(pagination: any, filter: any) => {
             const selectedSymbol = Array.isArray(filter?.symbol) ? filter?.symbol[0] : undefined;
             const selectedOrderType = Array.isArray(filter?.orderType)
@@ -1123,6 +1179,175 @@ const AccountDetail: FC = () => {
           dataSource={ledgers}
         />
       </Card>
+
+      <Modal
+        title="订单详情"
+        open={orderDetailOpen}
+        onCancel={() => {
+          setOrderDetailOpen(false);
+          setSelectedOrder(null);
+        }}
+        footer={null}
+        width={760}
+        destroyOnHidden
+      >
+        {selectedOrder ? (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Descriptions column={2} size="small" bordered>
+              <Descriptions.Item label="订单ID">{selectedOrder.orderId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="客户端订单ID">
+                {selectedOrder.clientOrderId || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="交易对">{selectedOrder.symbol || '-'}</Descriptions.Item>
+              <Descriptions.Item label="状态">{selectedOrder.status || '-'}</Descriptions.Item>
+              <Descriptions.Item label="方向">
+                {selectedOrder.isBuy ? '买入' : '卖出'}
+              </Descriptions.Item>
+              <Descriptions.Item label="仓位方向">{selectedOrder.side || '-'}</Descriptions.Item>
+              <Descriptions.Item label="订单类型">{selectedOrder.orderType || '-'}</Descriptions.Item>
+              <Descriptions.Item label="来源">{selectedOrder.source || '-'}</Descriptions.Item>
+              <Descriptions.Item label="委托价格">{selectedOrder.price || '-'}</Descriptions.Item>
+              <Descriptions.Item label="委托数量">{selectedOrder.originalQty || '-'}</Descriptions.Item>
+              <Descriptions.Item label="已成交数量">{selectedOrder.executedQty || '-'}</Descriptions.Item>
+              <Descriptions.Item label="成交均价">{selectedOrder.avgPrice || '-'}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {selectedOrder.createdTs > 0
+                  ? dayjs.unix(selectedOrder.createdTs / 1000).format('YYYY-MM-DD HH:mm:ss')
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="结束时间">
+                {selectedOrder.finishedTs > 0
+                  ? dayjs.unix(selectedOrder.finishedTs / 1000).format('YYYY-MM-DD HH:mm:ss')
+                  : '-'}
+              </Descriptions.Item>
+            </Descriptions>
+            {!!selectedOrder.allocations?.length && (
+              <Card size="small" title="分摊信息">
+                <Table
+                  rowKey={(record) => record.accountId}
+                  size="small"
+                  pagination={false}
+                  dataSource={selectedOrder.allocations}
+                  columns={[
+                    { title: '分摊账户', dataIndex: 'accountId' },
+                    {
+                      title: '分摊比例',
+                      dataIndex: 'ratio',
+                      align: 'right',
+                      render: (value: string) => formatRatioAsPercent(value),
+                    },
+                  ]}
+                />
+              </Card>
+            )}
+          </Space>
+        ) : (
+          <Empty description="订单详情为空" />
+        )}
+      </Modal>
+
+      <Modal
+        title="子账户信息"
+        open={multiBotModalOpen}
+        onCancel={() => setMultiBotModalOpen(false)}
+        footer={null}
+        width={1200}
+        destroyOnHidden
+      >
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Card title="子账户列表" size="small">
+            <Table
+              rowKey="accountId"
+              loading={multiBotLoading}
+              pagination={false}
+              dataSource={multiBotSubAccounts}
+              columns={[
+                { title: '账户ID', dataIndex: 'accountId', width: 200 },
+                { title: '账户名称', dataIndex: 'name' },
+                {
+                  title: '创建时间',
+                  dataIndex: 'createdAt',
+                  width: 200,
+                  render: (value: number) =>
+                    value >= 0 ? dayjs.unix(value).format('YYYY-MM-DD HH:mm:ss') : '-',
+                },
+              ]}
+            />
+          </Card>
+          <Card title="资金分配表" size="small">
+            <Table
+              rowKey={(record) => `${record.asset}-${record.walletType}`}
+              loading={multiBotLoading}
+              pagination={false}
+              scroll={{ x: true }}
+              dataSource={multiBotAssetRows}
+              columns={[
+                { title: '资产', dataIndex: 'asset', align: 'center', width: 100, render: (value: string) => <Tag color="#ffc069">{value}</Tag> },
+                {
+                  title: '钱包类型',
+                  dataIndex: 'walletType',
+                  width: 120,
+                  align: 'center',
+                  render: (walletType: string) => {
+                    const info = getWalletTypeTagInfo(walletType, { withWalletSuffix: true });
+                    return <Tag color={info.color}>{info.text}</Tag>;
+                  },
+                },
+                { title: '总资金', dataIndex: 'parentTotal', width: 120 },
+                { title: '未分配', dataIndex: 'unallocated', width: 120 },
+                ...multiBotSubAccounts.map((sub) => ({
+                  title: sub.name || sub.accountId,
+                  key: `sub-${sub.accountId}`,
+                  render: (_: unknown, record: any) => {
+                    const amount =
+                      record.subAllocations?.find((item: any) => item.accountId === sub.accountId)
+                        ?.amount || '0';
+                    return amount;
+                  },
+                })),
+              ]}
+            />
+          </Card>
+          <Card title="仓位分配表" size="small">
+            <Table
+              rowKey={(record) => `${record.side}-${record.symbol}`}
+              loading={multiBotLoading}
+              pagination={false}
+              scroll={{ x: true }}
+              dataSource={multiBotPositionRows}
+              columns={[
+                {
+                  title: '交易对', dataIndex: 'symbol', width: 180,
+                  align: 'center',
+                  render: (value: string) => <Tag color="#d3f261">{value}</Tag>
+                },
+                {
+                  title: '方向',
+                  dataIndex: 'side',
+                  width: 80,
+                  align: 'center',
+                  render: (side: string) => {
+                    const info = getSideTagInfo(side);
+                    return <Tag color={info.color}>{info.text}</Tag>;
+                  },
+                },
+                { title: '父账户总仓位', dataIndex: 'parentTotal', width: 120 },
+                { title: '未分配仓位', dataIndex: 'unallocated', width: 120 },
+                ...multiBotSubAccounts.map((sub) => ({
+                  title: sub.name || sub.accountId,
+                  key: `pos-sub-${sub.accountId}`,
+                  render: (_: unknown, record: any) => {
+                    const amount =
+                      record.subAllocations?.find((item: any) => item.accountId === sub.accountId)
+                        ?.amount || '0';
+                    return amount;
+                  },
+                })),
+              ]}
+            />
+          </Card>
+        </Space>
+      </Modal>
 
       <Modal
         title="账户风控"

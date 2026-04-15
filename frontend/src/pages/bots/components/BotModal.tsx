@@ -25,6 +25,7 @@ import {
   updateBot,
   UpdateBotInput,
 } from '@/services/gateway/strategy';
+import { getWalletTypeLabel } from '@/utils/marketTag';
 import { getExchangeLogo, getExchangeTitle, parseSymbol } from '@/utils/market';
 import {
   DeleteOutlined,
@@ -400,14 +401,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   };
 
   const walletTypeOptions = getAllowedWalletTypes(exchangeValue).map((value) => {
-    const labelMap: Record<string, string> = {
-      [WalletType.Spot]: '现货',
-      [WalletType.Future]: '合约',
-      [WalletType.Fund]: '资金',
-      [WalletType.Trade]: '交易',
-      [WalletType.Margin]: '杠杆',
-    };
-    return { value, label: labelMap[value] || value };
+    return { value, label: getWalletTypeLabel(value) };
   });
   // 实盘：可选 real 账户；模拟盘：仅支持 virtual 账户
   const liveAccountOptions = accounts

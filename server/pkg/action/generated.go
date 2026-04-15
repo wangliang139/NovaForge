@@ -111,6 +111,12 @@ type ComplexityRoot struct {
 		WinRate               func(childComplexity int) int
 	}
 
+	AccountMultiBotDetails struct {
+		AssetAllocations    func(childComplexity int) int
+		PositionAllocations func(childComplexity int) int
+		SubAccounts         func(childComplexity int) int
+	}
+
 	AccountPositionSnapshot struct {
 		Positions func(childComplexity int) int
 	}
@@ -801,6 +807,38 @@ type ComplexityRoot struct {
 		TickSize    func(childComplexity int) int
 	}
 
+	MultiBotAssetAllocation struct {
+		Asset          func(childComplexity int) int
+		ParentTotal    func(childComplexity int) int
+		SubAllocations func(childComplexity int) int
+		Unallocated    func(childComplexity int) int
+		WalletType     func(childComplexity int) int
+	}
+
+	MultiBotAssetSubAllocation struct {
+		AccountID func(childComplexity int) int
+		Amount    func(childComplexity int) int
+	}
+
+	MultiBotPositionAllocation struct {
+		ParentTotal    func(childComplexity int) int
+		Side           func(childComplexity int) int
+		SubAllocations func(childComplexity int) int
+		Symbol         func(childComplexity int) int
+		Unallocated    func(childComplexity int) int
+	}
+
+	MultiBotPositionSubAllocation struct {
+		AccountID func(childComplexity int) int
+		Amount    func(childComplexity int) int
+	}
+
+	MultiBotSubAccount struct {
+		AccountID func(childComplexity int) int
+		CreatedAt func(childComplexity int) int
+		Name      func(childComplexity int) int
+	}
+
 	Mutation struct {
 		ActiveStrategy           func(childComplexity int, id string) int
 		AddAlert                 func(childComplexity int, input model.AlertItemInput) int
@@ -866,6 +904,7 @@ type ComplexityRoot struct {
 	Order struct {
 		AccountID        func(childComplexity int) int
 		AlgoType         func(childComplexity int) int
+		Allocations      func(childComplexity int) int
 		AvgPrice         func(childComplexity int) int
 		BotID            func(childComplexity int) int
 		ClientOrderID    func(childComplexity int) int
@@ -903,6 +942,11 @@ type ComplexityRoot struct {
 		TimeInForce      func(childComplexity int) int
 		UpdatedTs        func(childComplexity int) int
 		WorkingTs        func(childComplexity int) int
+	}
+
+	OrderAllocation struct {
+		AccountID func(childComplexity int) int
+		Ratio     func(childComplexity int) int
 	}
 
 	OrderBook struct {
@@ -973,6 +1017,7 @@ type ComplexityRoot struct {
 		AccountEventFlow         func(childComplexity int, input model.QueryAccountEventFlowInput) int
 		AccountInfo              func(childComplexity int, input model.QueryAccountInfoInput) int
 		AccountMetrics           func(childComplexity int, input model.QueryAccountMetricsInput) int
+		AccountMultiBotDetails   func(childComplexity int, accountID string) int
 		AccountUnallocatedAssets func(childComplexity int, accountID string) int
 		Accounts                 func(childComplexity int, input model.QueryAccountsInput) int
 		Balance                  func(childComplexity int, input model.QueryBalanceInput) int
@@ -1314,6 +1359,7 @@ type QueryResolver interface {
 	AccountMetrics(ctx context.Context, input model.QueryAccountMetricsInput) (*model.AccountMetrics, error)
 	RiskEvents(ctx context.Context, input model.QueryRiskEventsInput) ([]*model.RiskEvent, error)
 	AccountUnallocatedAssets(ctx context.Context, accountID string) ([]*model.AccountUnallocatedAsset, error)
+	AccountMultiBotDetails(ctx context.Context, accountID string) (*model.AccountMultiBotDetails, error)
 	Calendars(ctx context.Context, input model.QueryCalendarsInput) ([]*model.Calendar, error)
 	DashboardOverview(ctx context.Context) (*model.DashboardOverview, error)
 	Documents(ctx context.Context, input model.QueryDocumentsInput) (*model.DocumentsConnection, error)
@@ -1708,6 +1754,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccountMetrics.WinRate(childComplexity), true
+
+	case "AccountMultiBotDetails.assetAllocations":
+		if e.ComplexityRoot.AccountMultiBotDetails.AssetAllocations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountMultiBotDetails.AssetAllocations(childComplexity), true
+	case "AccountMultiBotDetails.positionAllocations":
+		if e.ComplexityRoot.AccountMultiBotDetails.PositionAllocations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountMultiBotDetails.PositionAllocations(childComplexity), true
+	case "AccountMultiBotDetails.subAccounts":
+		if e.ComplexityRoot.AccountMultiBotDetails.SubAccounts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccountMultiBotDetails.SubAccounts(childComplexity), true
 
 	case "AccountPositionSnapshot.positions":
 		if e.ComplexityRoot.AccountPositionSnapshot.Positions == nil {
@@ -4472,6 +4537,113 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.MarketRules.TickSize(childComplexity), true
 
+	case "MultiBotAssetAllocation.asset":
+		if e.ComplexityRoot.MultiBotAssetAllocation.Asset == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetAllocation.Asset(childComplexity), true
+	case "MultiBotAssetAllocation.parentTotal":
+		if e.ComplexityRoot.MultiBotAssetAllocation.ParentTotal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetAllocation.ParentTotal(childComplexity), true
+	case "MultiBotAssetAllocation.subAllocations":
+		if e.ComplexityRoot.MultiBotAssetAllocation.SubAllocations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetAllocation.SubAllocations(childComplexity), true
+	case "MultiBotAssetAllocation.unallocated":
+		if e.ComplexityRoot.MultiBotAssetAllocation.Unallocated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetAllocation.Unallocated(childComplexity), true
+	case "MultiBotAssetAllocation.walletType":
+		if e.ComplexityRoot.MultiBotAssetAllocation.WalletType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetAllocation.WalletType(childComplexity), true
+
+	case "MultiBotAssetSubAllocation.accountId":
+		if e.ComplexityRoot.MultiBotAssetSubAllocation.AccountID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetSubAllocation.AccountID(childComplexity), true
+	case "MultiBotAssetSubAllocation.amount":
+		if e.ComplexityRoot.MultiBotAssetSubAllocation.Amount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotAssetSubAllocation.Amount(childComplexity), true
+
+	case "MultiBotPositionAllocation.parentTotal":
+		if e.ComplexityRoot.MultiBotPositionAllocation.ParentTotal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionAllocation.ParentTotal(childComplexity), true
+	case "MultiBotPositionAllocation.side":
+		if e.ComplexityRoot.MultiBotPositionAllocation.Side == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionAllocation.Side(childComplexity), true
+	case "MultiBotPositionAllocation.subAllocations":
+		if e.ComplexityRoot.MultiBotPositionAllocation.SubAllocations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionAllocation.SubAllocations(childComplexity), true
+	case "MultiBotPositionAllocation.symbol":
+		if e.ComplexityRoot.MultiBotPositionAllocation.Symbol == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionAllocation.Symbol(childComplexity), true
+	case "MultiBotPositionAllocation.unallocated":
+		if e.ComplexityRoot.MultiBotPositionAllocation.Unallocated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionAllocation.Unallocated(childComplexity), true
+
+	case "MultiBotPositionSubAllocation.accountId":
+		if e.ComplexityRoot.MultiBotPositionSubAllocation.AccountID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionSubAllocation.AccountID(childComplexity), true
+	case "MultiBotPositionSubAllocation.amount":
+		if e.ComplexityRoot.MultiBotPositionSubAllocation.Amount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotPositionSubAllocation.Amount(childComplexity), true
+
+	case "MultiBotSubAccount.accountId":
+		if e.ComplexityRoot.MultiBotSubAccount.AccountID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotSubAccount.AccountID(childComplexity), true
+	case "MultiBotSubAccount.createdAt":
+		if e.ComplexityRoot.MultiBotSubAccount.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotSubAccount.CreatedAt(childComplexity), true
+	case "MultiBotSubAccount.name":
+		if e.ComplexityRoot.MultiBotSubAccount.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MultiBotSubAccount.Name(childComplexity), true
+
 	case "Mutation.ActiveStrategy":
 		if e.ComplexityRoot.Mutation.ActiveStrategy == nil {
 			break
@@ -5040,6 +5212,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Order.AlgoType(childComplexity), true
+	case "Order.allocations":
+		if e.ComplexityRoot.Order.Allocations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Order.Allocations(childComplexity), true
 	case "Order.avgPrice":
 		if e.ComplexityRoot.Order.AvgPrice == nil {
 			break
@@ -5262,6 +5440,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Order.WorkingTs(childComplexity), true
+
+	case "OrderAllocation.accountId":
+		if e.ComplexityRoot.OrderAllocation.AccountID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.OrderAllocation.AccountID(childComplexity), true
+	case "OrderAllocation.ratio":
+		if e.ComplexityRoot.OrderAllocation.Ratio == nil {
+			break
+		}
+
+		return e.ComplexityRoot.OrderAllocation.Ratio(childComplexity), true
 
 	case "OrderBook.asks":
 		if e.ComplexityRoot.OrderBook.Asks == nil {
@@ -5561,6 +5752,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AccountMetrics(childComplexity, args["input"].(model.QueryAccountMetricsInput)), true
+	case "Query.AccountMultiBotDetails":
+		if e.ComplexityRoot.Query.AccountMultiBotDetails == nil {
+			break
+		}
+
+		args, err := ec.field_Query_AccountMultiBotDetails_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AccountMultiBotDetails(childComplexity, args["accountId"].(string)), true
 	case "Query.AccountUnallocatedAssets":
 		if e.ComplexityRoot.Query.AccountUnallocatedAssets == nil {
 			break
@@ -7904,6 +8106,17 @@ func (ec *executionContext) field_Query_AccountMetrics_args(ctx context.Context,
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_AccountMultiBotDetails_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "accountId", ec.unmarshalNID2string)
+	if err != nil {
+		return nil, err
+	}
+	args["accountId"] = arg0
 	return args, nil
 }
 
@@ -10253,6 +10466,125 @@ func (ec *executionContext) fieldContext_AccountMetrics_symbols(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _AccountMultiBotDetails_subAccounts(ctx context.Context, field graphql.CollectedField, obj *model.AccountMultiBotDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountMultiBotDetails_subAccounts,
+		func(ctx context.Context) (any, error) {
+			return obj.SubAccounts, nil
+		},
+		nil,
+		ec.marshalNMultiBotSubAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotSubAccountᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountMultiBotDetails_subAccounts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountMultiBotDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accountId":
+				return ec.fieldContext_MultiBotSubAccount_accountId(ctx, field)
+			case "name":
+				return ec.fieldContext_MultiBotSubAccount_name(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_MultiBotSubAccount_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MultiBotSubAccount", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AccountMultiBotDetails_assetAllocations(ctx context.Context, field graphql.CollectedField, obj *model.AccountMultiBotDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountMultiBotDetails_assetAllocations,
+		func(ctx context.Context) (any, error) {
+			return obj.AssetAllocations, nil
+		},
+		nil,
+		ec.marshalNMultiBotAssetAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetAllocationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountMultiBotDetails_assetAllocations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountMultiBotDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "asset":
+				return ec.fieldContext_MultiBotAssetAllocation_asset(ctx, field)
+			case "walletType":
+				return ec.fieldContext_MultiBotAssetAllocation_walletType(ctx, field)
+			case "parentTotal":
+				return ec.fieldContext_MultiBotAssetAllocation_parentTotal(ctx, field)
+			case "subAllocations":
+				return ec.fieldContext_MultiBotAssetAllocation_subAllocations(ctx, field)
+			case "unallocated":
+				return ec.fieldContext_MultiBotAssetAllocation_unallocated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MultiBotAssetAllocation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AccountMultiBotDetails_positionAllocations(ctx context.Context, field graphql.CollectedField, obj *model.AccountMultiBotDetails) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AccountMultiBotDetails_positionAllocations,
+		func(ctx context.Context) (any, error) {
+			return obj.PositionAllocations, nil
+		},
+		nil,
+		ec.marshalNMultiBotPositionAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionAllocationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AccountMultiBotDetails_positionAllocations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AccountMultiBotDetails",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "symbol":
+				return ec.fieldContext_MultiBotPositionAllocation_symbol(ctx, field)
+			case "side":
+				return ec.fieldContext_MultiBotPositionAllocation_side(ctx, field)
+			case "parentTotal":
+				return ec.fieldContext_MultiBotPositionAllocation_parentTotal(ctx, field)
+			case "subAllocations":
+				return ec.fieldContext_MultiBotPositionAllocation_subAllocations(ctx, field)
+			case "unallocated":
+				return ec.fieldContext_MultiBotPositionAllocation_unallocated(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MultiBotPositionAllocation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _AccountPositionSnapshot_positions(ctx context.Context, field graphql.CollectedField, obj *model.AccountPositionSnapshot) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11845,6 +12177,8 @@ func (ec *executionContext) fieldContext_BacktestResultData_orders(_ context.Con
 				return ec.fieldContext_Order_realizedPnl(ctx, field)
 			case "pnlAsset":
 				return ec.fieldContext_Order_pnlAsset(ctx, field)
+			case "allocations":
+				return ec.fieldContext_Order_allocations(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
 		},
@@ -13683,6 +14017,8 @@ func (ec *executionContext) fieldContext_BotOrdersConnection_list(_ context.Cont
 				return ec.fieldContext_Order_realizedPnl(ctx, field)
 			case "pnlAsset":
 				return ec.fieldContext_Order_pnlAsset(ctx, field)
+			case "allocations":
+				return ec.fieldContext_Order_allocations(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
 		},
@@ -24220,6 +24556,511 @@ func (ec *executionContext) fieldContext_MarketRules_maxNotional(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _MultiBotAssetAllocation_asset(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetAllocation_asset,
+		func(ctx context.Context) (any, error) {
+			return obj.Asset, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetAllocation_asset(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotAssetAllocation_walletType(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetAllocation_walletType,
+		func(ctx context.Context) (any, error) {
+			return obj.WalletType, nil
+		},
+		nil,
+		ec.marshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetAllocation_walletType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type WalletType does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotAssetAllocation_parentTotal(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetAllocation_parentTotal,
+		func(ctx context.Context) (any, error) {
+			return obj.ParentTotal, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetAllocation_parentTotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotAssetAllocation_subAllocations(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetAllocation_subAllocations,
+		func(ctx context.Context) (any, error) {
+			return obj.SubAllocations, nil
+		},
+		nil,
+		ec.marshalNMultiBotAssetSubAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetSubAllocationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetAllocation_subAllocations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accountId":
+				return ec.fieldContext_MultiBotAssetSubAllocation_accountId(ctx, field)
+			case "amount":
+				return ec.fieldContext_MultiBotAssetSubAllocation_amount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MultiBotAssetSubAllocation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotAssetAllocation_unallocated(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetAllocation_unallocated,
+		func(ctx context.Context) (any, error) {
+			return obj.Unallocated, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetAllocation_unallocated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotAssetSubAllocation_accountId(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetSubAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetSubAllocation_accountId,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetSubAllocation_accountId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetSubAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotAssetSubAllocation_amount(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotAssetSubAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotAssetSubAllocation_amount,
+		func(ctx context.Context) (any, error) {
+			return obj.Amount, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotAssetSubAllocation_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotAssetSubAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionAllocation_symbol(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionAllocation_symbol,
+		func(ctx context.Context) (any, error) {
+			return obj.Symbol, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionAllocation_symbol(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionAllocation_side(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionAllocation_side,
+		func(ctx context.Context) (any, error) {
+			return obj.Side, nil
+		},
+		nil,
+		ec.marshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionAllocation_side(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type PositionSide does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionAllocation_parentTotal(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionAllocation_parentTotal,
+		func(ctx context.Context) (any, error) {
+			return obj.ParentTotal, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionAllocation_parentTotal(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionAllocation_subAllocations(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionAllocation_subAllocations,
+		func(ctx context.Context) (any, error) {
+			return obj.SubAllocations, nil
+		},
+		nil,
+		ec.marshalNMultiBotPositionSubAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionSubAllocationᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionAllocation_subAllocations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accountId":
+				return ec.fieldContext_MultiBotPositionSubAllocation_accountId(ctx, field)
+			case "amount":
+				return ec.fieldContext_MultiBotPositionSubAllocation_amount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type MultiBotPositionSubAllocation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionAllocation_unallocated(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionAllocation_unallocated,
+		func(ctx context.Context) (any, error) {
+			return obj.Unallocated, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionAllocation_unallocated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionSubAllocation_accountId(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionSubAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionSubAllocation_accountId,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionSubAllocation_accountId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionSubAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotPositionSubAllocation_amount(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotPositionSubAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotPositionSubAllocation_amount,
+		func(ctx context.Context) (any, error) {
+			return obj.Amount, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotPositionSubAllocation_amount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotPositionSubAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotSubAccount_accountId(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotSubAccount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotSubAccount_accountId,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotSubAccount_accountId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotSubAccount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotSubAccount_name(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotSubAccount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotSubAccount_name,
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotSubAccount_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotSubAccount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _MultiBotSubAccount_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.MultiBotSubAccount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_MultiBotSubAccount_createdAt,
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_MultiBotSubAccount_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "MultiBotSubAccount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_CreateAccount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -28124,6 +28965,99 @@ func (ec *executionContext) fieldContext_Order_pnlAsset(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Order_allocations(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Order_allocations,
+		func(ctx context.Context) (any, error) {
+			return obj.Allocations, nil
+		},
+		nil,
+		ec.marshalOOrderAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderAllocationᚄ,
+		true,
+		false,
+	)
+}
+
+func (ec *executionContext) fieldContext_Order_allocations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Order",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accountId":
+				return ec.fieldContext_OrderAllocation_accountId(ctx, field)
+			case "ratio":
+				return ec.fieldContext_OrderAllocation_ratio(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type OrderAllocation", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderAllocation_accountId(ctx context.Context, field graphql.CollectedField, obj *model.OrderAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_OrderAllocation_accountId,
+		func(ctx context.Context) (any, error) {
+			return obj.AccountID, nil
+		},
+		nil,
+		ec.marshalNID2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_OrderAllocation_accountId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OrderAllocation_ratio(ctx context.Context, field graphql.CollectedField, obj *model.OrderAllocation) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_OrderAllocation_ratio,
+		func(ctx context.Context) (any, error) {
+			return obj.Ratio, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_OrderAllocation_ratio(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OrderAllocation",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _OrderBook_bids(ctx context.Context, field graphql.CollectedField, obj *model.OrderBook) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -28731,6 +29665,8 @@ func (ec *executionContext) fieldContext_OrdersConnection_list(_ context.Context
 				return ec.fieldContext_Order_realizedPnl(ctx, field)
 			case "pnlAsset":
 				return ec.fieldContext_Order_pnlAsset(ctx, field)
+			case "allocations":
+				return ec.fieldContext_Order_allocations(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
 		},
@@ -29834,6 +30770,55 @@ func (ec *executionContext) fieldContext_Query_AccountUnallocatedAssets(ctx cont
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_AccountUnallocatedAssets_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_AccountMultiBotDetails(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_AccountMultiBotDetails,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AccountMultiBotDetails(ctx, fc.Args["accountId"].(string))
+		},
+		nil,
+		ec.marshalNAccountMultiBotDetails2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMultiBotDetails,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_AccountMultiBotDetails(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "subAccounts":
+				return ec.fieldContext_AccountMultiBotDetails_subAccounts(ctx, field)
+			case "assetAllocations":
+				return ec.fieldContext_AccountMultiBotDetails_assetAllocations(ctx, field)
+			case "positionAllocations":
+				return ec.fieldContext_AccountMultiBotDetails_positionAllocations(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AccountMultiBotDetails", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_AccountMultiBotDetails_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -35142,6 +36127,8 @@ func (ec *executionContext) fieldContext_StreamEvent_order(_ context.Context, fi
 				return ec.fieldContext_Order_realizedPnl(ctx, field)
 			case "pnlAsset":
 				return ec.fieldContext_Order_pnlAsset(ctx, field)
+			case "allocations":
+				return ec.fieldContext_Order_allocations(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
 		},
@@ -44816,6 +45803,55 @@ func (ec *executionContext) _AccountMetrics(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var accountMultiBotDetailsImplementors = []string{"AccountMultiBotDetails"}
+
+func (ec *executionContext) _AccountMultiBotDetails(ctx context.Context, sel ast.SelectionSet, obj *model.AccountMultiBotDetails) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, accountMultiBotDetailsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AccountMultiBotDetails")
+		case "subAccounts":
+			out.Values[i] = ec._AccountMultiBotDetails_subAccounts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "assetAllocations":
+			out.Values[i] = ec._AccountMultiBotDetails_assetAllocations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "positionAllocations":
+			out.Values[i] = ec._AccountMultiBotDetails_positionAllocations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var accountPositionSnapshotImplementors = []string{"AccountPositionSnapshot"}
 
 func (ec *executionContext) _AccountPositionSnapshot(ctx context.Context, sel ast.SelectionSet, obj *model.AccountPositionSnapshot) graphql.Marshaler {
@@ -49687,6 +50723,261 @@ func (ec *executionContext) _MarketRules(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var multiBotAssetAllocationImplementors = []string{"MultiBotAssetAllocation"}
+
+func (ec *executionContext) _MultiBotAssetAllocation(ctx context.Context, sel ast.SelectionSet, obj *model.MultiBotAssetAllocation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, multiBotAssetAllocationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MultiBotAssetAllocation")
+		case "asset":
+			out.Values[i] = ec._MultiBotAssetAllocation_asset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "walletType":
+			out.Values[i] = ec._MultiBotAssetAllocation_walletType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "parentTotal":
+			out.Values[i] = ec._MultiBotAssetAllocation_parentTotal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subAllocations":
+			out.Values[i] = ec._MultiBotAssetAllocation_subAllocations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unallocated":
+			out.Values[i] = ec._MultiBotAssetAllocation_unallocated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var multiBotAssetSubAllocationImplementors = []string{"MultiBotAssetSubAllocation"}
+
+func (ec *executionContext) _MultiBotAssetSubAllocation(ctx context.Context, sel ast.SelectionSet, obj *model.MultiBotAssetSubAllocation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, multiBotAssetSubAllocationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MultiBotAssetSubAllocation")
+		case "accountId":
+			out.Values[i] = ec._MultiBotAssetSubAllocation_accountId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "amount":
+			out.Values[i] = ec._MultiBotAssetSubAllocation_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var multiBotPositionAllocationImplementors = []string{"MultiBotPositionAllocation"}
+
+func (ec *executionContext) _MultiBotPositionAllocation(ctx context.Context, sel ast.SelectionSet, obj *model.MultiBotPositionAllocation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, multiBotPositionAllocationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MultiBotPositionAllocation")
+		case "symbol":
+			out.Values[i] = ec._MultiBotPositionAllocation_symbol(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "side":
+			out.Values[i] = ec._MultiBotPositionAllocation_side(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "parentTotal":
+			out.Values[i] = ec._MultiBotPositionAllocation_parentTotal(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subAllocations":
+			out.Values[i] = ec._MultiBotPositionAllocation_subAllocations(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unallocated":
+			out.Values[i] = ec._MultiBotPositionAllocation_unallocated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var multiBotPositionSubAllocationImplementors = []string{"MultiBotPositionSubAllocation"}
+
+func (ec *executionContext) _MultiBotPositionSubAllocation(ctx context.Context, sel ast.SelectionSet, obj *model.MultiBotPositionSubAllocation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, multiBotPositionSubAllocationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MultiBotPositionSubAllocation")
+		case "accountId":
+			out.Values[i] = ec._MultiBotPositionSubAllocation_accountId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "amount":
+			out.Values[i] = ec._MultiBotPositionSubAllocation_amount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var multiBotSubAccountImplementors = []string{"MultiBotSubAccount"}
+
+func (ec *executionContext) _MultiBotSubAccount(ctx context.Context, sel ast.SelectionSet, obj *model.MultiBotSubAccount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, multiBotSubAccountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("MultiBotSubAccount")
+		case "accountId":
+			out.Values[i] = ec._MultiBotSubAccount_accountId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._MultiBotSubAccount_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._MultiBotSubAccount_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -50346,6 +51637,52 @@ func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = ec._Order_realizedPnl(ctx, field, obj)
 		case "pnlAsset":
 			out.Values[i] = ec._Order_pnlAsset(ctx, field, obj)
+		case "allocations":
+			out.Values[i] = ec._Order_allocations(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var orderAllocationImplementors = []string{"OrderAllocation"}
+
+func (ec *executionContext) _OrderAllocation(ctx context.Context, sel ast.SelectionSet, obj *model.OrderAllocation) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, orderAllocationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("OrderAllocation")
+		case "accountId":
+			out.Values[i] = ec._OrderAllocation_accountId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "ratio":
+			out.Values[i] = ec._OrderAllocation_ratio(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -50983,6 +52320,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_AccountUnallocatedAssets(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "AccountMultiBotDetails":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_AccountMultiBotDetails(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -53861,6 +55220,20 @@ func (ec *executionContext) marshalNAccountMetrics2ᚖgithubᚗcomᚋwangliang13
 	return ec._AccountMetrics(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNAccountMultiBotDetails2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMultiBotDetails(ctx context.Context, sel ast.SelectionSet, v model.AccountMultiBotDetails) graphql.Marshaler {
+	return ec._AccountMultiBotDetails(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAccountMultiBotDetails2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountMultiBotDetails(ctx context.Context, sel ast.SelectionSet, v *model.AccountMultiBotDetails) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AccountMultiBotDetails(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNAccountStatus2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAccountStatus(ctx context.Context, v any) (model.AccountStatus, error) {
 	var res model.AccountStatus
 	err := res.UnmarshalGQL(v)
@@ -55562,6 +56935,136 @@ func (ec *executionContext) marshalNMetricsDimension2githubᚗcomᚋwangliang139
 	return v
 }
 
+func (ec *executionContext) marshalNMultiBotAssetAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetAllocationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MultiBotAssetAllocation) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMultiBotAssetAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetAllocation(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMultiBotAssetAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetAllocation(ctx context.Context, sel ast.SelectionSet, v *model.MultiBotAssetAllocation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MultiBotAssetAllocation(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMultiBotAssetSubAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetSubAllocationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MultiBotAssetSubAllocation) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMultiBotAssetSubAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetSubAllocation(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMultiBotAssetSubAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotAssetSubAllocation(ctx context.Context, sel ast.SelectionSet, v *model.MultiBotAssetSubAllocation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MultiBotAssetSubAllocation(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMultiBotPositionAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionAllocationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MultiBotPositionAllocation) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMultiBotPositionAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionAllocation(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMultiBotPositionAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionAllocation(ctx context.Context, sel ast.SelectionSet, v *model.MultiBotPositionAllocation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MultiBotPositionAllocation(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMultiBotPositionSubAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionSubAllocationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MultiBotPositionSubAllocation) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMultiBotPositionSubAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionSubAllocation(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMultiBotPositionSubAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotPositionSubAllocation(ctx context.Context, sel ast.SelectionSet, v *model.MultiBotPositionSubAllocation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MultiBotPositionSubAllocation(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNMultiBotSubAccount2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotSubAccountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MultiBotSubAccount) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNMultiBotSubAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotSubAccount(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNMultiBotSubAccount2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMultiBotSubAccount(ctx context.Context, sel ast.SelectionSet, v *model.MultiBotSubAccount) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._MultiBotSubAccount(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNMutationAccountInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐMutationAccountInput(ctx context.Context, v any) (model.MutationAccountInput, error) {
 	res, err := ec.unmarshalInputMutationAccountInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -55605,6 +57108,16 @@ func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaF
 		return graphql.Null
 	}
 	return ec._Order(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNOrderAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderAllocation(ctx context.Context, sel ast.SelectionSet, v *model.OrderAllocation) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._OrderAllocation(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNOrderCondition2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderConditionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderCondition) graphql.Marshaler {
@@ -57353,6 +58866,25 @@ func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋwangliang139ᚋNovaF
 		return graphql.Null
 	}
 	return ec._Order(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOOrderAllocation2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderAllocationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderAllocation) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNOrderAllocation2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderAllocation(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) marshalOOrderBook2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐOrderBook(ctx context.Context, sel ast.SelectionSet, v *model.OrderBook) graphql.Marshaler {

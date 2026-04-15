@@ -86,6 +86,12 @@ type AccountMetrics struct {
 	Symbols               []*SymbolMetrics `json:"symbols"`
 }
 
+type AccountMultiBotDetails struct {
+	SubAccounts         []*MultiBotSubAccount         `json:"subAccounts"`
+	AssetAllocations    []*MultiBotAssetAllocation    `json:"assetAllocations"`
+	PositionAllocations []*MultiBotPositionAllocation `json:"positionAllocations"`
+}
+
 type AccountPositionSnapshot struct {
 	Positions []*Position `json:"positions"`
 }
@@ -1026,6 +1032,38 @@ type MarketRules struct {
 	MaxNotional *string `json:"maxNotional,omitempty"`
 }
 
+type MultiBotAssetAllocation struct {
+	Asset          string                        `json:"asset"`
+	WalletType     WalletType                    `json:"walletType"`
+	ParentTotal    string                        `json:"parentTotal"`
+	SubAllocations []*MultiBotAssetSubAllocation `json:"subAllocations"`
+	Unallocated    string                        `json:"unallocated"`
+}
+
+type MultiBotAssetSubAllocation struct {
+	AccountID string `json:"accountId"`
+	Amount    string `json:"amount"`
+}
+
+type MultiBotPositionAllocation struct {
+	Symbol         string                           `json:"symbol"`
+	Side           PositionSide                     `json:"side"`
+	ParentTotal    string                           `json:"parentTotal"`
+	SubAllocations []*MultiBotPositionSubAllocation `json:"subAllocations"`
+	Unallocated    string                           `json:"unallocated"`
+}
+
+type MultiBotPositionSubAllocation struct {
+	AccountID string `json:"accountId"`
+	Amount    string `json:"amount"`
+}
+
+type MultiBotSubAccount struct {
+	AccountID string `json:"accountId"`
+	Name      string `json:"name"`
+	CreatedAt int    `json:"createdAt"`
+}
+
 type Mutation struct {
 }
 
@@ -1057,45 +1095,51 @@ type OpenInterest struct {
 }
 
 type Order struct {
-	AccountID        string            `json:"accountId"`
-	BotID            int               `json:"botId"`
-	Exchange         types.Exchange    `json:"exchange"`
-	Symbol           string            `json:"symbol"`
-	ClientOrderID    string            `json:"clientOrderId"`
-	OrderID          string            `json:"orderId"`
-	DrivedOrderID    string            `json:"drivedOrderId"`
-	Side             PositionSide      `json:"side"`
-	IsBuy            bool              `json:"isBuy"`
-	OrderType        OrderType         `json:"orderType"`
-	AlgoType         AlgoType          `json:"algoType"`
-	Source           OrderSource       `json:"source"`
-	Price            string            `json:"price"`
-	OriginalQty      string            `json:"originalQty"`
-	ExecutedQty      string            `json:"executedQty"`
-	OriginalQuoteQty string            `json:"originalQuoteQty"`
-	ExecutedQuoteQty string            `json:"executedQuoteQty"`
-	AvgPrice         string            `json:"avgPrice"`
-	PriceWorkingType string            `json:"priceWorkingType"`
-	PriceMode        string            `json:"priceMode"`
-	Status           OrderStatus       `json:"status"`
-	TimeInForce      string            `json:"timeInForce"`
-	ReduceOnly       bool              `json:"reduceOnly"`
-	ClosePosition    bool              `json:"closePosition"`
-	PostOnly         bool              `json:"postOnly"`
-	PriceProtect     bool              `json:"priceProtect"`
-	Conditions       []*OrderCondition `json:"conditions"`
-	IsWorking        bool              `json:"isWorking"`
-	WorkingTs        int               `json:"workingTs"`
-	RejectReason     string            `json:"rejectReason"`
-	CreatedTs        int               `json:"createdTs"`
-	UpdatedTs        int               `json:"updatedTs"`
-	FinishedTs       int               `json:"finishedTs"`
-	Locked           *string           `json:"locked,omitempty"`
-	LockedAsset      *string           `json:"lockedAsset,omitempty"`
-	Fee              *string           `json:"fee,omitempty"`
-	FeeAsset         *string           `json:"feeAsset,omitempty"`
-	RealizedPnl      *string           `json:"realizedPnl,omitempty"`
-	PnlAsset         *string           `json:"pnlAsset,omitempty"`
+	AccountID        string             `json:"accountId"`
+	BotID            int                `json:"botId"`
+	Exchange         types.Exchange     `json:"exchange"`
+	Symbol           string             `json:"symbol"`
+	ClientOrderID    string             `json:"clientOrderId"`
+	OrderID          string             `json:"orderId"`
+	DrivedOrderID    string             `json:"drivedOrderId"`
+	Side             PositionSide       `json:"side"`
+	IsBuy            bool               `json:"isBuy"`
+	OrderType        OrderType          `json:"orderType"`
+	AlgoType         AlgoType           `json:"algoType"`
+	Source           OrderSource        `json:"source"`
+	Price            string             `json:"price"`
+	OriginalQty      string             `json:"originalQty"`
+	ExecutedQty      string             `json:"executedQty"`
+	OriginalQuoteQty string             `json:"originalQuoteQty"`
+	ExecutedQuoteQty string             `json:"executedQuoteQty"`
+	AvgPrice         string             `json:"avgPrice"`
+	PriceWorkingType string             `json:"priceWorkingType"`
+	PriceMode        string             `json:"priceMode"`
+	Status           OrderStatus        `json:"status"`
+	TimeInForce      string             `json:"timeInForce"`
+	ReduceOnly       bool               `json:"reduceOnly"`
+	ClosePosition    bool               `json:"closePosition"`
+	PostOnly         bool               `json:"postOnly"`
+	PriceProtect     bool               `json:"priceProtect"`
+	Conditions       []*OrderCondition  `json:"conditions"`
+	IsWorking        bool               `json:"isWorking"`
+	WorkingTs        int                `json:"workingTs"`
+	RejectReason     string             `json:"rejectReason"`
+	CreatedTs        int                `json:"createdTs"`
+	UpdatedTs        int                `json:"updatedTs"`
+	FinishedTs       int                `json:"finishedTs"`
+	Locked           *string            `json:"locked,omitempty"`
+	LockedAsset      *string            `json:"lockedAsset,omitempty"`
+	Fee              *string            `json:"fee,omitempty"`
+	FeeAsset         *string            `json:"feeAsset,omitempty"`
+	RealizedPnl      *string            `json:"realizedPnl,omitempty"`
+	PnlAsset         *string            `json:"pnlAsset,omitempty"`
+	Allocations      []*OrderAllocation `json:"allocations,omitempty"`
+}
+
+type OrderAllocation struct {
+	AccountID string `json:"accountId"`
+	Ratio     string `json:"ratio"`
 }
 
 type OrderBook struct {

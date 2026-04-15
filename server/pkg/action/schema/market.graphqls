@@ -325,6 +325,11 @@ type OrderCondition {
   activatedTs: Int!
 }
 
+type OrderAllocation {
+  accountId: ID!
+  ratio: String!
+}
+
 type Order {
   accountId: ID!
   botId: Int!
@@ -365,6 +370,7 @@ type Order {
   feeAsset: String
   realizedPnl: String
   pnlAsset: String  # 现货订单 realized_pnl 对应的资产；买入=quote，卖出=base
+  allocations: [OrderAllocation!]
 }
 
 type Fill {

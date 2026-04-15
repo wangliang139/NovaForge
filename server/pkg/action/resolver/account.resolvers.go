@@ -7,6 +7,7 @@ package resolver
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -699,6 +700,79 @@ func (r *queryResolver) AccountUnallocatedAssets(ctx context.Context, accountID 
 			ParentTotal:   row.ParentTotal.String(),
 			SubsAllocated: row.SubsAllocated.String(),
 			Unallocated:   row.Unallocated.String(),
+		})
+	}
+	return out, nil
+}
+
+// AccountMultiBotDetails is the resolver for the AccountMultiBotDetails field.
+func (r *queryResolver) AccountMultiBotDetails(ctx context.Context, accountID string) (*model.AccountMultiBotDetails, error) {
+	_, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		return nil, mowerror.New(mowerror.PermissionDenied, "unauthorized")
+	}
+	if strings.TrimSpace(accountID) == "" {
+		return nil, mowerror.New(mowerror.InvalidArgument, "accountId is required")
+	}
+	resp, err := r.AccountSvc.GetAccountMultiBotDetails(ctx, &ctypes.GetAccountMultiBotDetailsRequest{
+		ParentAccountID: accountID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := &model.AccountMultiBotDetails{
+		SubAccounts:         make([]*model.MultiBotSubAccount, 0, len(resp.SubAccounts)),
+		AssetAllocations:    make([]*model.MultiBotAssetAllocation, 0, len(resp.AssetAllocations)),
+		PositionAllocations: make([]*model.MultiBotPositionAllocation, 0, len(resp.PositionAllocations)),
+	}
+	for _, sub := range resp.SubAccounts {
+		if sub == nil {
+			continue
+		}
+		out.SubAccounts = append(out.SubAccounts, &model.MultiBotSubAccount{
+			AccountID: sub.AccountID,
+			Name:      sub.Name,
+			CreatedAt: int(sub.CreatedAt),
+		})
+	}
+	for _, row := range resp.AssetAllocations {
+		if row == nil {
+			continue
+		}
+		subAlloc := make([]*model.MultiBotAssetSubAllocation, 0, len(row.SubAllocations))
+		for accountID, amount := range row.SubAllocations {
+			subAlloc = append(subAlloc, &model.MultiBotAssetSubAllocation{
+				AccountID: accountID,
+				Amount:    amount.String(),
+			})
+		}
+		sort.SliceStable(subAlloc, func(i, j int) bool { return subAlloc[i].AccountID < subAlloc[j].AccountID })
+		out.AssetAllocations = append(out.AssetAllocations, &model.MultiBotAssetAllocation{
+			Asset:          row.Asset,
+			WalletType:     converter.WalletTypeTypes2Gql(row.WalletType),
+			ParentTotal:    row.ParentTotal.String(),
+			SubAllocations: subAlloc,
+			Unallocated:    row.Unallocated.String(),
+		})
+	}
+	for _, row := range resp.PositionAllocations {
+		if row == nil {
+			continue
+		}
+		subAlloc := make([]*model.MultiBotPositionSubAllocation, 0, len(row.SubAllocations))
+		for accountID, amount := range row.SubAllocations {
+			subAlloc = append(subAlloc, &model.MultiBotPositionSubAllocation{
+				AccountID: accountID,
+				Amount:    amount.String(),
+			})
+		}
+		sort.SliceStable(subAlloc, func(i, j int) bool { return subAlloc[i].AccountID < subAlloc[j].AccountID })
+		out.PositionAllocations = append(out.PositionAllocations, &model.MultiBotPositionAllocation{
+			Symbol:         row.Symbol,
+			Side:           converter.PositionSideTypes2Gql(row.Side),
+			ParentTotal:    row.ParentTotal.String(),
+			SubAllocations: subAlloc,
+			Unallocated:    row.Unallocated.String(),
 		})
 	}
 	return out, nil

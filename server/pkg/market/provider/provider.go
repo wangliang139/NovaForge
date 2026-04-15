@@ -680,9 +680,11 @@ func (p *MarketProvider) GetPriceAt(ctx context.Context, ex ctypes.Exchange, sym
 	barStart := alignToIntervalStart(ts, intervalDur)
 	key := newKey(CacheKeyPriceAt, ex.String(), symbol.String(), interval.String(), barStart.UnixMilli())
 	result, err := p.cache.Get(ctx, key, intervalDur, func(ctx context.Context, params ...any) (any, error) {
-		limit := 1
+		limit := 2
+		queryStart := barStart.Add(-intervalDur)
 		endTs := barStart.Add(intervalDur)
 		log.Info().
+			Str("queryStart", queryStart.Format(time.RFC3339Nano)).
 			Str("barStart", barStart.Format(time.RFC3339Nano)).
 			Str("endTs", endTs.Format(time.RFC3339Nano)).
 			Int("limit", limit).
@@ -691,7 +693,7 @@ func (p *MarketProvider) GetPriceAt(ctx context.Context, ex ctypes.Exchange, sym
 			Time("ts", ts).
 			Str("interval", interval.String()).
 			Msg("GetPriceAt")
-		bars, err := p.GetHisKlines(ctx, ex, symbol, interval, &barStart, &endTs, &limit)
+		bars, err := p.GetHisKlines(ctx, ex, symbol, interval, &queryStart, &endTs, &limit)
 		if err != nil {
 			return nil, err
 		}
@@ -719,9 +721,15 @@ func alignToIntervalStart(ts time.Time, intervalDur time.Duration) time.Time {
 
 func priceAtFromKlines(bars []*ctypes.Kline, ts time.Time, intervalDur time.Duration) (decimal.Decimal, bool) {
 	barStart := alignToIntervalStart(ts, intervalDur)
+	var prevBar *ctypes.Kline
 	for _, bar := range bars {
 		if bar == nil {
 			continue
+		}
+		if bar.OpenTs.Before(barStart) {
+			if prevBar == nil || bar.OpenTs.After(prevBar.OpenTs) {
+				prevBar = bar
+			}
 		}
 		if bar.OpenTs.Equal(barStart) {
 			return bar.Open, true
@@ -729,6 +737,9 @@ func priceAtFromKlines(bars []*ctypes.Kline, ts time.Time, intervalDur time.Dura
 		if !bar.OpenTs.After(ts) && bar.OpenTs.Add(intervalDur).After(ts) {
 			return bar.Open, true
 		}
+	}
+	if prevBar != nil {
+		return prevBar.Close, true
 	}
 	return decimal.Zero, false
 }

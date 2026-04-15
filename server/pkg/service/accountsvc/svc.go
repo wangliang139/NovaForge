@@ -3,6 +3,7 @@ package accountsvc
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -609,6 +610,10 @@ func allocKey(asset string, wt types.WalletType) string {
 	return types.ParseAssetCode(asset) + "|" + string(wt)
 }
 
+func positionAllocKey(symbol string, side types.PositionSide) string {
+	return strings.ToUpper(strings.TrimSpace(symbol)) + "|" + string(side)
+}
+
 // GetAccountUnallocatedAssets 父账户 multi_bot 模式下，各资产维度「父余额 − 子账已登记初始分配」。
 // P2 归因权重 w_unalloc 与此同键同口径，见 docs/P2_T0_VIRTUAL_SUB_ATTRIBUTION.md §3。
 func (s *Service) GetAccountUnallocatedAssets(ctx context.Context, req *types.GetAccountUnallocatedAssetsRequest) (*types.GetAccountUnallocatedAssetsResponse, error) {
@@ -670,14 +675,182 @@ func (s *Service) GetAccountUnallocatedAssets(ctx context.Context, req *types.Ge
 			unalloc = decimal.Zero
 		}
 		out = append(out, &types.AccountUnallocatedAsset{
-			Asset:          types.ParseAssetCode(a.Code),
-			WalletType:     a.WalletType,
-			ParentTotal:    free,
-			SubsAllocated:  subsAl,
-			Unallocated:    unalloc,
+			Asset:         types.ParseAssetCode(a.Code),
+			WalletType:    a.WalletType,
+			ParentTotal:   free,
+			SubsAllocated: subsAl,
+			Unallocated:   unalloc,
 		})
 	}
 	return &types.GetAccountUnallocatedAssetsResponse{Items: out}, nil
+}
+
+func (s *Service) GetAccountMultiBotDetails(ctx context.Context, req *types.GetAccountMultiBotDetailsRequest) (*types.GetAccountMultiBotDetailsResponse, error) {
+	if req == nil || strings.TrimSpace(req.ParentAccountID) == "" {
+		return nil, errors.New(errors.InvalidArgument, "parent_account_id is required")
+	}
+	parent, err := entity.Account.GetAccount(ctx, req.ParentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	if parent == nil {
+		return nil, errors.New(errors.NotFound, "account not found")
+	}
+	if parent.AccountType != types.AccountTypeReal || !parent.MultiBotMode {
+		return nil, errors.New(errors.InvalidArgument, "account must be a real parent with multi_bot_mode enabled")
+	}
+
+	subs, err := s.db.AccountRepo.ListVirtualSubByParent(ctx, &req.ParentAccountID)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(subs, func(i, j int) bool {
+		return subs[i].CreatedAt.Before(subs[j].CreatedAt)
+	})
+	subAccounts := make([]*types.MultiBotSubAccount, 0, len(subs))
+	subIDs := make([]string, 0, len(subs))
+	for i := range subs {
+		subAccounts = append(subAccounts, &types.MultiBotSubAccount{
+			AccountID: subs[i].ID,
+			Name:      subs[i].Name,
+			CreatedAt: subs[i].CreatedAt.Unix(),
+		})
+		subIDs = append(subIDs, subs[i].ID)
+	}
+
+	parentBal, err := s.GetBalance(ctx, &types.GetBalanceRequest{
+		AccountID:    req.ParentAccountID,
+		WithNotional: lo.ToPtr(false),
+	})
+	if err != nil {
+		return nil, err
+	}
+	subAssetMap := make(map[string]map[string]decimal.Decimal)
+	for _, sid := range subIDs {
+		subBal, err := s.GetBalance(ctx, &types.GetBalanceRequest{
+			AccountID:    sid,
+			WithNotional: lo.ToPtr(false),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if subBal == nil || subBal.Balance == nil {
+			continue
+		}
+		for _, a := range subBal.Balance.Assets {
+			if a == nil {
+				continue
+			}
+			key := allocKey(a.Code, a.WalletType)
+			if _, ok := subAssetMap[key]; !ok {
+				subAssetMap[key] = make(map[string]decimal.Decimal)
+			}
+			subAssetMap[key][sid] = a.Balance
+		}
+	}
+
+	assetAllocations := make([]*types.MultiBotAssetAllocation, 0)
+	if parentBal != nil && parentBal.Balance != nil {
+		for _, a := range parentBal.Balance.Assets {
+			if a == nil {
+				continue
+			}
+			key := allocKey(a.Code, a.WalletType)
+			subAlloc := make(map[string]decimal.Decimal, len(subIDs))
+			sumSub := decimal.Zero
+			for _, sid := range subIDs {
+				val := decimal.Zero
+				if v, ok := subAssetMap[key][sid]; ok {
+					val = v
+				}
+				subAlloc[sid] = val
+				sumSub = sumSub.Add(val)
+			}
+			unallocated := a.Balance.Sub(sumSub)
+			if unallocated.IsNegative() {
+				unallocated = decimal.Zero
+			}
+			assetAllocations = append(assetAllocations, &types.MultiBotAssetAllocation{
+				Asset:          types.ParseAssetCode(a.Code),
+				WalletType:     a.WalletType,
+				ParentTotal:    a.Balance,
+				SubAllocations: subAlloc,
+				Unallocated:    unallocated,
+			})
+		}
+	}
+	sort.SliceStable(assetAllocations, func(i, j int) bool {
+		li := allocKey(assetAllocations[i].Asset, assetAllocations[i].WalletType)
+		lj := allocKey(assetAllocations[j].Asset, assetAllocations[j].WalletType)
+		return li < lj
+	})
+
+	parentPos, err := s.GetPositions(ctx, &types.GetPositionsRequest{AccountID: req.ParentAccountID})
+	if err != nil {
+		return nil, err
+	}
+	subPosMap := make(map[string]map[string]decimal.Decimal)
+	for _, sid := range subIDs {
+		resp, err := s.GetPositions(ctx, &types.GetPositionsRequest{AccountID: sid})
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil {
+			continue
+		}
+		for _, p := range resp.Positions {
+			if p == nil {
+				continue
+			}
+			key := positionAllocKey(p.Symbol.String(), p.Side)
+			if _, ok := subPosMap[key]; !ok {
+				subPosMap[key] = make(map[string]decimal.Decimal)
+			}
+			subPosMap[key][sid] = subPosMap[key][sid].Add(p.Amount)
+		}
+	}
+
+	positionAllocations := make([]*types.MultiBotPositionAllocation, 0)
+	if parentPos != nil {
+		for _, p := range parentPos.Positions {
+			if p == nil {
+				continue
+			}
+			key := positionAllocKey(p.Symbol.String(), p.Side)
+			subAlloc := make(map[string]decimal.Decimal, len(subIDs))
+			sumSub := decimal.Zero
+			for _, sid := range subIDs {
+				val := decimal.Zero
+				if v, ok := subPosMap[key][sid]; ok {
+					val = v
+				}
+				subAlloc[sid] = val
+				sumSub = sumSub.Add(val)
+			}
+			unallocated := p.Amount.Sub(sumSub)
+			if unallocated.IsNegative() {
+				unallocated = decimal.Zero
+			}
+			positionAllocations = append(positionAllocations, &types.MultiBotPositionAllocation{
+				Symbol:         p.Symbol.String(),
+				Side:           p.Side,
+				ParentTotal:    p.Amount,
+				SubAllocations: subAlloc,
+				Unallocated:    unallocated,
+			})
+		}
+	}
+	sort.SliceStable(positionAllocations, func(i, j int) bool {
+		ki := positionAllocKey(positionAllocations[i].Symbol, positionAllocations[i].Side)
+		kj := positionAllocKey(positionAllocations[j].Symbol, positionAllocations[j].Side)
+		return ki < kj
+	})
+
+	return &types.GetAccountMultiBotDetailsResponse{
+		SubAccounts:         subAccounts,
+		AssetAllocations:    assetAllocations,
+		PositionAllocations: positionAllocations,
+	}, nil
 }
 
 // CreateVirtualSubAccount 在父账户 multi_bot 模式下创建 virtual_sub 并写入初始资产快照。
@@ -744,17 +917,17 @@ func (s *Service) CreateVirtualSubAccount(ctx context.Context, input types.Creat
 	subName := fmt.Sprintf("%s-%s-%s", parent.Name, strings.TrimSpace(input.BotName), snowflake.Generate().String())
 	mbFalse := false
 	acc, err := entity.Account.CreateAccount(ctx, types.CreateAccountInput{
-		Name:             subName,
-		Exchange:         parent.Exchange,
-		ApiKey:           "",
-		ApiSecret:        "",
-		Passphrase:       "",
-		Tags:             nil,
-		Status:           types.AccountStatusOnline,
-		Algorithm:        parent.Algorithm,
-		AccountType:      types.AccountTypeVirtualSub,
-		ParentAccountID:  lo.ToPtr(input.ParentAccountID),
-		MultiBotMode:     &mbFalse,
+		Name:            subName,
+		Exchange:        parent.Exchange,
+		ApiKey:          "",
+		ApiSecret:       "",
+		Passphrase:      "",
+		Tags:            nil,
+		Status:          types.AccountStatusOnline,
+		Algorithm:       parent.Algorithm,
+		AccountType:     types.AccountTypeVirtualSub,
+		ParentAccountID: lo.ToPtr(input.ParentAccountID),
+		MultiBotMode:    &mbFalse,
 	})
 	if err != nil {
 		return nil, err

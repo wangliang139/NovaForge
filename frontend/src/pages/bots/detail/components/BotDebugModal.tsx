@@ -1,5 +1,5 @@
 import { MarketType } from '@/global.types';
-import { PositionSide } from '@/services/gateway/account';
+import { getSideTagInfo } from '@/utils/marketTag';
 import {
   Bot,
   BotLog,
@@ -1065,8 +1065,8 @@ const BotDebugModal: FC<BotDebugModalProps> = ({ botId, visible, onClose }) => {
                         dataIndex: 'side',
                         width: 60,
                         render: (text: any) => {
-                          const isLong = text === PositionSide.Long;
-                          return <Tag color={isLong ? 'green' : 'red'}>{isLong ? '多' : '空'}</Tag>;
+                          const info = getSideTagInfo(String(text || ''));
+                          return <Tag color={info.color}>{info.text}</Tag>;
                         },
                       },
                       {

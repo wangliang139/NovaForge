@@ -1,4 +1,5 @@
-import { Ledger, WalletType,PositionSide } from '@/services/gateway/account';
+import { Ledger, PositionSide } from '@/services/gateway/account';
+import { getWalletTypeTagInfo } from '@/utils/marketTag';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import { ParamsType, ProColumns, ProTableProps } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
@@ -57,13 +58,6 @@ export const buildLedgerColumns = (options: LedgerColumnsOptions = {}): ProColum
     ORDER_MARGIN_UNFREEZE: '订单保证金解冻',
   };
 
-  const walletTypeMap: Record<string, { text: string; color: string }> = {
-    [WalletType.Spot]: { text: '现货', color: 'blue' },
-    [WalletType.Future]: { text: '合约', color: 'orange' },
-    [WalletType.Fund]: { text: '资金', color: 'green' },
-    [WalletType.Trade]: { text: '交易', color: 'purple' },
-  };
-
   const columns: ProColumns<Ledger>[] = [
     {
       title: '时间',
@@ -87,7 +81,7 @@ export const buildLedgerColumns = (options: LedgerColumnsOptions = {}): ProColum
       width: 120,
       align: 'center',
       render: (text: any) => {
-        const info = walletTypeMap[text as WalletType] || { text, color: 'default' };
+        const info = getWalletTypeTagInfo(String(text || ''));
         return <Tag color={info.color}>{info.text}</Tag>;
       },
     },

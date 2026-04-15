@@ -325,7 +325,7 @@ type Account struct {
 	// ParentAccountID 仅 virtual_sub：指向父 real 账户
 	ParentAccountID *string `json:"parent_account_id,omitempty"`
 	// MultiBotMode 仅父 real 有意义；virtual / virtual_sub 恒为 false
-	MultiBotMode bool `json:"multi_bot_mode"`
+	MultiBotMode bool      `json:"multi_bot_mode"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 
@@ -368,8 +368,8 @@ func (a AuthAlgorithm) Valid() bool {
 type AccountType string
 
 const (
-	AccountTypeReal        AccountType = "real"
-	AccountTypeVirtual     AccountType = "virtual"
+	AccountTypeReal       AccountType = "real"
+	AccountTypeVirtual    AccountType = "virtual"
 	AccountTypeVirtualSub AccountType = "virtual_sub"
 )
 
@@ -465,11 +465,11 @@ type UpdateAccountRequest struct {
 
 // AccountUnallocatedAsset 父账户在共享多 Bot 模式下，某资产维度未分配数量（父快照 − 各子账初始分配之和）
 type AccountUnallocatedAsset struct {
-	Asset           string       `json:"asset"`
-	WalletType      WalletType   `json:"wallet_type"`
-	ParentTotal     decimal.Decimal `json:"parent_total"`
-	SubsAllocated   decimal.Decimal `json:"subs_allocated"`
-	Unallocated     decimal.Decimal `json:"unallocated"`
+	Asset         string          `json:"asset"`
+	WalletType    WalletType      `json:"wallet_type"`
+	ParentTotal   decimal.Decimal `json:"parent_total"`
+	SubsAllocated decimal.Decimal `json:"subs_allocated"`
+	Unallocated   decimal.Decimal `json:"unallocated"`
 }
 
 type GetAccountUnallocatedAssetsRequest struct {
@@ -478,6 +478,38 @@ type GetAccountUnallocatedAssetsRequest struct {
 
 type GetAccountUnallocatedAssetsResponse struct {
 	Items []*AccountUnallocatedAsset `json:"items"`
+}
+
+type MultiBotSubAccount struct {
+	AccountID string `json:"accountId"`
+	Name      string `json:"name"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+type MultiBotAssetAllocation struct {
+	Asset          string                     `json:"asset"`
+	WalletType     WalletType                 `json:"walletType"`
+	ParentTotal    decimal.Decimal            `json:"parentTotal"`
+	SubAllocations map[string]decimal.Decimal `json:"subAllocations"`
+	Unallocated    decimal.Decimal            `json:"unallocated"`
+}
+
+type MultiBotPositionAllocation struct {
+	Symbol         string                     `json:"symbol"`
+	Side           PositionSide               `json:"side"`
+	ParentTotal    decimal.Decimal            `json:"parentTotal"`
+	SubAllocations map[string]decimal.Decimal `json:"subAllocations"`
+	Unallocated    decimal.Decimal            `json:"unallocated"`
+}
+
+type GetAccountMultiBotDetailsRequest struct {
+	ParentAccountID string
+}
+
+type GetAccountMultiBotDetailsResponse struct {
+	SubAccounts         []*MultiBotSubAccount         `json:"subAccounts"`
+	AssetAllocations    []*MultiBotAssetAllocation    `json:"assetAllocations"`
+	PositionAllocations []*MultiBotPositionAllocation `json:"positionAllocations"`
 }
 
 type UpdateAccountResponse struct {

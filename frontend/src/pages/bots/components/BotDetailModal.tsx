@@ -4,8 +4,6 @@ import {
   Ledger,
   Order,
   Position,
-  PositionSide,
-  WalletType,
 } from '@/services/gateway/account';
 import {
   Bot,
@@ -17,6 +15,7 @@ import {
   queryBotOrders,
   queryBotPositions,
 } from '@/services/gateway/strategy';
+import { getSideTagInfo, getWalletTypeTagInfo } from '@/utils/marketTag';
 import { ProDescriptions, ProTable, type ProColumns } from '@ant-design/pro-components';
 import { Button, Empty, Modal, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import dayjs from 'dayjs';
@@ -169,15 +168,7 @@ const BotDetailModal: React.FC<BotDetailModalProps> = ({ bot, open, onClose }) =
       dataIndex: 'walletType',
       width: 120,
       render: (_: React.ReactNode, record: Asset) => {
-        const value = String(record.walletType || '');
-        const typeMap: Record<string, { text: string; color: string }> = {
-          [WalletType.Spot]: { text: '现货', color: 'blue' },
-          [WalletType.Future]: { text: '合约', color: 'orange' },
-          [WalletType.Fund]: { text: '资金', color: 'green' },
-          [WalletType.Trade]: { text: '交易', color: 'purple' },
-          [WalletType.Margin]: { text: '杠杆', color: 'red' },
-        };
-        const info = typeMap[value] || { text: value || '-', color: 'default' };
+        const info = getWalletTypeTagInfo(String(record.walletType || ''));
         return <Tag color={info.color}>{info.text}</Tag>;
       },
     },
@@ -240,11 +231,8 @@ const BotDetailModal: React.FC<BotDetailModalProps> = ({ bot, open, onClose }) =
       width: 90,
       align: 'center',
       render: (_: React.ReactNode, record: Position) => {
-        const side = record.side;
-        const isLong = side === PositionSide.Long;
-        const color = isLong ? 'green' : 'red';
-        const label = side === PositionSide.Long ? '多' : side === PositionSide.Short ? '空' : side || '-';
-        return <Tag color={color}>{label}</Tag>;
+        const info = getSideTagInfo(record.side);
+        return <Tag color={info.color}>{info.text}</Tag>;
       },
     },
     {
@@ -344,8 +332,8 @@ const BotDetailModal: React.FC<BotDetailModalProps> = ({ bot, open, onClose }) =
       dataIndex: 'side',
       width: 80,
       render: (_: React.ReactNode, record: Order) => {
-        const side = record.side;
-        return <Tag color={side === PositionSide.Long ? 'green' : 'red'}>{side}</Tag>;
+        const info = getSideTagInfo(record.side);
+        return <Tag color={info.color}>{info.text}</Tag>;
       },
     },
     {

@@ -1,5 +1,6 @@
-import { Position, PositionSide } from '@/services/gateway/account';
+import { Position } from '@/services/gateway/account';
 import utils from '@/utils';
+import { getSideTagInfo, sideFilterOptions } from '@/utils/marketTag';
 import type { ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Tag } from 'antd';
@@ -114,16 +115,11 @@ const PositionsProTable: React.FC<PositionsProTableProps> = ({
         key: 'side',
         width: 80,
         sorter: enableFilters ? (a, b) => String(a.side || '').localeCompare(String(b.side || '')) : undefined,
-        filters: enableFilters
-          ? [
-            { text: '多', value: PositionSide.Long },
-            { text: '空', value: PositionSide.Short },
-          ]
-          : undefined,
+        filters: enableFilters ? sideFilterOptions : undefined,
         onFilter: enableFilters ? (value, record) => String(record.side || '') === String(value) : undefined,
         render: (text: any) => {
-          const color = text === PositionSide.Long ? 'green' : 'red';
-          return <Tag color={color}>{text === PositionSide.Long ? '多' : '空'}</Tag>;
+          const info = getSideTagInfo(String(text || ''));
+          return <Tag color={info.color}>{info.text}</Tag>;
         },
       },
       {

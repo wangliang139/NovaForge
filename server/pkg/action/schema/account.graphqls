@@ -254,6 +254,44 @@ type AccountUnallocatedAsset {
   unallocated: String!
 }
 
+type MultiBotSubAccount {
+  accountId: ID!
+  name: String!
+  createdAt: Int!
+}
+
+type MultiBotAssetSubAllocation {
+  accountId: ID!
+  amount: String!
+}
+
+type MultiBotAssetAllocation {
+  asset: String!
+  walletType: WalletType!
+  parentTotal: String!
+  subAllocations: [MultiBotAssetSubAllocation!]!
+  unallocated: String!
+}
+
+type MultiBotPositionSubAllocation {
+  accountId: ID!
+  amount: String!
+}
+
+type MultiBotPositionAllocation {
+  symbol: String!
+  side: PositionSide!
+  parentTotal: String!
+  subAllocations: [MultiBotPositionSubAllocation!]!
+  unallocated: String!
+}
+
+type AccountMultiBotDetails {
+  subAccounts: [MultiBotSubAccount!]!
+  assetAllocations: [MultiBotAssetAllocation!]!
+  positionAllocations: [MultiBotPositionAllocation!]!
+}
+
 extend type Query {
   Accounts(input: QueryAccountsInput!): AccountsConnection!
   Equitys(input: QueryEquitysInput!): [Equity!]!
@@ -263,6 +301,8 @@ extend type Query {
   RiskEvents(input: QueryRiskEventsInput!): [RiskEvent!]!
   """父账户 multi_bot_mode 下各资产未分配数量（父余额 − 子账已登记分配）"""
   AccountUnallocatedAssets(accountId: ID!): [AccountUnallocatedAsset!]!
+  """父账户 multi_bot_mode 详情（子账户、资金分配、仓位分配）"""
+  AccountMultiBotDetails(accountId: ID!): AccountMultiBotDetails!
 }
 
 extend type Mutation {

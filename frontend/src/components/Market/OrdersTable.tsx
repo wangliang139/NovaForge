@@ -46,6 +46,8 @@ export type OrdersTableProps = {
   onCancelOrder?: (order: Order) => void;
   /** 撤单按钮属性（例如 loading / disabled 控制） */
   getCancelButtonProps?: (order: Order) => { disabled?: boolean; loading?: boolean } | undefined;
+  /** 行双击回调（桌面端用于打开详情） */
+  onRowDoubleClick?: (order: Order) => void;
 };
 
 const toNumber = (value: any) => {
@@ -219,6 +221,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   pricePrecision,
   onCancelOrder,
   getCancelButtonProps,
+  onRowDoubleClick,
 }) => {
   const columns: ProColumns<Order>[] = useMemo(() => {
     return [
@@ -588,6 +591,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
       rowKey={(record) => record.orderId || record.clientOrderId || `${record.orderId}-${record.symbol}-${record.side}`}
       scroll={scroll}
       onChange={onChange}
+      onRow={(record) => ({
+        onDoubleClick: () => onRowDoubleClick?.(record),
+      })}
     />
   );
 };

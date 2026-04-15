@@ -23,6 +23,7 @@ func TestPriceAtFromKlines(t *testing.T) {
 		{
 			Interval: ctypes.Interval1m,
 			Open:     decimal.NewFromInt(100),
+			Close:    decimal.NewFromInt(101),
 			OpenTs:   time.Date(2026, 4, 10, 12, 34, 0, 0, time.UTC),
 		},
 	}
@@ -32,5 +33,24 @@ func TestPriceAtFromKlines(t *testing.T) {
 	}
 	if !price.Equal(decimal.NewFromInt(100)) {
 		t.Fatalf("unexpected price: %s", price)
+	}
+}
+
+func TestPriceAtFromKlines_FallbackToPrevCloseWhenCurrentBarMissing(t *testing.T) {
+	ts := time.Date(2026, 4, 10, 12, 34, 30, 0, time.UTC)
+	bars := []*ctypes.Kline{
+		{
+			Interval: ctypes.Interval1m,
+			Open:     decimal.NewFromInt(98),
+			Close:    decimal.NewFromInt(99),
+			OpenTs:   time.Date(2026, 4, 10, 12, 33, 0, 0, time.UTC),
+		},
+	}
+	price, ok := priceAtFromKlines(bars, ts, time.Minute)
+	if !ok {
+		t.Fatalf("expected to fallback to previous close")
+	}
+	if !price.Equal(decimal.NewFromInt(99)) {
+		t.Fatalf("unexpected fallback price: %s", price)
 	}
 }

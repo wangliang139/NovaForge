@@ -1,6 +1,8 @@
 package converter
 
 import (
+	"sort"
+
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/wangliang139/NovaForge/server/pkg/action/model"
@@ -106,6 +108,16 @@ func OrderTypes2Gql(o *stypes.Order) *model.Order {
 	if o.FinishedTs != nil {
 		finishedTs = int(o.FinishedTs.UnixMilli())
 	}
+	allocations := make([]*model.OrderAllocation, 0, len(o.Fanout))
+	for accountID, ratio := range o.Fanout {
+		allocations = append(allocations, &model.OrderAllocation{
+			AccountID: accountID,
+			Ratio:     ratio.String(),
+		})
+	}
+	sort.SliceStable(allocations, func(i, j int) bool {
+		return allocations[i].AccountID < allocations[j].AccountID
+	})
 
 	return &model.Order{
 		AccountID:        o.AccountID,
@@ -146,6 +158,7 @@ func OrderTypes2Gql(o *stypes.Order) *model.Order {
 		FeeAsset:         o.FeeAsset,
 		RealizedPnl:      decPtrStr(o.RealizedPnl),
 		PnlAsset:         o.PnlAsset,
+		Allocations:      allocations,
 	}
 }
 

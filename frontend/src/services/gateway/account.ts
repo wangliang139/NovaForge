@@ -70,6 +70,44 @@ export type AccountUnallocatedAsset = {
   unallocated: string;
 };
 
+export type MultiBotSubAccount = {
+  accountId: string;
+  name: string;
+  createdAt: number;
+};
+
+export type MultiBotAssetSubAllocation = {
+  accountId: string;
+  amount: string;
+};
+
+export type MultiBotAssetAllocation = {
+  asset: string;
+  walletType: WalletType;
+  parentTotal: string;
+  subAllocations: MultiBotAssetSubAllocation[];
+  unallocated: string;
+};
+
+export type MultiBotPositionSubAllocation = {
+  accountId: string;
+  amount: string;
+};
+
+export type MultiBotPositionAllocation = {
+  symbol: string;
+  side: PositionSide;
+  parentTotal: string;
+  subAllocations: MultiBotPositionSubAllocation[];
+  unallocated: string;
+};
+
+export type AccountMultiBotDetails = {
+  subAccounts: MultiBotSubAccount[];
+  assetAllocations: MultiBotAssetAllocation[];
+  positionAllocations: MultiBotPositionAllocation[];
+};
+
 export type AmountLimit = {
   amount?: string | null;
   ratio?: string | null;
@@ -218,6 +256,11 @@ export type OrderCondition = {
   activatedTs: number;
 };
 
+export type OrderAllocation = {
+  accountId: string;
+  ratio: string;
+};
+
 export type Order = {
   accountId: string;
   botId: number;
@@ -258,6 +301,7 @@ export type Order = {
   feeAsset?: string;
   realizedPnl?: string;
   pnlAsset?: string; // 现货订单 realizedPnl 对应的资产；买入=quote，卖出=base
+  allocations?: OrderAllocation[];
 };
 
 const QUERY_ACCOUNTS = `
@@ -402,6 +446,38 @@ const QUERY_ACCOUNT_UNALLOCATED = `
   }
 `;
 
+const QUERY_ACCOUNT_MULTI_BOT_DETAILS = `
+  query AccountMultiBotDetails($accountId: ID!) {
+    Result: AccountMultiBotDetails(accountId: $accountId) {
+      subAccounts {
+        accountId
+        name
+        createdAt
+      }
+      assetAllocations {
+        asset
+        walletType
+        parentTotal
+        subAllocations {
+          accountId
+          amount
+        }
+        unallocated
+      }
+      positionAllocations {
+        symbol
+        side
+        parentTotal
+        subAllocations {
+          accountId
+          amount
+        }
+        unallocated
+      }
+    }
+  }
+`;
+
 const UPDATE_ACCOUNT = `
   mutation UpdateAccount($input: MutationAccountInput!) {
     Result: UpdateAccount(input: $input) {
@@ -537,6 +613,21 @@ export async function queryAccountUnallocatedAssets(
     }),
   });
   return (response.data?.Result || []) as AccountUnallocatedAsset[];
+}
+
+export async function queryAccountMultiBotDetails(accountId: string): Promise<AccountMultiBotDetails> {
+  const response = await request('/query', {
+    method: 'POST',
+    data: JSON.stringify({
+      query: QUERY_ACCOUNT_MULTI_BOT_DETAILS,
+      variables: { accountId },
+    }),
+  });
+  return (response.data?.Result || {
+    subAccounts: [],
+    assetAllocations: [],
+    positionAllocations: [],
+  }) as AccountMultiBotDetails;
 }
 
 export async function createAccount(params: Account) {
@@ -709,6 +800,10 @@ const QUERY_ORDERS = `
         feeAsset
         realizedPnl
         pnlAsset
+        allocations {
+          accountId
+          ratio
+        }
       }
       totalCount
     }
