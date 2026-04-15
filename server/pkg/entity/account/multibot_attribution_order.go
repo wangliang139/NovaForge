@@ -8,26 +8,81 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/converter"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ordersrepo "github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
-	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 )
 
 // SubRawDispatch P2 T1/T4：归因模块对单条父事件的子派发单元（未分配份额由父吸收，不进入本列表）。
 // Share 为 [0,1] 内对本条事件量的归因比例；BotId / DB 精确命中时 Share=1。
 type SubRawDispatch struct {
-	SubAccountID string
-	Share        decimal.Decimal
-	Order        ctypes.Order
+	SubAccountID string          `json:"sub_account_id"`
+	Share        decimal.Decimal `json:"share"`
+	Order        ctypes.Order    `json:"-"`
 }
 
 func cloneOrderForSub(ord ctypes.Order, subID string) ctypes.Order {
 	cp := ord
 	cp.AccountID = subID
 	return cp
+}
+
+// getMultibotFanoutFromDB 将父订单行上已冻结的比例份额合并到 ord（仅当内存中尚无该映射时查询）。
+func (e *Entity) getMultibotFanoutFromDB(ctx context.Context, parentID string, ordID string) (map[string]decimal.Decimal, error) {
+	if ordID == "" {
+		return nil, nil
+	}
+	row, err := e.db.OrdersRepo.GetOrderByOrderId(ctx, ordersrepo.GetOrderByOrderIdParams{
+		AccountID: parentID,
+		OrderID:   ordID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if row == nil || len(row.Fanout) == 0 {
+		return nil, nil
+	}
+	m := converter.ParseMultibotFanoutJSON(row.Fanout)
+	if len(m) == 0 {
+		return nil, nil
+	}
+	return m, nil
+}
+
+func (e *Entity) saveMultibotFanoutToDB(ctx context.Context, parentID, orderID string, shares map[string]decimal.Decimal) error {
+	if e == nil || parentID == "" || strings.TrimSpace(orderID) == "" || len(shares) == 0 {
+		return nil
+	}
+	m := make(map[string]string, len(shares))
+	for k, v := range shares {
+		k = strings.TrimSpace(k)
+		if k == "" || v.IsZero() {
+			continue
+		}
+		m[k] = v.String()
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	raw, err := sonic.Marshal(m)
+	if err != nil {
+		return err
+	}
+	execrows, err := e.db.OrdersRepo.SetMultibotFanoutIfNull(ctx, ordersrepo.SetMultibotFanoutIfNullParams{
+		Fanout:    raw,
+		AccountID: parentID,
+		OrderID:   strings.TrimSpace(orderID),
+	})
+	if err != nil {
+		return err
+	}
+	if execrows == 0 {
+		return nil
+	}
+	return nil
 }
 
 // absPositionWeightForFanout 平仓归因权重：仅使用 position_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 positions。
@@ -170,7 +225,7 @@ func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID
 
 // AttributeMultiBotOrderForFanout：父 multi_bot 下将交易所 Order 归因到 0/1/N 个 virtual_sub（BotId → DB 子行 → 比例；比例与分摊内核一致）。
 // 非 multi_bot 父、无子、或无可分摊权重时返回 (nil, nil)。T4 由 applyMultiBotParentOrderStage 在父行落库之后经 PublishEvent 入队，由账户消费者 handleAccountMessage。
-func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) ([]SubRawDispatch, error) {
+func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) (disp []SubRawDispatch, err error) {
 	if ord == nil || parentID == "" {
 		return nil, nil
 	}
@@ -183,6 +238,42 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
+	fanout := ord.Fanout
+	if fanout == nil {
+		fanout, err = e.getMultibotFanoutFromDB(ctx, parentID, ord.OrderID.String())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if fanout != nil {
+		logger.Ctx(ctx).Info().
+			Str("shares", formatAnyToJson(ord.Fanout)).
+			Str("parent_id", parentID).
+			Str("exchange", exchange.String()).
+			Str("order_id", ord.OrderID.String()).
+			Str("client_order_id", ord.ClientOrderID.String()).
+			Int64("bot_id", ord.BotID).
+			Str("symbol", ord.Symbol.String()).
+			Msg("multi_bot order fanout: frozen proportional shares")
+		return buildSubRawDispatchesFromUnitShares(*ord, fanout), nil
+	}
+
+	defer func() {
+		if err != nil {
+			return
+		}
+		if err := e.saveMultibotFanoutToDB(ctx, parentID, ord.OrderID.String(), fanout); err != nil {
+			logger.Ctx(ctx).Err(err).
+				Str("parent_id", parentID).
+				Str("exchange", exchange.String()).
+				Str("order_id", ord.OrderID.String()).
+				Str("client_order_id", ord.ClientOrderID.String()).
+				Int64("bot_id", ord.BotID).
+				Str("symbol", ord.Symbol.String()).
+				Msg("multi_bot order fanout: save fanout to db failed")
+		}
+	}()
+
 	subs, err := e.listVirtualSubsForParentFanoutAt(ctx, parentID, ord.CreatedTs)
 	if err != nil {
 		return nil, err
@@ -190,8 +281,6 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 	if len(subs) == 0 {
 		return nil, nil
 	}
-
-	ordCopy := *ord
 
 	// 1) BotId 优先（用于从子账户策略发起的订单）
 	if ord.BotID > 0 {
@@ -209,11 +298,12 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 					Int64("bot_id", ord.BotID).
 					Str("symbol", ord.Symbol.String()).
 					Msg("multi_bot order fanout: bot_id hit")
-				return []SubRawDispatch{{
+				disp = []SubRawDispatch{{
 					SubAccountID: bot.AccountID,
 					Share:        decimal.NewFromInt(1),
-					Order:        cloneOrderForSub(ordCopy, bot.AccountID),
-				}}, nil
+					Order:        cloneOrderForSub(*ord, bot.AccountID),
+				}}
+				return disp, nil
 			}
 		}
 		return nil, nil
@@ -237,15 +327,16 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 			Int64("bot_id", ord.BotID).
 			Str("symbol", ord.Symbol.String()).
 			Msg("multi_bot order fanout: client_order_id hit")
-		return []SubRawDispatch{{
+		disp = []SubRawDispatch{{
 			SubAccountID: subOrders[0].AccountID,
 			Share:        decimal.NewFromInt(1),
-			Order:        cloneOrderForSub(ordCopy, subOrders[0].AccountID),
-		}}, nil
+			Order:        cloneOrderForSub(*ord, subOrders[0].AccountID),
+		}}
+		return disp, nil
 	}
 
 	// 3) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
-	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, ordCopy, subs, ord.CreatedTs)
+	weights, wUnalloc, err := e.computeOrderProportionalWeights(ctx, parentID, exchange, *ord, subs, ord.CreatedTs)
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +379,8 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		Int64("bot_id", ord.BotID).
 		Str("symbol", ord.Symbol.String()).
 		Msg("multi_bot order fanout: proportional split")
-	return buildSubRawDispatchesFromUnitShares(ordCopy, shares), nil
+	disp = buildSubRawDispatchesFromUnitShares(*ord, shares)
+	return disp, nil
 }
 
 // AttributeOrdersFromParent 将父 connector 拉到的在途订单按 multi_bot 归因到本 virtual_sub（含份额缩放）。

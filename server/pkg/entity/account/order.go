@@ -168,6 +168,7 @@ func (e *Entity) ApplyOrderSnapshot(ctx context.Context, order *ctypes.Order) (*
 		FeeAsset:      order.FeeAsset,
 		RealizedPnl:   realizedPnl,
 		PnlAsset:      pnlAsset,
+		Fanout:        nil,
 	}
 
 	result, err := e.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {

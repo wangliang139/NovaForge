@@ -11,6 +11,16 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 )
 
+// ParseMultibotFanoutJSON 解析 orders.fanout（sub_id -> 正份额）。
+func ParseMultibotFanoutJSON(raw []byte) map[string]decimal.Decimal {
+	if len(raw) == 0 {
+		return nil
+	}
+	var out map[string]decimal.Decimal
+	_ = sonic.Unmarshal(raw, &out)
+	return out
+}
+
 func OrderDb2Types(item orders.Order) (*ctypes.Order, error) {
 	symbol, err := ctypes.ParseSymbol(item.Symbol)
 	if err != nil {
@@ -100,5 +110,6 @@ func OrderDb2Types(item orders.Order) (*ctypes.Order, error) {
 		FeeAsset:         item.FeeAsset,
 		RealizedPnl:      realizedPnl,
 		PnlAsset:         item.PnlAsset,
+		Fanout:           ParseMultibotFanoutJSON(item.Fanout),
 	}, nil
 }
