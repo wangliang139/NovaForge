@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -43,6 +44,8 @@ type RiskChecker interface {
 type Config struct {
 	AccountConsumerGroup string `split_words:"true" default:"account.consumer.group"`
 	AccountRawMsgTopic   string `split_words:"true" default:"account.raw.msg"`
+	// AccountMessageShardCount account_raw 消费侧分片 worker 数（按账户 id 哈希路由），默认 20。
+	AccountMessageShardCount int `split_words:"true" default:"20"`
 }
 
 type Entity struct {
@@ -57,6 +60,9 @@ type Entity struct {
 
 	ctx        context.Context
 	cancelFunc context.CancelFunc
+
+	accountMsgWorkersOnce sync.Once
+	accountMsgCh         []chan accountRawJob
 
 	riskChecker RiskChecker
 }

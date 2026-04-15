@@ -19,7 +19,6 @@ import (
 	"github.com/wangliang139/mow/logger"
 	"github.com/wangliang139/mow/snowflake"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 )
 
@@ -28,6 +27,7 @@ const TracerName = "github.com/wangliang139/NovaForge/server/pkg/entity/account"
 var tracer = otel.Tracer(TracerName)
 
 func (e *Entity) Start() error {
+	e.startAccountMessageWorkers()
 	uuid := snowflake.Generate().String()
 	go e.ListenAccountEvent(uuid)
 	return nil
@@ -54,35 +54,28 @@ func (e *Entity) ListenAccountEvent(consumerId string) {
 				continue
 			}
 
-			var err error
 			ctx := context.Background()
 			ctx, span := tracer.Start(ctx, "account.consume")
-			defer func() {
-				span.SetAttributes(attribute.String("exchange", envelope.Exchange))
-				if envelope.Account != nil {
-					span.SetAttributes(attribute.String("account", *envelope.Account))
-				}
-				if envelope.Symbol != nil {
-					span.SetAttributes(attribute.String("symbol", *envelope.Symbol))
-				}
-				span.SetAttributes(attribute.String("stream", envelope.Stream.String()))
-				if err != nil {
-					span.SetStatus(codes.Error, err.Error())
-				} else {
-					span.SetStatus(codes.Ok, "success")
-				}
-				span.End()
-			}()
 
 			logger.Ctx(ctx).Info().Str("exchange", envelope.Exchange).Any("account", envelope.Account).Interface("message", envelope.Payload).Msg("Receive account message")
 			if envelope.Account == nil {
+				span.SetStatus(codes.Error, "account id is required")
+				span.End()
 				logger.Ctx(ctx).Err(errors.New("account id is required")).Str("consumer_id", consumerId).Msg("Failed to process account message")
 				continue
 			}
-			err = e.handleAccountMessage(ctx, &envelope)
-			if err != nil {
-				logger.Ctx(ctx).Err(err).Str("consumer_id", consumerId).Msg("Failed to process account message")
+			if strings.TrimSpace(*envelope.Account) == "" {
+				span.SetStatus(codes.Error, "account id is empty")
+				span.End()
+				logger.Ctx(ctx).Err(errors.New("account id is empty")).Str("consumer_id", consumerId).Msg("Failed to process account message")
 				continue
+			}
+			if err := e.enqueueAccountRawJob(ctx, span, consumerId, envelope); err != nil {
+				if span != nil {
+					span.SetStatus(codes.Error, err.Error())
+					span.End()
+				}
+				return
 			}
 		}
 	}
