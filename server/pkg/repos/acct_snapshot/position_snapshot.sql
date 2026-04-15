@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS position_snapshot (
     exchange     VARCHAR(32)                           NOT NULL,
     symbol       VARCHAR(64)                           NOT NULL,
     side         position_side                         NOT NULL,
-    qty          DECIMAL(32, 8)                        NOT NULL DEFAULT 0,
-    entry_price  DECIMAL(32, 8)                        NOT NULL DEFAULT 0,
+    qty          DECIMAL(32, 18)                       NOT NULL DEFAULT 0,
+    entry_price  DECIMAL(32, 18)                       NOT NULL DEFAULT 0,
     leverage     INT                                   NOT NULL DEFAULT 1,
     effective_ts TIMESTAMPTZ                           NOT NULL,
     created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL

@@ -117,11 +117,11 @@ CREATE TABLE IF NOT EXISTS orders (
     symbol VARCHAR(64) NOT NULL,
     side order_side NOT NULL,
     is_buy BOOLEAN NOT NULL,
-    price DECIMAL(32, 8),
-    quantity DECIMAL(32, 8),
-    executed_qty DECIMAL(32, 8),
-    executed_price DECIMAL(32, 8),
-    avg_price DECIMAL(32, 8),
+    price DECIMAL(32, 18),
+    quantity DECIMAL(32, 18),
+    executed_qty DECIMAL(32, 18),
+    executed_price DECIMAL(32, 18),
+    avg_price DECIMAL(32, 18),
     reduce_only BOOLEAN NOT NULL,
     post_only BOOLEAN NOT NULL,
     tif time_in_force NOT NULL, -- 有效期类型
@@ -133,11 +133,11 @@ CREATE TABLE IF NOT EXISTS orders (
     working_ts TIMESTAMPTZ, -- 条件单生效时间
     finished_ts TIMESTAMPTZ, -- 完成时间
     updated_ts TIMESTAMPTZ NOT NULL, -- 更新时间
-    locked DECIMAL(32, 8),
+    locked DECIMAL(32, 18),
     locked_asset VARCHAR(32),
-    fee DECIMAL(32, 8),
+    fee DECIMAL(32, 18),
     fee_asset VARCHAR(32),
-    realized_pnl DECIMAL(32, 8),
+    realized_pnl DECIMAL(32, 18),
     pnl_asset VARCHAR(16), -- 现货订单 realized_pnl 对应的资产；买入=quote，卖出=base
     fanout JSONB, -- multi_bot 父单：仅首次比例 fanout 写入，sub_account_id -> share（字符串小数），NULL→非 NULL 禁止覆盖
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -100,10 +100,10 @@ CREATE TABLE IF NOT EXISTS assets (
     exchange VARCHAR(32) NOT NULL,
     asset VARCHAR(16) NOT NULL,
     wallet_type wallet_type NOT NULL, -- 钱包类型
-    total DECIMAL(32, 8) NOT NULL DEFAULT 0, -- 总量
-    frozen DECIMAL(32, 8) NOT NULL DEFAULT 0, -- 冻结余额
-    order_occupied DECIMAL(32, 8) NOT NULL DEFAULT 0, -- 订单占用余额
-    avg_price DECIMAL(32, 8), -- 持仓均价，按 asset/USDT 计价；USDT 默认 1；变少时不修改
+    total DECIMAL(32, 18) NOT NULL DEFAULT 0, -- 总量
+    frozen DECIMAL(32, 18) NOT NULL DEFAULT 0, -- 冻结余额
+    order_occupied DECIMAL(32, 18) NOT NULL DEFAULT 0, -- 订单占用余额
+    avg_price DECIMAL(32, 18), -- 持仓均价，按 asset/USDT 计价；USDT 默认 1；变少时不修改
     last_updated_ts TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

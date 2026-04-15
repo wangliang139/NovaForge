@@ -8,6 +8,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stumble/wpgx"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
@@ -40,7 +41,7 @@ func TestUpsertPosition(t *testing.T) {
 		Side: PositionSideLONG,
 		Qty: qty,
 		EntryPrice: entryPrice,
-		Leverage: 3,
+		Leverage: lo.ToPtr(int32(3)),
 		UpdatedTs: time.Now(),
 	})
 	if err != nil {

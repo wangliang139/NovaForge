@@ -5,10 +5,10 @@ CREATE TABLE IF NOT EXISTS ledgers (
     exchange VARCHAR(32) NOT NULL,
     asset VARCHAR(32) NOT NULL,
     wallet_type wallet_type NOT NULL,
-    total DECIMAL(32, 8), -- 总量
-    frozen DECIMAL(32, 8), -- 冻结余额
-    total_delta DECIMAL(32, 8), -- 总量增量
-    frozen_delta DECIMAL(32, 8), -- 冻结余额增量
+    total DECIMAL(32, 18), -- 总量
+    frozen DECIMAL(32, 18), -- 冻结余额
+    total_delta DECIMAL(32, 18), -- 总量增量
+    frozen_delta DECIMAL(32, 18), -- 冻结余额增量
     type VARCHAR(64) NOT NULL, -- 事件类型（规范化 code）
     detail JSONB, -- 事件详情（JSON）
     is_effective boolean NOT NULL DEFAULT TRUE, -- 是否生效
