@@ -22,7 +22,7 @@ updated AS (
     SET
         qty = sqlc.arg('qty'),
         entry_price = sqlc.arg('entry_price'),
-        leverage = COALESCE(sqlc.arg('leverage'), positions.leverage),
+        leverage = COALESCE(sqlc.narg('leverage'), positions.leverage),
         updated_ts = sqlc.arg('updated_ts'),
         updated_at = CURRENT_TIMESTAMP
     WHERE positions.account_id = sqlc.arg('account_id')
@@ -51,7 +51,7 @@ inserted AS (
         sqlc.arg('side'),
         sqlc.arg('qty'),
         sqlc.arg('entry_price'),
-        sqlc.arg('leverage'),
+        COALESCE(sqlc.narg('leverage'), 0),
         sqlc.arg('updated_ts')
     WHERE NOT EXISTS (SELECT 1 FROM prev)
     RETURNING *

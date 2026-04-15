@@ -1265,7 +1265,7 @@ func (e *Entity) applyPositionSnapshotRow(ctx context.Context, accountID string,
 		Symbol:     pos.Symbol.String(),
 		Side:       side,
 		Qty:        qtyNum,
-		Leverage:   0, // 此处不变更杠杆值，杠杆值变更统一由 handleSymbolLeverageUpdate 处理
+		Leverage:   nil, // 此处不变更杠杆值，杠杆值变更统一由 handleSymbolLeverageUpdate 处理
 		EntryPrice: entryPriceNum,
 		UpdatedTs:  pos.UpdatedTs,
 	}

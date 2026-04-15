@@ -360,7 +360,7 @@ inserted AS (
         $4,
         $5,
         $6,
-        $7,
+        COALESCE($7, 0),
         $8
     WHERE NOT EXISTS (SELECT 1 FROM prev)
     RETURNING account_id, exchange, symbol, side, qty, entry_price, leverage, updated_ts, created_at, updated_at
@@ -397,7 +397,7 @@ type UpsertPositionParams struct {
 	Side       PositionSide
 	Qty        pgtype.Numeric
 	EntryPrice pgtype.Numeric
-	Leverage   int32
+	Leverage   *int32
 	UpdatedTs  time.Time
 }
 

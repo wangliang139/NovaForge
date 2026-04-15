@@ -5,7 +5,7 @@ import {
 } from '@/services/gateway/account';
 import utils from '@/utils';
 import { ClockCircleOutlined, PlayCircleOutlined, SyncOutlined } from '@ant-design/icons';
-import { Button, Divider, Empty, Flex, List, message, Modal, Space, Tag, Typography, theme } from 'antd';
+import { Button, Divider, Empty, Flex, List, message, Modal, Space, Tag, theme, Typography } from 'antd';
 import dayjs from 'dayjs';
 import type { FC } from 'react';
 import { useEffect, useRef, useState } from 'react';
@@ -60,7 +60,17 @@ const AccountDebugModal: FC<AccountDebugModalProps> = ({ accountId, visible, onC
       if (!result) return;
 
       if (result.events.length > 0) {
-        setEvents((prev) => [...prev, ...result.events]);
+        setEvents((prev) => {
+          const seen = new Set(prev.map((e) => e.id));
+          const next = [...prev];
+          for (const e of result.events) {
+            if (!seen.has(e.id)) {
+              seen.add(e.id);
+              next.push(e);
+            }
+          }
+          return next;
+        });
       }
 
       // 推进游标：nextId = lastId + 1；无新事件时 nextId=0，此时不推进
@@ -118,6 +128,7 @@ const AccountDebugModal: FC<AccountDebugModalProps> = ({ accountId, visible, onC
         dataSource={sortedEvents}
         renderItem={(item) => (
           <List.Item
+            key={item.id}
             style={{
               cursor: 'pointer',
               backgroundColor: selectedEvent?.id === item.id ? token.colorPrimaryBg : undefined,
