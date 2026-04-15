@@ -176,6 +176,18 @@ WHERE account_id = $1
 ORDER BY created_ts ASC, id ASC
 LIMIT $4;
 
+-- name: ListLastOrdersByAccountRefreshWindow :many
+-- -- timeout: 5s
+-- 父账户订单增量：创建或交易所侧更新落在 [from_ts, to_ts] 的订单（含已完结），用于 virtual_sub 补全不在交易所 open 列表中的父单
+SELECT * FROM orders
+WHERE account_id = $1
+  AND (
+    (created_ts >= $2 AND created_ts <= $3)
+    OR (updated_ts >= $2 AND updated_ts <= $3)
+  )
+ORDER BY id DESC
+LIMIT $4;
+
 -- name: ListOrdersByCursor :many
 -- -- timeout: 1s
 SELECT * FROM orders

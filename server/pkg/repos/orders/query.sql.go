@@ -1016,6 +1016,103 @@ func _ListOrdersByAccountAndTimeRange(ctx context.Context, q CacheQuerierConn, a
 	return items, err
 }
 
+const listOrdersByAccountRefreshWindow = `-- name: ListOrdersByAccountRefreshWindow :many
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+WHERE account_id = $1
+  AND (
+    (created_ts >= $2 AND created_ts <= $3)
+    OR (updated_ts >= $2 AND updated_ts <= $3)
+  )
+  AND ($5::bigint IS NULL OR id > $5::bigint)
+ORDER BY id ASC
+LIMIT $4
+`
+
+type ListOrdersByAccountRefreshWindowParams struct {
+	AccountID   string
+	CreatedTs   time.Time
+	CreatedTs_2 time.Time
+	Limit       int32
+	AfterID     *int64
+}
+
+// -- timeout: 5s
+// 父账户订单增量：创建或交易所侧更新落在 [from_ts, to_ts] 的订单（含已完结），用于 virtual_sub 补全不在交易所 open 列表中的父单
+func (q *Queries) ListOrdersByAccountRefreshWindow(ctx context.Context, arg ListOrdersByAccountRefreshWindowParams) ([]Order, error) {
+	return _ListOrdersByAccountRefreshWindow(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListOrdersByAccountRefreshWindow(ctx context.Context, arg ListOrdersByAccountRefreshWindowParams) ([]Order, error) {
+	return _ListOrdersByAccountRefreshWindow(ctx, q, arg)
+}
+
+func _ListOrdersByAccountRefreshWindow(ctx context.Context, q CacheQuerierConn, arg ListOrdersByAccountRefreshWindowParams) ([]Order, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*5000)
+	defer cancel()
+	q.GetConn().CountIntent("orders.ListOrdersByAccountRefreshWindow")
+	rows, err := q.GetConn().WQuery(qctx, "orders.ListOrdersByAccountRefreshWindow", listOrdersByAccountRefreshWindow,
+		arg.AccountID,
+		arg.CreatedTs,
+		arg.CreatedTs_2,
+		arg.Limit,
+		arg.AfterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i *Order = new(Order)
+		if err := rows.Scan(
+			&i.ID,
+			&i.BotID,
+			&i.AccountID,
+			&i.OrderID,
+			&i.ClientOrderID,
+			&i.DrivedOrderID,
+			&i.OrderType,
+			&i.AlgoType,
+			&i.Source,
+			&i.Exchange,
+			&i.Symbol,
+			&i.Side,
+			&i.IsBuy,
+			&i.Price,
+			&i.Quantity,
+			&i.ExecutedQty,
+			&i.ExecutedPrice,
+			&i.AvgPrice,
+			&i.ReduceOnly,
+			&i.PostOnly,
+			&i.Tif,
+			&i.Conditions,
+			&i.Detail,
+			&i.Status,
+			&i.RejectReason,
+			&i.CreatedTs,
+			&i.WorkingTs,
+			&i.FinishedTs,
+			&i.UpdatedTs,
+			&i.Locked,
+			&i.LockedAsset,
+			&i.Fee,
+			&i.FeeAsset,
+			&i.RealizedPnl,
+			&i.PnlAsset,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
 const listOrdersByClientOrderIdUnderVirtualSubs = `-- name: ListOrdersByClientOrderIdUnderVirtualSubs :many
 SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.created_at, o.updated_at
 FROM orders o

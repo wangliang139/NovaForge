@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bytedance/sonic"
+	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
+	"github.com/wangliang139/NovaForge/server/pkg/converter"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
@@ -13,6 +16,8 @@ import (
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
+
+const virtualSubParentOrdersRefreshDefault = 10 * time.Minute
 
 // RefreshAccountSnapshotsInput 刷新账户快照的输入参数
 type RefreshAccountSnapshotsInput struct {
@@ -392,6 +397,7 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 	exchange := acct.Exchange
 
 	var (
+		lastRefreshAt time.Time
 		ordersList []*ctypes.Order
 		err        error
 	)
@@ -423,6 +429,23 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 		if err != nil {
 			return nil, fmt.Errorf("refresh parent orders: %w", err)
 		}
+
+		// 再从 DB 拉取父账户订单补全
+		fromTime, endTime, err := e.getVsAcctParentOrdersRefreshWindow(ctx, parent)
+		if err != nil {
+			return nil, fmt.Errorf("get vs acct parent orders refresh window: %w", err)
+		}
+		dbParentOrders, err := e.db.OrdersRepo.ListOrdersByAccountRefreshWindow(ctx, orders.ListOrdersByAccountRefreshWindowParams{
+			AccountID:   parent.ID,
+			CreatedTs:   fromTime,
+			CreatedTs_2: endTime,
+			Limit:       500,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list parent orders for virtual_sub refresh window: %w", err)
+		}
+		parentOrders = mergeParentOpenOrdersWithHistorical(parentOrders, dbParentOrders)
+
 		if len(parentOrders) > 0 {
 			for _, ord := range parentOrders {
 				if ord == nil {
@@ -526,5 +549,85 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 		return nil, fmt.Errorf("reset order occupied by pending orders: %w", err)
 	}
 
+	// 更新虚拟子账户的父订单刷新时间
+	if acct.AccountType == types.AccountTypeVirtualSub {
+		if _, err := e.db.AccountRepo.SetVirtualSubParentOrdersRefreshAt(ctx, accountrepo.SetVirtualSubParentOrdersRefreshAtParams{
+			At: time.Now(),
+			ID: accountID,
+		}, &accountID, &acct.Name, lo.ToPtr(accountrepo.Exchange(acct.Exchange))); err != nil {
+			logger.Ctx(ctx).Err(err).Str("account_id", accountID).Msg("set virtual_sub last parent orders refresh time failed")
+		}
+	}
+
 	return ordersList, nil
+}
+
+func (e *Entity) getVsAcctParentOrdersRefreshWindow(ctx context.Context, acct *types.Account) (time.Time, time.Time, error) {
+	if acct == nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("account is nil")
+	}
+	accountID := acct.ID
+	subRow, err := e.db.AccountRepo.GetById(ctx, accountID)
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("get virtual_sub account row: %w", err)
+	}
+	if subRow == nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("virtual_sub account row not found")
+	}
+	now := time.Now()
+	fromTime := now.Add(-virtualSubParentOrdersRefreshDefault)
+
+	if len(subRow.Config) > 0 {
+		var ext struct {
+			VirtualSub *struct {
+				LastParentOrdersRefreshAt *time.Time `json:"last_parent_orders_refresh_at"`
+			} `json:"virtual_sub"`
+		}
+		if err := sonic.Unmarshal(subRow.Config, &ext); err != nil {
+			logger.Ctx(ctx).Err(err).Str("account_id", accountID).Msg("failed to unmarshal virtual_sub config")
+		}
+		if ext.VirtualSub != nil && ext.VirtualSub.LastParentOrdersRefreshAt != nil {
+			t := *ext.VirtualSub.LastParentOrdersRefreshAt
+			if !t.IsZero() {
+				fromTime = t
+			}
+		}
+	}
+	if fromTime.Before(acct.CreatedAt) {
+		fromTime = acct.CreatedAt
+	}
+	if fromTime.After(now) {
+		fromTime = now
+	}
+	return fromTime, now, nil
+}
+
+func mergeParentOpenOrdersWithHistorical(parentOpen []*ctypes.Order, dbRows []orders.Order) []*ctypes.Order {
+	liveIDs := make(map[string]struct{}, len(parentOpen))
+	for _, o := range parentOpen {
+		if o == nil {
+			continue
+		}
+		liveIDs[o.OrderID.String()] = struct{}{}
+	}
+	out := make([]*ctypes.Order, 0, len(parentOpen)+len(dbRows))
+	for _, o := range parentOpen {
+		if o == nil {
+			continue
+		}
+		cp := *o
+		out = append(out, &cp)
+	}
+	for _, row := range dbRows {
+		if _, ok := liveIDs[row.OrderID]; ok {
+			continue
+		}
+		o, err := converter.OrderDb2Types(row)
+		if err != nil {
+			log.Err(err).Str("order_id", row.OrderID).Msg("failed to convert order db to types")
+			continue
+		}
+		out = append(out, o)
+	}
+	return out
 }

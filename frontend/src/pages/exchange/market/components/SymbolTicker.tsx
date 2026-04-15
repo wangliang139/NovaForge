@@ -501,13 +501,13 @@ const SymbolTicker: React.FC<SymbolTickerProps> = ({
             </Space>
           </Dropdown>
           {accountId && (
-            <div style={{ paddingTop: 0,  color: '#8c8c8c' }}>
+            <div style={{ paddingTop: 0, color: '#8c8c8c' }}>
               <span style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                 {(() => {
                   const account = accountList.find((a) => a.id === accountId);
                   if (!account) return null;
                   return (
-                    <EllipsisMiddleText suffixCount={10} style={{ fontSize: 11, color: '#8c8c8c' }}>{account.name + ' · #' + account.id.slice(-5)}</EllipsisMiddleText>
+                    <EllipsisMiddleText suffixCount={10} style={{ fontSize: 11, width: 200, color: '#8c8c8c' }}>{account.name + ' · #' + account.id.slice(-5)}</EllipsisMiddleText>
                   );
                 })()}
               </span>

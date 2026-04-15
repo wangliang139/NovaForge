@@ -136,3 +136,18 @@ SELECT *
 FROM public.account
 WHERE status = $1
   AND deleted_at IS NULL;
+
+-- name: SetVirtualSubParentOrdersRefreshAt :execrows
+-- -- invalidate : [GetById, GetByName, GetDefaultAccounts]
+-- -- timeout: 1s
+UPDATE public.account
+SET config = jsonb_set(
+      coalesce(config, '{}'::jsonb),
+      '{virtual_sub,last_parent_orders_refresh_at}',
+      to_jsonb(sqlc.arg('at')::timestamptz),
+      true
+    ),
+    updated_at = now()
+WHERE id = sqlc.arg('id')
+  AND deleted_at IS NULL
+  AND account_type = 'virtual_sub';

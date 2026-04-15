@@ -689,6 +689,82 @@ func _QueryAccountsCount(ctx context.Context, q CacheQuerierConn, arg QueryAccou
 	return count, err
 }
 
+const setVirtualSubParentOrdersRefreshAt = `-- name: SetVirtualSubParentOrdersRefreshAt :execrows
+UPDATE public.account
+SET config = jsonb_set(
+      coalesce(config, '{}'::jsonb),
+      '{virtual_sub,last_parent_orders_refresh_at}',
+      to_jsonb($1::timestamptz),
+      true
+    ),
+    updated_at = now()
+WHERE id = $2
+  AND deleted_at IS NULL
+  AND account_type = 'virtual_sub'
+`
+
+type SetVirtualSubParentOrdersRefreshAtParams struct {
+	At time.Time
+	ID string
+}
+
+// -- invalidate : [GetById, GetByName, GetDefaultAccounts]
+// -- timeout: 1s
+func (q *Queries) SetVirtualSubParentOrdersRefreshAt(ctx context.Context, arg SetVirtualSubParentOrdersRefreshAtParams, getById *string, getByName *string, getDefaultAccounts *Exchange) (int64, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
+	defer cancel()
+	result, err := q.db.WExec(qctx, "account.SetVirtualSubParentOrdersRefreshAt", setVirtualSubParentOrdersRefreshAt, arg.At, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	// invalidate
+	_ = q.db.PostExec(func() error {
+		anyErr := make(chan error, 3)
+		var wg sync.WaitGroup
+		wg.Add(3)
+		go func() {
+			defer wg.Done()
+			if getById != nil {
+				key := "account:GetById:" + hashIfLong(fmt.Sprintf("%+v", (*getById)))
+				err = q.cache.Invalidate(ctx, key)
+				if err != nil {
+					log.Ctx(ctx).Error().Err(err).Msgf(
+						"Failed to invalidate: %s", key)
+					anyErr <- err
+				}
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if getByName != nil {
+				key := "account:GetByName:" + hashIfLong(fmt.Sprintf("%+v", (*getByName)))
+				err = q.cache.Invalidate(ctx, key)
+				if err != nil {
+					log.Ctx(ctx).Error().Err(err).Msgf(
+						"Failed to invalidate: %s", key)
+					anyErr <- err
+				}
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if getDefaultAccounts != nil {
+				key := "account:GetDefaultAccounts:" + hashIfLong(fmt.Sprintf("%+v", (*getDefaultAccounts)))
+				err = q.cache.Invalidate(ctx, key)
+				if err != nil {
+					log.Ctx(ctx).Error().Err(err).Msgf(
+						"Failed to invalidate: %s", key)
+					anyErr <- err
+				}
+			}
+		}()
+		wg.Wait()
+		close(anyErr)
+		return <-anyErr
+	})
+	return result.RowsAffected(), nil
+}
+
 const update = `-- name: Update :one
 UPDATE public.account
 SET name       = $2,
