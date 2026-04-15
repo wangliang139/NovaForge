@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS orders (
     fee_asset VARCHAR(32),
     realized_pnl DECIMAL(32, 8),
     pnl_asset VARCHAR(16), -- 现货订单 realized_pnl 对应的资产；买入=quote，卖出=base
+    fanout JSONB, -- multi_bot 父单：仅首次比例 fanout 写入，sub_account_id -> share（字符串小数），NULL→非 NULL 禁止覆盖
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

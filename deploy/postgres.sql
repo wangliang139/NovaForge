@@ -300,6 +300,7 @@ CREATE TABLE IF NOT EXISTS orders (
     fee_asset VARCHAR(32),
     realized_pnl DECIMAL(32, 8),
     pnl_asset VARCHAR(16),
+    fanout JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

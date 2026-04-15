@@ -615,6 +615,7 @@ type Order struct {
 	FeeAsset      *string        `json:"fee_asset"`
 	RealizedPnl   pgtype.Numeric `json:"realized_pnl"`
 	PnlAsset      *string        `json:"pnl_asset"`
+	Fanout        []byte         `json:"fanout"`
 	CreatedAt     time.Time      `json:"created_at"`
 	UpdatedAt     time.Time      `json:"updated_at"`
 }

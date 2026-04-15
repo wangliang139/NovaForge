@@ -29,7 +29,7 @@ SET status = 'CANCELED',
     updated_at = CURRENT_TIMESTAMP
 WHERE account_id = $1
   AND order_id = $2
-RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at
+RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at
 `
 
 type CancelOrderStatusWithReasonParams struct {
@@ -91,6 +91,7 @@ func _CancelOrderStatusWithReason(ctx context.Context, q CacheQuerierConn, arg C
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -217,7 +218,7 @@ func _CountOrdersByFinishedTsRange(ctx context.Context, q CacheQuerierConn, arg 
 }
 
 const getOrder = `-- name: GetOrder :one
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE id = $1
 `
 
@@ -272,6 +273,7 @@ func _GetOrder(ctx context.Context, q CacheQuerierConn, id int64) (*Order, error
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -285,7 +287,7 @@ func _GetOrder(ctx context.Context, q CacheQuerierConn, id int64) (*Order, error
 }
 
 const getOrderByClientOrderId = `-- name: GetOrderByClientOrderId :one
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND client_order_id = $2
 `
@@ -346,6 +348,7 @@ func _GetOrderByClientOrderId(ctx context.Context, q CacheQuerierConn, arg GetOr
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -359,7 +362,7 @@ func _GetOrderByClientOrderId(ctx context.Context, q CacheQuerierConn, arg GetOr
 }
 
 const getOrderByClientOrderIdUnderParent = `-- name: GetOrderByClientOrderIdUnderParent :one
-SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.created_at, o.updated_at
+SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.fanout, o.created_at, o.updated_at
 FROM orders o
 LEFT JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
 WHERE o.client_order_id = $1
@@ -429,6 +432,7 @@ func _GetOrderByClientOrderIdUnderParent(ctx context.Context, q CacheQuerierConn
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -442,7 +446,7 @@ func _GetOrderByClientOrderIdUnderParent(ctx context.Context, q CacheQuerierConn
 }
 
 const getOrderByClientOrderIdWithLock = `-- name: GetOrderByClientOrderIdWithLock :one
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND client_order_id = $2
 FOR UPDATE
@@ -504,6 +508,7 @@ func _GetOrderByClientOrderIdWithLock(ctx context.Context, q CacheQuerierConn, a
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -517,7 +522,7 @@ func _GetOrderByClientOrderIdWithLock(ctx context.Context, q CacheQuerierConn, a
 }
 
 const getOrderByOrderId = `-- name: GetOrderByOrderId :one
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND order_id = $2
 `
@@ -578,6 +583,7 @@ func _GetOrderByOrderId(ctx context.Context, q CacheQuerierConn, arg GetOrderByO
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -591,7 +597,7 @@ func _GetOrderByOrderId(ctx context.Context, q CacheQuerierConn, arg GetOrderByO
 }
 
 const getOrderByOrderIdUnderVirtualSubs = `-- name: GetOrderByOrderIdUnderVirtualSubs :one
-SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.created_at, o.updated_at
+SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.fanout, o.created_at, o.updated_at
 FROM orders o
 INNER JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
 WHERE o.order_id = $1
@@ -658,6 +664,7 @@ func _GetOrderByOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuerierConn,
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -671,7 +678,7 @@ func _GetOrderByOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuerierConn,
 }
 
 const getOrderByOrderIdWithLock = `-- name: GetOrderByOrderIdWithLock :one
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND order_id = $2
 FOR UPDATE
@@ -733,6 +740,7 @@ func _GetOrderByOrderIdWithLock(ctx context.Context, q CacheQuerierConn, arg Get
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -746,7 +754,7 @@ func _GetOrderByOrderIdWithLock(ctx context.Context, q CacheQuerierConn, arg Get
 }
 
 const getPendingOrders = `-- name: GetPendingOrders :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
 AND status IN ('NEW', 'PENDING', 'WORKING', 'PARTIAL_DONE')
 AND symbol = coalesce($2::varchar, symbol)
@@ -815,6 +823,7 @@ func _GetPendingOrders(ctx context.Context, q CacheQuerierConn, arg GetPendingOr
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -830,7 +839,7 @@ func _GetPendingOrders(ctx context.Context, q CacheQuerierConn, arg GetPendingOr
 }
 
 const listLastOrdersByAccountRefreshWindow = `-- name: ListLastOrdersByAccountRefreshWindow :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND (
     (created_ts >= $2 AND created_ts <= $3)
@@ -909,6 +918,7 @@ func _ListLastOrdersByAccountRefreshWindow(ctx context.Context, q CacheQuerierCo
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -924,7 +934,7 @@ func _ListLastOrdersByAccountRefreshWindow(ctx context.Context, q CacheQuerierCo
 }
 
 const listOrders = `-- name: ListOrders :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND ($4::int IS NULL OR bot_id = $4::int)
 ORDER BY created_at DESC
@@ -999,6 +1009,7 @@ func _ListOrders(ctx context.Context, q CacheQuerierConn, arg ListOrdersParams) 
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1014,7 +1025,7 @@ func _ListOrders(ctx context.Context, q CacheQuerierConn, arg ListOrdersParams) 
 }
 
 const listOrdersByAccountAndTimeRange = `-- name: ListOrdersByAccountAndTimeRange :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND ($5::int IS NULL OR bot_id = $5::int)
   AND ($6::varchar IS NULL OR symbol = $6::varchar)
@@ -1096,6 +1107,7 @@ func _ListOrdersByAccountAndTimeRange(ctx context.Context, q CacheQuerierConn, a
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1111,7 +1123,7 @@ func _ListOrdersByAccountAndTimeRange(ctx context.Context, q CacheQuerierConn, a
 }
 
 const listOrdersByClientOrderIdUnderVirtualSubs = `-- name: ListOrdersByClientOrderIdUnderVirtualSubs :many
-SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.created_at, o.updated_at
+SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.fanout, o.created_at, o.updated_at
 FROM orders o
 INNER JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
 WHERE o.client_order_id = $1
@@ -1183,6 +1195,7 @@ func _ListOrdersByClientOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuer
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1198,7 +1211,7 @@ func _ListOrdersByClientOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuer
 }
 
 const listOrdersByCursor = `-- name: ListOrdersByCursor :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND ($3::int IS NULL OR bot_id = $3::int)
   AND symbol = coalesce($4::varchar, symbol)
@@ -1295,6 +1308,7 @@ func _ListOrdersByCursor(ctx context.Context, q CacheQuerierConn, arg ListOrders
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1310,7 +1324,7 @@ func _ListOrdersByCursor(ctx context.Context, q CacheQuerierConn, arg ListOrders
 }
 
 const listOrdersByOrderIdUnderVirtualSubs = `-- name: ListOrdersByOrderIdUnderVirtualSubs :many
-SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.created_at, o.updated_at
+SELECT o.id, o.bot_id, o.account_id, o.order_id, o.client_order_id, o.drived_order_id, o.order_type, o.algo_type, o.source, o.exchange, o.symbol, o.side, o.is_buy, o.price, o.quantity, o.executed_qty, o.executed_price, o.avg_price, o.reduce_only, o.post_only, o.tif, o.conditions, o.detail, o.status, o.reject_reason, o.created_ts, o.working_ts, o.finished_ts, o.updated_ts, o.locked, o.locked_asset, o.fee, o.fee_asset, o.realized_pnl, o.pnl_asset, o.fanout, o.created_at, o.updated_at
 FROM orders o
 INNER JOIN public.account a ON a.id = o.account_id AND a.deleted_at IS NULL
 WHERE o.order_id = $1
@@ -1382,6 +1396,7 @@ func _ListOrdersByOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuerierCon
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1397,7 +1412,7 @@ func _ListOrdersByOrderIdUnderVirtualSubs(ctx context.Context, q CacheQuerierCon
 }
 
 const listOrdersByPage = `-- name: ListOrdersByPage :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND ($4::int IS NULL OR bot_id = $4::int)
   AND ($5::timestamptz IS NULL OR created_ts >= $5::timestamptz)
@@ -1490,6 +1505,7 @@ func _ListOrdersByPage(ctx context.Context, q CacheQuerierConn, arg ListOrdersBy
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1505,7 +1521,7 @@ func _ListOrdersByPage(ctx context.Context, q CacheQuerierConn, arg ListOrdersBy
 }
 
 const listOrdersByPageByFinishedTs = `-- name: ListOrdersByPageByFinishedTs :many
-SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at FROM orders
+SELECT id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at FROM orders
 WHERE account_id = $1
   AND ($4::int IS NULL OR bot_id = $4::int)
   AND finished_ts IS NOT NULL
@@ -1599,6 +1615,7 @@ func _ListOrdersByPageByFinishedTs(ctx context.Context, q CacheQuerierConn, arg 
 			&i.FeeAsset,
 			&i.RealizedPnl,
 			&i.PnlAsset,
+			&i.Fanout,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -1613,13 +1630,40 @@ func _ListOrdersByPageByFinishedTs(ctx context.Context, q CacheQuerierConn, arg 
 	return items, err
 }
 
+const setMultibotFanoutIfNull = `-- name: SetMultibotFanoutIfNull :execrows
+UPDATE orders
+SET fanout = $1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE account_id = $2
+  AND order_id = $3
+  AND fanout IS NULL
+`
+
+type SetMultibotFanoutIfNullParams struct {
+	Fanout    []byte
+	AccountID string
+	OrderID   string
+}
+
+// -- timeout: 1s
+func (q *Queries) SetMultibotFanoutIfNull(ctx context.Context, arg SetMultibotFanoutIfNullParams) (int64, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
+	defer cancel()
+	result, err := q.db.WExec(qctx, "orders.SetMultibotFanoutIfNull", setMultibotFanoutIfNull, arg.Fanout, arg.AccountID, arg.OrderID)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected(), nil
+}
+
 const setOrderLockedAsset = `-- name: SetOrderLockedAsset :one
 UPDATE orders
 SET locked = $3,
     locked_asset = $4
 WHERE account_id = $1
   AND order_id = $2
-RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at
+RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at
 `
 
 type SetOrderLockedAssetParams struct {
@@ -1679,6 +1723,7 @@ func _SetOrderLockedAsset(ctx context.Context, q CacheQuerierConn, arg SetOrderL
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1695,7 +1740,7 @@ const updateOrderId = `-- name: UpdateOrderId :one
 UPDATE orders
 SET order_id = $2
 WHERE id = $1
-RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at
+RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at
 `
 
 type UpdateOrderIdParams struct {
@@ -1749,6 +1794,7 @@ func _UpdateOrderId(ctx context.Context, q CacheQuerierConn, arg UpdateOrderIdPa
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1762,8 +1808,8 @@ func _UpdateOrderId(ctx context.Context, q CacheQuerierConn, arg UpdateOrderIdPa
 }
 
 const upsertOrder = `-- name: UpsertOrder :one
-INSERT INTO orders (bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, conditions, detail, status, reject_reason, reduce_only, post_only, tif, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+INSERT INTO orders (bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, conditions, detail, status, reject_reason, reduce_only, post_only, tif, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
 ON CONFLICT (account_id, order_id) DO UPDATE
 SET drived_order_id = coalesce(EXCLUDED.drived_order_id, orders.drived_order_id),
     executed_qty = coalesce(EXCLUDED.executed_qty, orders.executed_qty),
@@ -1785,9 +1831,10 @@ SET drived_order_id = coalesce(EXCLUDED.drived_order_id, orders.drived_order_id)
     fee_asset = coalesce(EXCLUDED.fee_asset, orders.fee_asset),
     realized_pnl = coalesce(EXCLUDED.realized_pnl, orders.realized_pnl),
     pnl_asset = coalesce(EXCLUDED.pnl_asset, orders.pnl_asset),
+    fanout = orders.fanout,
     updated_at = CURRENT_TIMESTAMP
 WHERE orders.updated_ts <= EXCLUDED.updated_ts
-RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, created_at, updated_at
+RETURNING id, bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, reduce_only, post_only, tif, conditions, detail, status, reject_reason, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout, created_at, updated_at
 `
 
 type UpsertOrderParams struct {
@@ -1825,6 +1872,7 @@ type UpsertOrderParams struct {
 	FeeAsset      *string
 	RealizedPnl   pgtype.Numeric
 	PnlAsset      *string
+	Fanout        []byte
 }
 
 // -- timeout: 1s
@@ -1869,7 +1917,8 @@ func _UpsertOrder(ctx context.Context, q CacheQuerierConn, arg UpsertOrderParams
 		arg.Fee,
 		arg.FeeAsset,
 		arg.RealizedPnl,
-		arg.PnlAsset)
+		arg.PnlAsset,
+		arg.Fanout)
 	var i *Order = new(Order)
 	err := row.Scan(
 		&i.ID,
@@ -1907,6 +1956,7 @@ func _UpsertOrder(ctx context.Context, q CacheQuerierConn, arg UpsertOrderParams
 		&i.FeeAsset,
 		&i.RealizedPnl,
 		&i.PnlAsset,
+		&i.Fanout,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1922,7 +1972,7 @@ func _UpsertOrder(ctx context.Context, q CacheQuerierConn, arg UpsertOrderParams
 //// auto generated functions
 
 func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, error) {
-	sql := "SELECT id,bot_id,account_id,order_id,client_order_id,drived_order_id,order_type,algo_type,source,exchange,symbol,side,is_buy,price,quantity,executed_qty,executed_price,avg_price,reduce_only,post_only,tif,conditions,detail,status,reject_reason,created_ts,working_ts,finished_ts,updated_ts,locked,locked_asset,fee,fee_asset,realized_pnl,pnl_asset,created_at,updated_at FROM \"orders\" ORDER BY id,bot_id,account_id,order_id,client_order_id,drived_order_id,exchange,symbol,is_buy,reduce_only,post_only,status,reject_reason,created_ts,working_ts,finished_ts,updated_ts,locked_asset,fee_asset,pnl_asset,created_at,updated_at ASC;"
+	sql := "SELECT id,bot_id,account_id,order_id,client_order_id,drived_order_id,order_type,algo_type,source,exchange,symbol,side,is_buy,price,quantity,executed_qty,executed_price,avg_price,reduce_only,post_only,tif,conditions,detail,status,reject_reason,created_ts,working_ts,finished_ts,updated_ts,locked,locked_asset,fee,fee_asset,realized_pnl,pnl_asset,fanout,created_at,updated_at FROM \"orders\" ORDER BY id,bot_id,account_id,order_id,client_order_id,drived_order_id,exchange,symbol,is_buy,reduce_only,post_only,status,reject_reason,created_ts,working_ts,finished_ts,updated_ts,locked_asset,fee_asset,pnl_asset,created_at,updated_at ASC;"
 	rows, err := q.db.WQuery(ctx, "orders.Dump", sql)
 	if err != nil {
 		return nil, err
@@ -1931,7 +1981,7 @@ func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, e
 	var items []Order
 	for rows.Next() {
 		var v Order
-		if err := rows.Scan(&v.ID, &v.BotID, &v.AccountID, &v.OrderID, &v.ClientOrderID, &v.DrivedOrderID, &v.OrderType, &v.AlgoType, &v.Source, &v.Exchange, &v.Symbol, &v.Side, &v.IsBuy, &v.Price, &v.Quantity, &v.ExecutedQty, &v.ExecutedPrice, &v.AvgPrice, &v.ReduceOnly, &v.PostOnly, &v.Tif, &v.Conditions, &v.Detail, &v.Status, &v.RejectReason, &v.CreatedTs, &v.WorkingTs, &v.FinishedTs, &v.UpdatedTs, &v.Locked, &v.LockedAsset, &v.Fee, &v.FeeAsset, &v.RealizedPnl, &v.PnlAsset, &v.CreatedAt, &v.UpdatedAt); err != nil {
+		if err := rows.Scan(&v.ID, &v.BotID, &v.AccountID, &v.OrderID, &v.ClientOrderID, &v.DrivedOrderID, &v.OrderType, &v.AlgoType, &v.Source, &v.Exchange, &v.Symbol, &v.Side, &v.IsBuy, &v.Price, &v.Quantity, &v.ExecutedQty, &v.ExecutedPrice, &v.AvgPrice, &v.ReduceOnly, &v.PostOnly, &v.Tif, &v.Conditions, &v.Detail, &v.Status, &v.RejectReason, &v.CreatedTs, &v.WorkingTs, &v.FinishedTs, &v.UpdatedTs, &v.Locked, &v.LockedAsset, &v.Fee, &v.FeeAsset, &v.RealizedPnl, &v.PnlAsset, &v.Fanout, &v.CreatedAt, &v.UpdatedAt); err != nil {
 			return nil, err
 		}
 		for _, applyBeforeDump := range beforeDump {
@@ -1950,14 +2000,14 @@ func (q *Queries) Dump(ctx context.Context, beforeDump ...BeforeDump) ([]byte, e
 }
 
 func (q *Queries) Load(ctx context.Context, data []byte) error {
-	sql := "INSERT INTO \"orders\" (id,bot_id,account_id,order_id,client_order_id,drived_order_id,order_type,algo_type,source,exchange,symbol,side,is_buy,price,quantity,executed_qty,executed_price,avg_price,reduce_only,post_only,tif,conditions,detail,status,reject_reason,created_ts,working_ts,finished_ts,updated_ts,locked,locked_asset,fee,fee_asset,realized_pnl,pnl_asset,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37);"
+	sql := "INSERT INTO \"orders\" (id,bot_id,account_id,order_id,client_order_id,drived_order_id,order_type,algo_type,source,exchange,symbol,side,is_buy,price,quantity,executed_qty,executed_price,avg_price,reduce_only,post_only,tif,conditions,detail,status,reject_reason,created_ts,working_ts,finished_ts,updated_ts,locked,locked_asset,fee,fee_asset,realized_pnl,pnl_asset,fanout,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38);"
 	rows := make([]Order, 0)
 	err := json.Unmarshal(data, &rows)
 	if err != nil {
 		return err
 	}
 	for _, row := range rows {
-		_, err := q.db.WExec(ctx, "orders.Load", sql, row.ID, row.BotID, row.AccountID, row.OrderID, row.ClientOrderID, row.DrivedOrderID, row.OrderType, row.AlgoType, row.Source, row.Exchange, row.Symbol, row.Side, row.IsBuy, row.Price, row.Quantity, row.ExecutedQty, row.ExecutedPrice, row.AvgPrice, row.ReduceOnly, row.PostOnly, row.Tif, row.Conditions, row.Detail, row.Status, row.RejectReason, row.CreatedTs, row.WorkingTs, row.FinishedTs, row.UpdatedTs, row.Locked, row.LockedAsset, row.Fee, row.FeeAsset, row.RealizedPnl, row.PnlAsset, row.CreatedAt, row.UpdatedAt)
+		_, err := q.db.WExec(ctx, "orders.Load", sql, row.ID, row.BotID, row.AccountID, row.OrderID, row.ClientOrderID, row.DrivedOrderID, row.OrderType, row.AlgoType, row.Source, row.Exchange, row.Symbol, row.Side, row.IsBuy, row.Price, row.Quantity, row.ExecutedQty, row.ExecutedPrice, row.AvgPrice, row.ReduceOnly, row.PostOnly, row.Tif, row.Conditions, row.Detail, row.Status, row.RejectReason, row.CreatedTs, row.WorkingTs, row.FinishedTs, row.UpdatedTs, row.Locked, row.LockedAsset, row.Fee, row.FeeAsset, row.RealizedPnl, row.PnlAsset, row.Fanout, row.CreatedAt, row.UpdatedAt)
 		if err != nil {
 			return err
 		}

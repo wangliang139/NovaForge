@@ -319,6 +319,7 @@ func (s *Entity) placeOrderUnlocked(ctx context.Context, acct *types.Account, or
 			Fee:         pgtype.Numeric{Valid: false},
 			FeeAsset:    nil,
 			RealizedPnl: pgtype.Numeric{Valid: false},
+			Fanout:      nil,
 		})
 		if err != nil {
 			return nil, err

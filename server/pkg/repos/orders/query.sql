@@ -1,7 +1,7 @@
 -- name: UpsertOrder :one
 -- -- timeout: 1s
-INSERT INTO orders (bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, conditions, detail, status, reject_reason, reduce_only, post_only, tif, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)
+INSERT INTO orders (bot_id, account_id, order_id, client_order_id, drived_order_id, order_type, algo_type, source, exchange, symbol, side, is_buy, price, quantity, executed_qty, executed_price, avg_price, conditions, detail, status, reject_reason, reduce_only, post_only, tif, created_ts, working_ts, finished_ts, updated_ts, locked, locked_asset, fee, fee_asset, realized_pnl, pnl_asset, fanout)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35)
 ON CONFLICT (account_id, order_id) DO UPDATE
 SET drived_order_id = coalesce(EXCLUDED.drived_order_id, orders.drived_order_id),
     executed_qty = coalesce(EXCLUDED.executed_qty, orders.executed_qty),
@@ -23,9 +23,19 @@ SET drived_order_id = coalesce(EXCLUDED.drived_order_id, orders.drived_order_id)
     fee_asset = coalesce(EXCLUDED.fee_asset, orders.fee_asset),
     realized_pnl = coalesce(EXCLUDED.realized_pnl, orders.realized_pnl),
     pnl_asset = coalesce(EXCLUDED.pnl_asset, orders.pnl_asset),
+    fanout = orders.fanout,
     updated_at = CURRENT_TIMESTAMP
 WHERE orders.updated_ts <= EXCLUDED.updated_ts
 RETURNING *;
+
+-- name: SetMultibotFanoutIfNull :execrows
+-- -- timeout: 1s
+UPDATE orders
+SET fanout = $1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE account_id = $2
+  AND order_id = $3
+  AND fanout IS NULL;
 
 -- name: GetOrder :one
 -- -- timeout: 1s

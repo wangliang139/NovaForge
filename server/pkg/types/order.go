@@ -234,6 +234,9 @@ type Order struct {
 	CreatedTs  time.Time  `json:"createdTs,omitempty"`  // 创建时间
 	UpdatedTs  time.Time  `json:"updatedTs,omitempty"`  // 更新时间
 	FinishedTs *time.Time `json:"finishedTs,omitempty"` // 完成时间
+
+	// Fanout 仅 multi_bot 父单：orders.fanout 反序列化；首次比例 fanout 后写入，后续事件只读该映射做子派发。
+	Fanout map[string]decimal.Decimal `json:"fanout,omitempty"`
 }
 
 func (o *Order) Clone() *Order {
@@ -267,6 +270,7 @@ func (o *Order) Clone() *Order {
 		CreatedTs:        o.CreatedTs,
 		UpdatedTs:        o.UpdatedTs,
 		FinishedTs:       o.FinishedTs,
+		Fanout:           o.Fanout,
 	}
 }
 
