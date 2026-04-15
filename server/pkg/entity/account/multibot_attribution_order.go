@@ -111,43 +111,6 @@ func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string
 	return out
 }
 
-func (e *Entity) getOrderMatchedSubWeightsByClientOrderID(ctx context.Context, parentID string, exchange ctypes.Exchange, clientOrderID string) (map[string]decimal.Decimal, bool, error) {
-	if strings.TrimSpace(clientOrderID) == "" {
-		return nil, false, nil
-	}
-	rows, err := e.db.OrdersRepo.ListOrdersByClientOrderIdUnderVirtualSubs(ctx, ordersrepo.ListOrdersByClientOrderIdUnderVirtualSubsParams{
-		ClientOrderID:   clientOrderID,
-		Exchange:        exchange.String(),
-		ParentAccountID: &parentID,
-	})
-	if err != nil {
-		return nil, false, err
-	}
-	if len(rows) == 0 {
-		return nil, false, nil
-	}
-
-	weights := make(map[string]decimal.Decimal)
-	var total decimal.Decimal
-	for i := range rows {
-		sid := rows[i].AccountID
-		if sid == "" {
-			continue
-		}
-		qty := utils.Decimal.PgNumericToDecimal(rows[i].Quantity)
-		if qty.LessThanOrEqual(decimal.Zero) {
-			continue
-		}
-		weights[sid] = weights[sid].Add(qty)
-		total = total.Add(qty)
-	}
-	if total.LessThanOrEqual(decimal.Zero) {
-		return nil, true, nil
-	}
-
-	return weights, true, nil
-}
-
 // computeOrderProportionalWeights 无 BotId / 无 DB 子命中时的比例权重
 func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account, ts time.Time) ([]SubWeight, decimal.Decimal, error) {
 	wt := ctypes.GetWalletType(exchange, ord.Symbol.Type)
@@ -230,7 +193,7 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 
 	ordCopy := *ord
 
-	// 1) BotId 优先（§9.3：<=0 视为无效）
+	// 1) BotId 优先（用于从子账户策略发起的订单）
 	if ord.BotID > 0 {
 		bot, err := e.db.BotRepo.GetBot(ctx, int32(ord.BotID))
 		if err != nil {
@@ -256,18 +219,17 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, nil
 	}
 
-	// 2) 按 client_order_id 命中子账户订单
-	weightsByClientOrderID, hasClientOrderIDHit, err := e.getOrderMatchedSubWeightsByClientOrderID(ctx, parentID, exchange, ord.ClientOrderID.String())
+	// 2) 按 client_order_id 命中子账户订单（用于从子账户手动发起的订单）
+	subOrders, err := e.db.OrdersRepo.ListOrdersByClientOrderIdUnderVirtualSubs(ctx, ordersrepo.ListOrdersByClientOrderIdUnderVirtualSubsParams{
+		ClientOrderID:   ord.ClientOrderID.String(),
+		Exchange:        exchange.String(),
+		ParentAccountID: &parentID,
+	})
 	if err != nil {
 		return nil, err
 	}
-	if hasClientOrderIDHit {
-		sharesByClientOrderID, err := orderMatchedWeightsToSubFanoutShares(weightsByClientOrderID, ordCopy.OriginalQty)
-		if err != nil {
-			return nil, err
-		}
+	if len(subOrders) == 1 {
 		logger.Ctx(ctx).Info().
-			Str("shares", formatAnyToJson(sharesByClientOrderID)).
 			Str("parent_id", parentID).
 			Str("exchange", exchange.String()).
 			Str("order_id", ord.OrderID.String()).
@@ -275,7 +237,11 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 			Int64("bot_id", ord.BotID).
 			Str("symbol", ord.Symbol.String()).
 			Msg("multi_bot order fanout: client_order_id hit")
-		return buildSubRawDispatchesFromUnitShares(ordCopy, sharesByClientOrderID), nil
+		return []SubRawDispatch{{
+			SubAccountID: subOrders[0].AccountID,
+			Share:        decimal.NewFromInt(1),
+			Order:        cloneOrderForSub(ordCopy, subOrders[0].AccountID),
+		}}, nil
 	}
 
 	// 3) 比例：无单子命中时的 N 路分摊（父侧权威行已由上游先落库，不再因 ParentByOrderID 阻断 fanout），以订单创建时间作为分摊的时间点，保证分摊效果的稳定性
