@@ -52,37 +52,33 @@ func (e *Entity) getMultibotFanoutFromDB(ctx context.Context, parentID string, o
 	return m, nil
 }
 
-func (e *Entity) saveMultibotFanoutToDB(ctx context.Context, parentID, orderID string, shares map[string]decimal.Decimal) error {
-	if e == nil || parentID == "" || strings.TrimSpace(orderID) == "" || len(shares) == 0 {
-		return nil
+func (e *Entity) casSaveMultibotFanoutToDB(ctx context.Context, parentID, orderID string, shares map[string]decimal.Decimal) (map[string]decimal.Decimal, error) {
+	if parentID == "" || strings.TrimSpace(orderID) == "" {
+		return nil, nil
 	}
-	m := make(map[string]string, len(shares))
-	for k, v := range shares {
-		k = strings.TrimSpace(k)
-		if k == "" || v.IsZero() {
-			continue
-		}
-		m[k] = v.String()
-	}
-	if len(m) == 0 {
-		return nil
-	}
-	raw, err := sonic.Marshal(m)
+	raw, err := sonic.Marshal(shares)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	execrows, err := e.db.OrdersRepo.SetMultibotFanoutIfNull(ctx, ordersrepo.SetMultibotFanoutIfNullParams{
+	rowsAffected, err := e.db.OrdersRepo.SetMultibotFanoutIfNull(ctx, ordersrepo.SetMultibotFanoutIfNullParams{
 		Fanout:    raw,
 		AccountID: parentID,
 		OrderID:   strings.TrimSpace(orderID),
 	})
+	if rowsAffected == 1 {
+		return shares, nil
+	}
+	row, err := e.db.OrdersRepo.GetOrderByOrderId(ctx, ordersrepo.GetOrderByOrderIdParams{
+		AccountID: parentID,
+		OrderID:   orderID,
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if execrows == 0 {
-		return nil
+	if row == nil || len(row.Fanout) == 0 {
+		return nil, nil
 	}
-	return nil
+	return converter.ParseMultibotFanoutJSON(row.Fanout), nil
 }
 
 // absPositionWeightForFanout 平仓归因权重：仅使用 position_snapshot AtOrBefore(asOf)；无快照行则权重为 0，不回读实时 positions。
@@ -263,17 +259,12 @@ func (e *Entity) AttributeMultiBotOrderForFanout(ctx context.Context, parentID s
 		return nil, err
 	}
 
-	ord.Fanout = fanout
-	if err := e.saveMultibotFanoutToDB(ctx, parentID, ord.OrderID.String(), fanout); err != nil {
-		logger.Ctx(ctx).Err(err).
-			Str("parent_id", parentID).
-			Str("exchange", exchange.String()).
-			Str("order_id", ord.OrderID.String()).
-			Str("client_order_id", ord.ClientOrderID.String()).
-			Int64("bot_id", ord.BotID).
-			Str("symbol", ord.Symbol.String()).
-			Msg("multi_bot order fanout: save fanout to db failed")
+	fanout, err = e.casSaveMultibotFanoutToDB(ctx, parentID, ord.OrderID.String(), fanout)
+	if err != nil {
+		return nil, err
 	}
+	ord.Fanout = fanout
+	
 	return buildSubRawDispatchesFromUnitShares(*ord, fanout), nil
 }
 
@@ -283,7 +274,7 @@ func (e *Entity) calcOrderFanoutShares(ctx context.Context, parentID string, exc
 		return nil, err
 	}
 	if len(subs) == 0 {
-		return nil, nil
+		return map[string]decimal.Decimal{}, nil
 	}
 
 	// 1) BotId 优先（用于从子账户策略发起的订单）
@@ -307,7 +298,7 @@ func (e *Entity) calcOrderFanoutShares(ctx context.Context, parentID string, exc
 				}, nil
 			}
 		}
-		return nil, nil
+		return map[string]decimal.Decimal{}, nil
 	}
 
 	// 2) 按 client_order_id 命中子账户订单（用于从子账户手动发起的订单）
@@ -348,7 +339,7 @@ func (e *Entity) calcOrderFanoutShares(ctx context.Context, parentID string, exc
 			Int64("bot_id", ord.BotID).
 			Str("symbol", ord.Symbol.String()).
 			Msg("multi_bot order fanout: proportional branch has no weights (falls through to parent row)")
-		return nil, nil
+		return map[string]decimal.Decimal{}, nil
 	}
 
 	unit := decimal.NewFromInt(1)
@@ -366,7 +357,7 @@ func (e *Entity) calcOrderFanoutShares(ctx context.Context, parentID string, exc
 			Str("sum_sub_w", sumSubWeightsForObs(weights).String()).
 			Int("sub_count", len(weights)).
 			Msg("multi_bot order fanout: proportional split W=0 (falls through to parent row)")
-		return nil, nil
+		return nil, err
 	}
 	logger.Ctx(ctx).Info().
 		Str("shares", formatAnyToJson(shares)).
