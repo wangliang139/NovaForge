@@ -257,6 +257,57 @@ func _ListPositionsByAccountAndExchange(ctx context.Context, q CacheQuerierConn,
 	return items, err
 }
 
+const setSymbolLeverage = `-- name: SetSymbolLeverage :one
+UPDATE positions
+SET leverage = $5, updated_at = CURRENT_TIMESTAMP
+WHERE account_id = $1 AND exchange = $2 AND symbol = $3 AND side = $4 AND leverage != $5
+RETURNING account_id, exchange, symbol, side, qty, entry_price, leverage, updated_ts, created_at, updated_at
+`
+
+type SetSymbolLeverageParams struct {
+	AccountID string
+	Exchange  string
+	Symbol    string
+	Side      PositionSide
+	Leverage  int32
+}
+
+// -- timeout: 1s
+func (q *Queries) SetSymbolLeverage(ctx context.Context, arg SetSymbolLeverageParams) (*Position, error) {
+	return _SetSymbolLeverage(ctx, q.AsReadOnly(), arg)
+}
+
+func _SetSymbolLeverage(ctx context.Context, q CacheQuerierConn, arg SetSymbolLeverageParams) (*Position, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
+	defer cancel()
+	row := q.GetConn().WQueryRow(qctx, "positions.SetSymbolLeverage", setSymbolLeverage,
+		arg.AccountID,
+		arg.Exchange,
+		arg.Symbol,
+		arg.Side,
+		arg.Leverage)
+	var i *Position = new(Position)
+	err := row.Scan(
+		&i.AccountID,
+		&i.Exchange,
+		&i.Symbol,
+		&i.Side,
+		&i.Qty,
+		&i.EntryPrice,
+		&i.Leverage,
+		&i.UpdatedTs,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return (*Position)(nil), nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return i, err
+}
+
 const upsertPosition = `-- name: UpsertPosition :one
 WITH prev AS (
     SELECT
@@ -404,62 +455,6 @@ func _UpsertPosition(ctx context.Context, q CacheQuerierConn, arg UpsertPosition
 	)
 	if err == pgx.ErrNoRows {
 		return (*UpsertPositionRow)(nil), nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	return i, err
-}
-
-const upsertSymbolLeverage = `-- name: UpsertSymbolLeverage :one
-INSERT INTO positions (account_id, exchange, symbol, side, leverage, updated_ts)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (account_id, exchange, symbol, side)
-DO UPDATE SET
-    leverage = EXCLUDED.leverage,
-    updated_at = CURRENT_TIMESTAMP
-RETURNING account_id, exchange, symbol, side, qty, entry_price, leverage, updated_ts, created_at, updated_at
-`
-
-type UpsertSymbolLeverageParams struct {
-	AccountID string
-	Exchange  string
-	Symbol    string
-	Side      PositionSide
-	Leverage  int32
-	UpdatedTs time.Time
-}
-
-// -- timeout: 1s
-func (q *Queries) UpsertSymbolLeverage(ctx context.Context, arg UpsertSymbolLeverageParams) (*Position, error) {
-	return _UpsertSymbolLeverage(ctx, q.AsReadOnly(), arg)
-}
-
-func _UpsertSymbolLeverage(ctx context.Context, q CacheQuerierConn, arg UpsertSymbolLeverageParams) (*Position, error) {
-	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
-	defer cancel()
-	row := q.GetConn().WQueryRow(qctx, "positions.UpsertSymbolLeverage", upsertSymbolLeverage,
-		arg.AccountID,
-		arg.Exchange,
-		arg.Symbol,
-		arg.Side,
-		arg.Leverage,
-		arg.UpdatedTs)
-	var i *Position = new(Position)
-	err := row.Scan(
-		&i.AccountID,
-		&i.Exchange,
-		&i.Symbol,
-		&i.Side,
-		&i.Qty,
-		&i.EntryPrice,
-		&i.Leverage,
-		&i.UpdatedTs,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	if err == pgx.ErrNoRows {
-		return (*Position)(nil), nil
 	} else if err != nil {
 		return nil, err
 	}

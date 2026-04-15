@@ -108,12 +108,9 @@ ORDER BY symbol, side;
 DELETE FROM positions
 WHERE account_id = $1 AND exchange = $2 AND symbol = $3 AND side = $4;
 
--- name: UpsertSymbolLeverage :one
+-- name: SetSymbolLeverage :one
 -- -- timeout: 1s
-INSERT INTO positions (account_id, exchange, symbol, side, leverage, updated_ts)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (account_id, exchange, symbol, side)
-DO UPDATE SET
-    leverage = EXCLUDED.leverage,
-    updated_at = CURRENT_TIMESTAMP
+UPDATE positions
+SET leverage = $5, updated_at = CURRENT_TIMESTAMP
+WHERE account_id = $1 AND exchange = $2 AND symbol = $3 AND side = $4 AND leverage != $5
 RETURNING *;

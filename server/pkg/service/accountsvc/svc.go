@@ -1451,31 +1451,45 @@ func (s *Service) SetLeverage(ctx context.Context, req *types.SetLeverageRequest
 		return nil, err
 	}
 
-	// 风控校验：最大杠杆
-	if acct.Config != nil && acct.Config.MaxLeverage.GreaterThan(decimal.Zero) {
-		maxLev := acct.Config.MaxLeverage.IntPart()
-		if int64(leverage) > maxLev {
-			return nil, errors.New(errors.InvalidArgument,
-				fmt.Sprintf("leverage %d exceeds max_leverage %d", leverage, maxLev))
+	lockIDs, err := entity.Account.AccountWriteLockIDsForTradingAccountChain(ctx, acct)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *types.SetLeverageResponse
+	wrapErr := entity.Account.WithSortedAccountWrites(ctx, lockIDs, func(ctx context.Context) error {
+		ctx = account.WithAccountWriteSkip(ctx)
+
+		// 风控校验：最大杠杆
+		if acct.Config != nil && acct.Config.MaxLeverage.GreaterThan(decimal.Zero) {
+			maxLev := acct.Config.MaxLeverage.IntPart()
+			if int64(leverage) > maxLev {
+				return errors.New(errors.InvalidArgument,
+					fmt.Sprintf("leverage %d exceeds max_leverage %d", leverage, maxLev))
+			}
 		}
+
+		conn, connErr := entity.Account.GetConnector(ctx, acct.Exchange, acct.ID)
+		if connErr != nil {
+			return connErr
+		}
+
+		newLeverage, setErr := conn.SetLeverage(ctx, symbol, leverage)
+		if setErr != nil {
+			return setErr
+		}
+
+		if updateErr := entity.Account.UpdatePositionLeverage(ctx, acct.ID, acct.Exchange, symbol, newLeverage); updateErr != nil {
+			return updateErr
+		}
+		resp = &types.SetLeverageResponse{Success: true, Leverage: int32(newLeverage)}
+		return nil
+	})
+	if wrapErr != nil {
+		return nil, wrapErr
 	}
 
-	conn, err := entity.Account.GetConnector(ctx, acct.Exchange, acct.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	newLeverage, err := conn.SetLeverage(ctx, symbol, leverage)
-	if err != nil {
-		return nil, err
-	}
-
-	err = entity.Account.UpdatePositionLeverage(ctx, acct.ID, acct.Exchange, symbol, newLeverage)
-	if err != nil {
-		return nil, err
-	}
-
-	return &types.SetLeverageResponse{Success: true, Leverage: int32(newLeverage)}, nil
+	return resp, nil
 }
 
 func (s *Service) GetLeverage(ctx context.Context, req *types.GetLeverageRequest) (*types.GetLeverageResponse, error) {
@@ -1496,6 +1510,22 @@ func (s *Service) GetLeverage(ctx context.Context, req *types.GetLeverageRequest
 	if err != nil {
 		return nil, err
 	}
+
+	// 优先使用本地 positions 快照中该 symbol 的杠杆值（SetLeverage 会落库），
+	// 避免页面刷新后被交易所默认杠杆覆盖。
+	posRows, err := s.db.PositionsRepo.ListPositionsByAccount(ctx, acct.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range posRows {
+		if !strings.EqualFold(strings.TrimSpace(row.Symbol), symbol.String()) {
+			continue
+		}
+		if row.Leverage > 0 {
+			return &types.GetLeverageResponse{Leverage: row.Leverage}, nil
+		}
+	}
+
 	conn, err := entity.Account.GetConnector(ctx, acct.Exchange, acct.ID)
 	if err != nil {
 		return nil, err
@@ -1503,6 +1533,9 @@ func (s *Service) GetLeverage(ctx context.Context, req *types.GetLeverageRequest
 	config, err := conn.SymbolConfig(ctx, symbol)
 	if err != nil {
 		return nil, err
+	}
+	if config == nil || len(config.CrossLeverage) == 0 {
+		return &types.GetLeverageResponse{Leverage: 1}, nil
 	}
 	leverage := config.CrossLeverage[0]
 	return &types.GetLeverageResponse{Leverage: int32(leverage)}, nil

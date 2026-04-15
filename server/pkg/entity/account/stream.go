@@ -510,32 +510,31 @@ func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID strin
 		return nil
 	}
 	exchangeStr := exchange.String()
-
 	symbol := update.Symbol.String()
 	leverage := update.Leverage
 
-	upsertTs := time.Now()
+	ts := time.Now()
 	if !update.UpdatedTs.IsZero() {
-		upsertTs = update.UpdatedTs
+		ts = update.UpdatedTs
 	}
 
-	posRow, err := e.db.PositionsRepo.UpsertSymbolLeverage(ctx, positions.UpsertSymbolLeverageParams{
+	posRow, err := e.db.PositionsRepo.SetSymbolLeverage(ctx, positions.SetSymbolLeverageParams{
 		AccountID: accountID,
 		Exchange:  exchangeStr,
 		Symbol:    symbol,
 		Side:      positions.PositionSide(update.Side),
 		Leverage:  int32(leverage),
-		UpdatedTs: upsertTs,
 	})
 	if err != nil {
 		return fmt.Errorf("apply symbol leverage update: %w", err)
 	}
-	if posRow != nil {
-		e.recordPositionSnapshotFromPositionsRow(ctx, posRow, upsertTs)
+	if posRow == nil {
+		// 修改失败（无仓位或杠杆无变化），直接返回
+		return nil
 	}
+	e.recordPositionSnapshotFromPositionsRow(ctx, posRow, ts)
 
 	// 处理后发布到事件总线（供下游订阅）
-	ts := upsertTs
 	selector := ctypes.StreamSelector{
 		Stream:  ctypes.StreamTypeAccount,
 		Account: lo.ToPtr(accountID),
@@ -546,6 +545,8 @@ func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID strin
 			return err
 		}
 	}
+
+	// 发布到虚拟子账户（用于同步杠杆）
 	if err := e.fanoutMultiBotSymbolLeverageIfNeeded(ctx, accountID, exchange, update); err != nil {
 		logger.Ctx(ctx).Err(err).Str("account_id", accountID).Msg("multi_bot symbol leverage fanout")
 	}

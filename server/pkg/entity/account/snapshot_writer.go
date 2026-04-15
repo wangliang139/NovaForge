@@ -28,9 +28,6 @@ func positionUpsertMeaningfulChange(row *positions.UpsertPositionRow) bool {
 	if !qty.Equal(prevQty) || !entry.Equal(prevEntry) {
 		return true
 	}
-	if row.PrevLeverage == nil || *row.PrevLeverage != row.Leverage {
-		return true
-	}
 	if !row.UpdatedTs.Equal(*row.PrevUpdatedTs) {
 		return true
 	}
@@ -85,7 +82,7 @@ func (e *Entity) recordAssetSnapshotFromUpsertRow(ctx context.Context, row *asse
 }
 
 func (e *Entity) recordPositionSnapshotFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
-	if row == nil || !positionUpsertMeaningfulChange(row) {
+	if row == nil {
 		return
 	}
 	ts := row.UpdatedTs
@@ -143,21 +140,5 @@ func (e *Entity) recordPositionSnapshotFromPositionsRow(ctx context.Context, row
 			Str("symbol", row.Symbol).
 			Str("side", string(row.Side)).
 			Msg("insert position_snapshot from positions row")
-	}
-}
-
-// recordPositionSnapshotsForSymbolBothSides 在杠杆同步等场景下，为 LONG/SHORT 各写一条历史（若行存在）。
-func (e *Entity) recordPositionSnapshotsForSymbolBothSides(ctx context.Context, accountID, exchange, symbol string, effectiveTs time.Time) {
-	for _, side := range []positions.PositionSide{positions.PositionSideLONG, positions.PositionSideSHORT} {
-		p, err := e.db.PositionsRepo.GetPosition(ctx, positions.GetPositionParams{
-			AccountID: accountID,
-			Exchange:  exchange,
-			Symbol:    symbol,
-			Side:      side,
-		})
-		if err != nil || p == nil {
-			continue
-		}
-		e.recordPositionSnapshotFromPositionsRow(ctx, p, effectiveTs)
 	}
 }

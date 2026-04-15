@@ -8,12 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/redis/go-redis/v9"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/stumble/wpgx"
 	"github.com/wangliang139/NovaForge/server/pkg/converter"
 	"github.com/wangliang139/NovaForge/server/pkg/market"
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector"
@@ -62,7 +60,7 @@ type Entity struct {
 	cancelFunc context.CancelFunc
 
 	accountMsgWorkersOnce sync.Once
-	accountMsgCh         []chan accountRawJob
+	accountMsgCh          []chan accountRawJob
 
 	riskChecker RiskChecker
 }
@@ -1121,22 +1119,44 @@ func (e *Entity) ApplyAccountPositions(ctx context.Context, accountID string, ex
 			maxTs = row.UpdatedTs
 		}
 
-		// OKX 没有单独的杠杆更新事件，需要通过仓位更新事件来处理
-		if pos.Leverage != 0 && row.PrevLeverage != nil && *row.PrevLeverage != int32(pos.Leverage) && exchange.Base() == ctypes.ExchangeOkx {
+		if pos.Leverage == 0 {
+			conn, err := e.GetConnector(ctx, exchange, accountID)
+			if err != nil {
+				logger.Ctx(ctx).Err(err).Str("account_id", accountID).
+					Str("exchange", exchangeStr).
+					Str("symbol", pos.Symbol.String()).
+					Msg("failed to get connector")
+				return nil
+			}
+			symbolConfig, err := conn.SymbolConfig(ctx, pos.Symbol)
+			if err != nil {
+				logger.Ctx(ctx).Err(err).Str("account_id", accountID).
+					Str("exchange", exchangeStr).
+					Str("symbol", pos.Symbol.String()).
+					Msg("failed to get symbol config")
+				return nil
+			}
+			if symbolConfig == nil {
+				logger.Ctx(ctx).Error().Str("account_id", accountID).
+					Str("exchange", exchangeStr).
+					Str("symbol", pos.Symbol.String()).
+					Msg("symbol config not found")
+				return nil
+			}
+			pos.Leverage = symbolConfig.CrossLeverage[0]
+		}
+
+		if pos.Leverage != 0 && row.Leverage != int32(pos.Leverage) {
 			go func() {
 				ctx := context.WithoutCancel(ctx)
-				selector := ctypes.StreamSelector{
-					Stream:  ctypes.StreamTypeAccount,
-					Account: lo.ToPtr(accountID),
-				}
-				msg := ctypes.NewMessage(exchange, selector, &ctypes.SymbolLeverage{
+				err := e.handleSymbolLeverageUpdate(ctx, accountID, exchange, &ctypes.SymbolLeverage{
 					Exchange:  exchange,
 					Symbol:    pos.Symbol,
 					Side:      pos.Side,
 					Leverage:  pos.Leverage,
 					UpdatedTs: pos.UpdatedTs,
-				}, pos.UpdatedTs)
-				if err := e.engine.Publish(ctx, msg); err != nil {
+				})
+				if err != nil {
 					logger.Ctx(ctx).Err(err).Str("account_id", accountID).
 						Str("exchange", exchangeStr).
 						Str("symbol", pos.Symbol.String()).
@@ -1237,23 +1257,7 @@ func (e *Entity) applyPositionSnapshotRow(ctx context.Context, accountID string,
 
 	qtyNum := utils.Decimal.DecimalToPgNumeric(pos.Amount)
 	entryPriceNum := utils.Decimal.DecimalToPgNumeric(pos.EntryPrice)
-	leverage := int32(pos.Leverage)
-
-	if leverage == 0 && pos.Amount.GreaterThan(decimal.Zero) {
-		conn, err := e.GetConnector(ctx, exchange, accountID)
-		if err != nil {
-			return nil, fmt.Errorf("get connector: %w", err)
-		}
-		symbolConfig, err := conn.SymbolConfig(ctx, pos.Symbol)
-		if err != nil {
-			return nil, fmt.Errorf("get leverage: %w", err)
-		}
-		if symbolConfig == nil {
-			return nil, fmt.Errorf("symbol config not found")
-		}
-		leverage = int32(symbolConfig.CrossLeverage[0])
-		pos.Leverage = int(leverage)
-	}
+	// leverage := int32(pos.Leverage)
 
 	params := positions.UpsertPositionParams{
 		AccountID:  accountID,
@@ -1261,7 +1265,7 @@ func (e *Entity) applyPositionSnapshotRow(ctx context.Context, accountID string,
 		Symbol:     pos.Symbol.String(),
 		Side:       side,
 		Qty:        qtyNum,
-		Leverage:   leverage,
+		Leverage:   0, // 此处不变更杠杆值，杠杆值变更统一由 handleSymbolLeverageUpdate 处理
 		EntryPrice: entryPriceNum,
 		UpdatedTs:  pos.UpdatedTs,
 	}
@@ -1415,68 +1419,27 @@ func (e *Entity) UpdatePositionLeverage(ctx context.Context, accountID string, e
 
 func (e *Entity) updatePositionLeverageUnlocked(ctx context.Context, accountID string, exchange ctypes.Exchange, symbol ctypes.Symbol, leverage int) error {
 	now := time.Now()
-	_, err := e.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
-		_, err := e.db.PositionsRepo.WithTx(tx).UpsertSymbolLeverage(ctx, positions.UpsertSymbolLeverageParams{
-			AccountID: accountID,
-			Exchange:  exchange.String(),
-			Symbol:    symbol.String(),
-			Side:      positions.PositionSideLONG,
-			Leverage:  int32(leverage),
-			UpdatedTs: now,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = e.db.PositionsRepo.WithTx(tx).UpsertSymbolLeverage(ctx, positions.UpsertSymbolLeverageParams{
-			AccountID: accountID,
-			Exchange:  exchange.String(),
-			Symbol:    symbol.String(),
-			Side:      positions.PositionSideSHORT,
-			Leverage:  int32(leverage),
-			UpdatedTs: now,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		// OKX 没有单独的杠杆更新事件，需要通过仓位更新事件来处理
-		if exchange.Base() == ctypes.ExchangeOkx {
-			// 发送杠杆变更事件
-			selector := ctypes.StreamSelector{
-				Stream:  ctypes.StreamTypeAccount,
-				Account: lo.ToPtr(accountID),
-			}
-			msg := ctypes.NewMessage(exchange, selector, &ctypes.SymbolLeverage{
-				Exchange:  exchange,
-				Symbol:    symbol,
-				Side:      ctypes.PositionSideLong,
-				Leverage:  leverage,
-				UpdatedTs: now,
-			}, now)
-			if err := e.engine.Publish(ctx, msg); err != nil {
-				return nil, err
-			}
-
-			// 发送杠杆变更事件
-			msg = ctypes.NewMessage(exchange, selector, &ctypes.SymbolLeverage{
-				Exchange:  exchange,
-				Symbol:    symbol,
-				Side:      ctypes.PositionSideShort,
-				Leverage:  leverage,
-				UpdatedTs: now,
-			}, now)
-			if err := e.engine.Publish(ctx, msg); err != nil {
-				return nil, err
-			}
-		}
-
-		return nil, nil
+	err := e.handleSymbolLeverageUpdate(ctx, accountID, exchange, &ctypes.SymbolLeverage{
+		Exchange:  exchange,
+		Symbol:    symbol,
+		Side:      ctypes.PositionSideLong,
+		Leverage:  leverage,
+		UpdatedTs: now,
 	})
 	if err != nil {
 		return err
 	}
-	e.recordPositionSnapshotsForSymbolBothSides(ctx, accountID, exchange.String(), symbol.String(), now)
+
+	err = e.handleSymbolLeverageUpdate(ctx, accountID, exchange, &ctypes.SymbolLeverage{
+		Exchange:  exchange,
+		Symbol:    symbol,
+		Side:      ctypes.PositionSideShort,
+		Leverage:  leverage,
+		UpdatedTs: now,
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
-
