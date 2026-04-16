@@ -1,19 +1,22 @@
+import AssetHistoryModal from '@/components/Market/AssetHistoryModal';
 import type { Asset } from '@/services/gateway/account';
+import utils from '@/utils';
 import {
   getWalletTypeTagInfo,
   walletTypeFilterOptions,
 } from '@/utils/marketTag';
-import utils from '@/utils';
 import type { ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { Tag } from 'antd';
 import React from 'react';
 
-export type AssetsProTableProps = {
+export type AssetsTableProps = {
   assets: Asset[];
   loading?: boolean;
   /** 是否展示底部汇总行（现金价值合计） */
   showSummary?: boolean;
+  /** 传入后支持双击行查看资产快照历史曲线 */
+  accountId?: string|null;
 };
 
 const assetColumns: ProColumns<Asset>[] = [
@@ -105,7 +108,22 @@ const assetColumns: ProColumns<Asset>[] = [
   },
 ];
 
-const AssetsProTable: React.FC<AssetsProTableProps> = ({ assets, loading = false, showSummary = false }) => {
+const AssetsTable: React.FC<AssetsTableProps> = ({
+  assets,
+  loading = false,
+  showSummary = false,
+  accountId = null,
+}) => {
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [pickedAsset, setPickedAsset] = React.useState<Asset | null>(null);
+
+  const visibleAssets = React.useMemo(() => {
+    return assets.filter((asset) => {
+      const notional = parseFloat(asset.notional as any);
+      return Number.isFinite(notional) && notional >= 0.01;
+    });
+  }, [assets]);
+
   const renderSummary: NonNullable<React.ComponentProps<typeof ProTable<Asset>>['summary']> = (pageData) => {
     if (!showSummary) {
       return null;
@@ -133,20 +151,43 @@ const AssetsProTable: React.FC<AssetsProTableProps> = ({ assets, loading = false
   };
 
   return (
-    <ProTable<Asset>
-      style={{ marginBottom: 24 }}
-      pagination={false}
-      search={false}
-      loading={loading}
-      options={false}
-      toolBarRender={false}
-      dataSource={assets}
-      columns={assetColumns}
-      rowKey={(record) => `${record.code}-${record.walletType}`}
-      summary={showSummary ? renderSummary : undefined}
-    />
+    <>
+      <ProTable<Asset>
+        style={{ marginBottom: 24 }}
+        pagination={false}
+        search={false}
+        loading={loading}
+        options={false}
+        toolBarRender={false}
+        dataSource={visibleAssets}
+        columns={assetColumns}
+        rowKey={(record) => `${record.code}-${record.walletType}`}
+        summary={showSummary ? renderSummary : undefined}
+        onRow={
+          accountId
+            ? (record) => ({
+                onDoubleClick: () => {
+                  setPickedAsset(record);
+                  setHistoryOpen(true);
+                },
+              })
+            : undefined
+        }
+      />
+      {accountId && pickedAsset ? (
+        <AssetHistoryModal
+          open={historyOpen}
+          onClose={() => {
+            setHistoryOpen(false);
+            setPickedAsset(null);
+          }}
+          accountId={accountId}
+          asset={pickedAsset}
+        />
+      ) : null}
+    </>
   );
 };
 
-export default AssetsProTable;
+export default AssetsTable;
 

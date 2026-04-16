@@ -32,7 +32,7 @@ export function formatByPrecision(
   if (!Number.isFinite(n)) return empty;
   if (!Number.isFinite(precision as number) || (precision as number) < 0) return rawStr;
   return n.toLocaleString("en-US", {
-    useGrouping: false,      // 不加千分位
+    useGrouping: true,      // 不加千分位
     maximumFractionDigits: precision as number // 最多8位
   });
 }

@@ -1,14 +1,13 @@
 import { MarketType } from '@/global.types';
-import { Order, OrderCondition } from '@/services/gateway/account';
-import { OrderSource as OrderSourceEnum, OrderStatus as OrderStatusEnum, OrderType, OrderType as OrderTypeEnum, PositionSide } from '@/services/gateway/account';
+import { Order, OrderCondition, OrderSource as OrderSourceEnum, OrderStatus as OrderStatusEnum, OrderType, OrderType as OrderTypeEnum, PositionSide } from '@/services/gateway/account';
 import utils from '@/utils';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import type { ParamsType, ProColumns, ProTableProps } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Button, Popover, Row, Space, Switch, Tag, Tooltip, Typography } from 'antd';
+import { Button, Descriptions, Empty, Modal, Popover, Row, Space, Switch, Tag, Tooltip, Typography } from 'antd';
 import type { FilterDropdownProps } from 'antd/es/table/interface';
 import dayjs from 'dayjs';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
 export type OrdersTableProps = {
   mode?: 'all' | 'onlyOnTheWay' | 'finished';
@@ -48,6 +47,10 @@ export type OrdersTableProps = {
   getCancelButtonProps?: (order: Order) => { disabled?: boolean; loading?: boolean } | undefined;
   /** 行双击回调（桌面端用于打开详情） */
   onRowDoubleClick?: (order: Order) => void;
+  /** 是否启用内置订单详情弹窗（默认 true） */
+  enableOrderDetailModal?: boolean;
+  /** 订单详情弹窗扩展区域（用于页面自定义内容，如子账户分摊） */
+  renderOrderDetailExtra?: (order: Order) => React.ReactNode;
 };
 
 const toNumber = (value: any) => {
@@ -222,7 +225,17 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   onCancelOrder,
   getCancelButtonProps,
   onRowDoubleClick,
+  enableOrderDetailModal = true,
+  renderOrderDetailExtra,
 }) => {
+  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const openOrderDetail = (order: Order) => {
+    setSelectedOrder(order);
+    setOrderDetailOpen(true);
+  };
+
   const columns: ProColumns<Order>[] = useMemo(() => {
     return [
       {
@@ -476,7 +489,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           }
           const value = toNumber(text);
           const color = value >= 0 ? 'green' : 'red';
-          const label = record.lockedAsset ? `${text} ${record.lockedAsset}` : text;
+          const display = utils.math.formatByPrecision(text, 8);
+          const label = record.lockedAsset ? `${display} ${record.lockedAsset}` : display;
           return <span style={{ color }}>{label}</span>;
         },
       },
@@ -494,7 +508,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           }
           const value = toNumber(text);
           const color = value >= 0 ? 'green' : 'red';
-          const label = record.feeAsset ? `${text} ${record.feeAsset}` : text;
+          const display = utils.math.formatByPrecision(text, 8);
+          const label = record.feeAsset ? `${display} ${record.feeAsset}` : display;
           return <span style={{ color }}>{label}</span>;
         },
       },
@@ -512,7 +527,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
           }
           const value = toNumber(text);
           const color = value >= 0 ? 'green' : 'red';
-          const label = record.pnlAsset ? `${text} ${record.pnlAsset}` : text;
+          const display = utils.math.formatByPrecision(text, 8);
+          const label = record.pnlAsset ? `${display} ${record.pnlAsset}` : display;
           return <span style={{ color }}>{label}</span>;
         },
       },
@@ -578,23 +594,87 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   const scroll = scrollY ? { x: 'max-content' as const, y: scrollY } : { x: 'max-content' as const };
 
   return (
-    <ProTable<Order>
-      style={{ marginBottom: 24 }}
-      pagination={pagination}
-      search={false}
-      loading={loading}
-      options={false}
-      toolBarRender={false}
-      dataSource={request ? undefined : dataSource}
-      request={request}
-      columns={columns}
-      rowKey={(record) => record.orderId || record.clientOrderId || `${record.orderId}-${record.symbol}-${record.side}`}
-      scroll={scroll}
-      onChange={onChange}
-      onRow={(record) => ({
-        onDoubleClick: () => onRowDoubleClick?.(record),
-      })}
-    />
+    <>
+      <ProTable<Order>
+        style={{ marginBottom: 24 }}
+        pagination={pagination}
+        search={false}
+        loading={loading}
+        options={false}
+        toolBarRender={false}
+        dataSource={request ? undefined : dataSource}
+        request={request}
+        columns={columns}
+        rowKey={(record) => record.orderId || record.clientOrderId || `${record.orderId}-${record.symbol}-${record.side}`}
+        scroll={scroll}
+        onChange={onChange}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            if (enableOrderDetailModal) {
+              openOrderDetail(record);
+            }
+            onRowDoubleClick?.(record);
+          },
+        })}
+      />
+      <Modal
+        title="订单详情"
+        open={orderDetailOpen}
+        onCancel={() => {
+          setOrderDetailOpen(false);
+          setSelectedOrder(null);
+        }}
+        footer={null}
+        width={760}
+        destroyOnHidden
+      >
+        {selectedOrder ? (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Descriptions column={2} size="small" bordered>
+              <Descriptions.Item label="订单ID">{selectedOrder.orderId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="客户端订单ID">{selectedOrder.clientOrderId || '-'}</Descriptions.Item>
+              <Descriptions.Item label="交易对">{selectedOrder.symbol || '-'}</Descriptions.Item>
+              <Descriptions.Item label="方向">{selectedOrder.isBuy ? '买入' : '卖出'}</Descriptions.Item>
+              <Descriptions.Item label="仓位方向">{selectedOrder.side || '-'}</Descriptions.Item>
+              <Descriptions.Item label="订单类型">
+                {orderTypeLabelMap[selectedOrder.orderType] || selectedOrder.orderType || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="来源">
+                {orderSourceLabelMap[selectedOrder.source] || selectedOrder.source || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="状态">
+                {orderStatusLabelMap[selectedOrder.status] || selectedOrder.status || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="委托价格">{selectedOrder.price || '-'}</Descriptions.Item>
+              <Descriptions.Item label="委托数量">
+                {selectedOrder.originalQty
+                  ? `${selectedOrder.originalQty} ${utils.market.parseSymbol(selectedOrder.symbol).base || ''}`.trim()
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="已成交数量">
+                {selectedOrder.executedQty
+                  ? `${selectedOrder.executedQty} ${utils.market.parseSymbol(selectedOrder.symbol).base || ''}`.trim()
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="成交均价">{selectedOrder.avgPrice || '-'}</Descriptions.Item>
+              <Descriptions.Item label="创建时间">
+                {selectedOrder.createdTs > 0
+                  ? dayjs.unix(selectedOrder.createdTs / 1000).format('YYYY-MM-DD HH:mm:ss')
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="结束时间">
+                {selectedOrder.finishedTs > 0
+                  ? dayjs.unix(selectedOrder.finishedTs / 1000).format('YYYY-MM-DD HH:mm:ss')
+                  : '-'}
+              </Descriptions.Item>
+            </Descriptions>
+            {renderOrderDetailExtra?.(selectedOrder)}
+          </Space>
+        ) : (
+          <Empty description="订单详情为空" />
+        )}
+      </Modal>
+    </>
   );
 };
 

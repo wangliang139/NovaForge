@@ -1181,11 +1181,11 @@ const MarketPage: React.FC = () => {
 
   const monoPriceStyle = useMemo(
     () =>
-      ({
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontVariantNumeric: 'tabular-nums',
-      } as React.CSSProperties),
+    ({
+      fontFamily:
+        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+      fontVariantNumeric: 'tabular-nums',
+    } as React.CSSProperties),
     [],
   );
 
@@ -1767,13 +1767,13 @@ const MarketPage: React.FC = () => {
           ) : (
             <>
               <div>
-                <Typography.Text type="secondary">{params.isBuy?'买入':'卖出'}：</Typography.Text>
+                <Typography.Text type="secondary">{params.isBuy ? '买入' : '卖出'}：</Typography.Text>
                 <Typography.Text>
                   {formatVolume(baseQty) ?? '—'} {symbolParsed.base}
                 </Typography.Text>
               </div>
               <div>
-                <Typography.Text type="secondary">{params.isBuy?'卖出':'买入'}：</Typography.Text>
+                <Typography.Text type="secondary">{params.isBuy ? '卖出' : '买入'}：</Typography.Text>
                 <Typography.Text>
                   {formatVolume(quoteQty) ?? '—'} {symbolParsed.quote}
                 </Typography.Text>
@@ -1899,9 +1899,8 @@ const MarketPage: React.FC = () => {
 
       Modal.confirm({
         title: '平仓确认',
-        content: `确认市价平仓 ${position.symbol} ${
-          position.side === PositionSide.Long ? '多头' : '空头'
-        } ${position.amount} ${symbolParsed.base}？`,
+        content: `确认市价平仓 ${position.symbol} ${position.side === PositionSide.Long ? '多头' : '空头'
+          } ${position.amount} ${symbolParsed.base}？`,
         okText: '确认',
         cancelText: '取消',
         onOk: async () => {
@@ -2226,8 +2225,8 @@ const MarketPage: React.FC = () => {
                                         render: (_, row: any) =>
                                           row?.nextFundingTime
                                             ? dayjs(row.nextFundingTime).format(
-                                                'YYYY-MM-DD HH:mm:ss',
-                                              )
+                                              'YYYY-MM-DD HH:mm:ss',
+                                            )
                                             : '--',
                                       },
                                     ]}
@@ -2476,18 +2475,20 @@ const MarketPage: React.FC = () => {
             items={[
               ...(isPerp
                 ? [
-                    {
-                      key: 'positions',
-                      label: '仓位',
-                      children: !activatedTabs.has('positions') ? null : (
-                        <PositionsTable
-                          scrollY={230}
-                          positions={positions}
-                          onClosePosition={handleClosePosition}
-                        />
-                      ),
-                    },
-                  ]
+                  {
+                    key: 'positions',
+                    label: '仓位',
+                    children: !activatedTabs.has('positions') ? null : (
+                      <PositionsTable
+                        scrollY={230}
+                        positions={positions}
+                        onClosePosition={handleClosePosition}
+                        accountId={selectedAccountId ?? null}
+                        exchange={exchange}
+                      />
+                    ),
+                  },
+                ]
                 : []),
               {
                 key: 'open_orders',
@@ -2534,7 +2535,10 @@ const MarketPage: React.FC = () => {
                 key: 'assets',
                 label: '资产',
                 children: !activatedTabs.has('assets') ? null : (
-                  <AssetsTable assets={filteredAssets} />
+                  <AssetsTable
+                    assets={filteredAssets}
+                    accountId={selectedAccountId ?? null}
+                  />
                 ),
               },
             ].filter(Boolean)}

@@ -1,6 +1,6 @@
 import { Exchange } from '@/global.types';
 import type { Document } from '@/services/gateway/document';
-import type { Order, Position } from '@/services/gateway/account';
+import type { Order, Position, PositionSide, WalletType } from '@/services/gateway/account';
 import { request } from '@umijs/max';
 
 export type Ticker = {
@@ -241,4 +241,84 @@ export async function getOrderBook(
     seqId: result.seqId,
     prevSeqId: result.prevSeqId,
   };
+}
+
+const ASSET_SNAPSHOT_HISTORY = `
+  query AssetSnapshotHistory($input: QueryAssetSnapshotHistoryInput!) {
+    Result: AssetSnapshotHistory(input: $input) {
+      tsMs
+      total
+    }
+  }
+`;
+
+const POSITION_SNAPSHOT_HISTORY = `
+  query PositionSnapshotHistory($input: QueryPositionSnapshotHistoryInput!) {
+    Result: PositionSnapshotHistory(input: $input) {
+      tsMs
+      qty
+      entryPrice
+    }
+  }
+`;
+
+export type AssetSnapshotHistoryPoint = {
+  tsMs: number;
+  total: string;
+};
+
+export type PositionSnapshotHistoryPoint = {
+  tsMs: number;
+  qty: string;
+  entryPrice: string;
+};
+
+export async function queryAssetSnapshotHistory(input: {
+  accountId: string;
+  walletType: WalletType;
+  asset: string;
+  startTsMs: number;
+  endTsMs: number;
+}): Promise<AssetSnapshotHistoryPoint[]> {
+  const response = await request('/query', {
+    method: 'POST',
+    data: JSON.stringify({
+      query: ASSET_SNAPSHOT_HISTORY,
+      variables: {
+        input: {
+          accountId: input.accountId,
+          walletType: input.walletType,
+          asset: input.asset,
+          startTsMs: input.startTsMs,
+          endTsMs: input.endTsMs,
+        },
+      },
+    }),
+  });
+  return response.data?.Result ?? [];
+}
+
+export async function queryPositionSnapshotHistory(input: {
+  accountId: string;
+  symbol: string;
+  side: PositionSide;
+  startTsMs: number;
+  endTsMs: number;
+}): Promise<PositionSnapshotHistoryPoint[]> {
+  const response = await request('/query', {
+    method: 'POST',
+    data: JSON.stringify({
+      query: POSITION_SNAPSHOT_HISTORY,
+      variables: {
+        input: {
+          accountId: input.accountId,
+          symbol: input.symbol,
+          side: input.side,
+          startTsMs: input.startTsMs,
+          endTsMs: input.endTsMs,
+        },
+      },
+    }),
+  });
+  return response.data?.Result ?? [];
 }

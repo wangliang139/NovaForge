@@ -958,7 +958,7 @@ export type Bot = {
   name: string;
   description: string;
   mode: BotMode;
-  exchange: string;
+  exchange: Exchange;
   symbols: string[];
   accountId: string;
   config: string; // JSON 字符串

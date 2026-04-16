@@ -1,4 +1,4 @@
-import AssetsProTable from '@/components/Market/AssetsTable';
+import AssetsTable from '@/components/Market/AssetsTable';
 import { KlineChartPro } from '@/components/Market/KlineChartPro';
 import LedgersTable from '@/components/Market/LedgersTable';
 import OrdersTable from '@/components/Market/OrdersTable';
@@ -946,7 +946,7 @@ const BotDetailPage: React.FC = () => {
           <Typography.Title level={5} style={{ marginBottom: 8 }}>
             资金列表
           </Typography.Title>
-          <AssetsProTable assets={assets} loading={assetsLoading} />
+          <AssetsTable assets={assets} loading={assetsLoading} />
 
           <Typography.Title level={5} style={{ marginTop: 24, marginBottom: 8 }}>
             仓位列表
@@ -956,6 +956,8 @@ const BotDetailPage: React.FC = () => {
             loading={positionsLoading}
             enableKlineLink
             onOpenKline={openKlineModal}
+            exchange={bot?.exchange}
+            accountId={bot?.accountId}
           />
 
           <Typography.Title level={5} style={{ marginTop: 24, marginBottom: 8 }}>

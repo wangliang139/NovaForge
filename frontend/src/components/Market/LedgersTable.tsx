@@ -1,8 +1,8 @@
 import { Ledger, PositionSide } from '@/services/gateway/account';
+import utils from '@/utils';
 import { getWalletTypeTagInfo } from '@/utils/marketTag';
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { ParamsType, ProColumns, ProTableProps } from '@ant-design/pro-components';
-import { ProTable } from '@ant-design/pro-components';
+import { ParamsType, ProColumns, ProTable, ProTableProps } from '@ant-design/pro-components';
 import { Popover, Space, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import type { FC, ReactNode } from 'react';
@@ -115,12 +115,14 @@ export const buildLedgerColumns = (options: LedgerColumnsOptions = {}): ProColum
         const delta = parseFloat(record.totalDelta);
         const value = Number.isFinite(delta) ? delta : 0;
         const color = value === 0 ? '#999' : value > 0 ? 'green' : 'red';
+        const display = utils.math.formatByPrecision(text, 8);
+        const deltaDisplay = utils.math.formatByPrecision(record.totalDelta, 8);
         return (
           <Space>
-            <span>{text}</span>
+            <span>{display}</span>
             <span>
               (
-              <span style={{ color }}>{`${value > 0 ? '+' : ''}${record.totalDelta}`}</span>
+              <span style={{ color }}>{`${value > 0 ? '+' : ''}${deltaDisplay}`}</span>
               )
             </span>
           </Space>
@@ -136,12 +138,14 @@ export const buildLedgerColumns = (options: LedgerColumnsOptions = {}): ProColum
         const delta = parseFloat(record.frozenDelta);
         const value = Number.isFinite(delta) ? delta : 0;
         const color = value === 0 ? '#999' : value > 0 ? 'green' : 'red';
+        const display = utils.math.formatByPrecision(text, 8);
+        const deltaDisplay = utils.math.formatByPrecision(record.frozenDelta, 8);
         return (
           <Space>
-            <span>{text}</span>
+            <span>{display}</span>
             <span>
               (
-              <span style={{ color }}>{`${value > 0 ? '+' : ''}${record.frozenDelta}`}</span>
+              <span style={{ color }}>{`${value > 0 ? '+' : ''}${deltaDisplay}`}</span>
               )
             </span>
           </Space>

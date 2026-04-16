@@ -1,5 +1,5 @@
 import { EllipsisMiddleText } from '@/components';
-import AssetsProTable from '@/components/Market/AssetsTable';
+import AssetsTable from '@/components/Market/AssetsTable';
 import { KlineChartPro } from '@/components/Market/KlineChartPro';
 import LedgersTable from '@/components/Market/LedgersTable';
 import OrdersTable from '@/components/Market/OrdersTable';
@@ -63,7 +63,6 @@ import {
   Button,
   Card,
   Col,
-  Descriptions,
   Dropdown,
   Empty,
   Flex,
@@ -147,8 +146,6 @@ const AccountDetail: FC = () => {
   const [positions, setPositions] = useState<Position[]>([]);
   const [ledgers, setLedgers] = useState<Ledger[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [positionsLoading, setPositionsLoading] = useState(false);
@@ -260,35 +257,6 @@ const AccountDetail: FC = () => {
       return '-';
     }
     return `${(value * 100).toFixed(2)}%`;
-  };
-
-  const orderTypeLabelMap: Record<string, string> = {
-    [OrderType.Market]: '市价单',
-    [OrderType.Limit]: '限价单',
-    MARKET: '市价单',
-    LIMIT: '限价单',
-  };
-
-  const orderSourceLabelMap: Record<string, string> = {
-    [OrderSource.User]: '用户',
-    [OrderSource.Strategy]: '策略',
-    [OrderSource.Liquidation]: '强平',
-    [OrderSource.Adl]: 'ADL',
-    USER: '用户',
-    STRATEGY: '策略',
-    LIQUIDATION: '强平',
-    ADL: 'ADL',
-  };
-
-  const orderStatusLabelMap: Record<string, string> = {
-    [OrderStatus.New]: '新订单',
-    [OrderStatus.Pending]: '待处理',
-    [OrderStatus.Working]: '处理中',
-    [OrderStatus.PartialDone]: '部分成交',
-    [OrderStatus.Done]: '已成交',
-    [OrderStatus.Canceled]: '已取消',
-    [OrderStatus.Rejected]: '已拒绝',
-    [OrderStatus.Expired]: '已过期',
   };
 
   const decideLimitMode = (amount?: any, ratio?: any): 'amount' | 'ratio' => {
@@ -722,11 +690,6 @@ const AccountDetail: FC = () => {
     });
   };
 
-  const handleOpenOrderDetail = (order: Order) => {
-    setSelectedOrder(order);
-    setOrderDetailOpen(true);
-  };
-
   if (!account) {
     return (
       <PageContainer>
@@ -1093,7 +1056,12 @@ const AccountDetail: FC = () => {
           </ProDescriptions.Item>
         </ProDescriptions>
         <div className={styles.title}>资产列表</div>
-        <AssetsProTable assets={assets} loading={assetsLoading} showSummary />
+        <AssetsTable
+          assets={assets}
+          loading={assetsLoading}
+          showSummary
+          accountId={id}
+        />
         <div className={styles.title} style={{ marginTop: 32 }}>
           仓位列表
         </div>
@@ -1106,6 +1074,8 @@ const AccountDetail: FC = () => {
           enableKlineLink
           onOpenKline={openKlineModal}
           onClosePosition={handleClosePosition}
+          accountId={id}
+          exchange={account.exchange}
           getCloseButtonProps={(record) => {
             const rowKey = `${record.symbol}-${record.side}`;
             const amountNum = Number(record.amount);
@@ -1142,7 +1112,27 @@ const AccountDetail: FC = () => {
           getCancelButtonProps={(order) => ({
             loading: cancelingOrderId === order.orderId,
           })}
-          onRowDoubleClick={handleOpenOrderDetail}
+          renderOrderDetailExtra={(order) =>
+            !!order.allocations?.length && (
+              <Card size="small" title="子账户分摊信息">
+                <Table
+                  rowKey={(record) => record.accountId}
+                  size="small"
+                  pagination={false}
+                  dataSource={order.allocations}
+                  columns={[
+                    { title: '分摊账户', dataIndex: 'accountId' },
+                    {
+                      title: '分摊比例',
+                      dataIndex: 'ratio',
+                      align: 'right',
+                      render: (value: string) => formatRatioAsPercent(value),
+                    },
+                  ]}
+                />
+              </Card>
+            )
+          }
           onChange={(pagination: any, filter: any) => {
             const selectedSymbol = Array.isArray(filter?.symbol) ? filter?.symbol[0] : undefined;
             const selectedOrderType = Array.isArray(filter?.orderType)
@@ -1211,88 +1201,6 @@ const AccountDetail: FC = () => {
           dataSource={ledgers}
         />
       </Card>
-
-      <Modal
-        title="订单详情"
-        open={orderDetailOpen}
-        onCancel={() => {
-          setOrderDetailOpen(false);
-          setSelectedOrder(null);
-        }}
-        footer={null}
-        width={760}
-        destroyOnHidden
-      >
-        {selectedOrder ? (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="订单ID">{selectedOrder.orderId || '-'}</Descriptions.Item>
-              <Descriptions.Item label="客户端订单ID">
-                {selectedOrder.clientOrderId || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="交易对">{selectedOrder.symbol || '-'}</Descriptions.Item>
-              <Descriptions.Item label="方向">
-                {selectedOrder.isBuy ? '买入' : '卖出'}
-              </Descriptions.Item>
-              <Descriptions.Item label="仓位方向">
-                {getSideTagInfo(selectedOrder.side).text}
-              </Descriptions.Item>
-              <Descriptions.Item label="订单类型">
-                {orderTypeLabelMap[selectedOrder.orderType] || selectedOrder.orderType || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="来源">
-                {orderSourceLabelMap[selectedOrder.source] || selectedOrder.source || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                {orderStatusLabelMap[selectedOrder.status] || selectedOrder.status || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="委托价格">{selectedOrder.price || '-'}</Descriptions.Item>
-              <Descriptions.Item label="委托数量">
-                {selectedOrder.originalQty
-                  ? `${selectedOrder.originalQty} ${utils.market.parseSymbol(selectedOrder.symbol).base || ''}`.trim()
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="已成交数量">
-                {selectedOrder.executedQty
-                  ? `${selectedOrder.executedQty} ${utils.market.parseSymbol(selectedOrder.symbol).base || ''}`.trim()
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="成交均价">{selectedOrder.avgPrice || '-'}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {selectedOrder.createdTs > 0
-                  ? dayjs.unix(selectedOrder.createdTs / 1000).format('YYYY-MM-DD HH:mm:ss')
-                  : '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="结束时间">
-                {selectedOrder.finishedTs > 0
-                  ? dayjs.unix(selectedOrder.finishedTs / 1000).format('YYYY-MM-DD HH:mm:ss')
-                  : '-'}
-              </Descriptions.Item>
-            </Descriptions>
-            {!!selectedOrder.allocations?.length && (
-              <Card size="small" title="子账户分摊信息">
-                <Table
-                  rowKey={(record) => record.accountId}
-                  size="small"
-                  pagination={false}
-                  dataSource={selectedOrder.allocations}
-                  columns={[
-                    { title: '分摊账户', dataIndex: 'accountId' },
-                    {
-                      title: '分摊比例',
-                      dataIndex: 'ratio',
-                      align: 'right',
-                      render: (value: string) => formatRatioAsPercent(value),
-                    },
-                  ]}
-                />
-              </Card>
-            )}
-          </Space>
-        ) : (
-          <Empty description="订单详情为空" />
-        )}
-      </Modal>
 
       <Modal
         title="子账户信息"

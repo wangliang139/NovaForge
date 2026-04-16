@@ -1,3 +1,5 @@
+import PositionHistoryModal from '@/components/Market/PositionHistoryModal';
+import { Exchange } from '@/global.types';
 import { Position } from '@/services/gateway/account';
 import utils from '@/utils';
 import { getSideTagInfo, sideFilterOptions } from '@/utils/marketTag';
@@ -7,7 +9,7 @@ import { Button, Tag } from 'antd';
 import Decimal from 'decimal.js';
 import React, { useMemo } from 'react';
 
-export type PositionsProTableProps = {
+export type PositionsTableProps = {
   positions: Position[];
   loading?: boolean;
   /** 垂直滚动高度（主要用于底部小窗口） */
@@ -23,6 +25,9 @@ export type PositionsProTableProps = {
   onClosePosition?: (position: Position) => void;
   /** 自定义平仓按钮的 disabled/loading 等状态 */
   getCloseButtonProps?: (position: Position) => { disabled?: boolean; loading?: boolean };
+  /** 传入后支持双击行查看仓位快照历史曲线 */
+  accountId?: string | null;
+  exchange?: Exchange;
 };
 
 const toNumber = (value: any) => {
@@ -57,7 +62,7 @@ const displayFractionDigits = (raw: any): number => {
   return Math.max(0, t.length - dot - 1);
 };
 
-const PositionsProTable: React.FC<PositionsProTableProps> = ({
+const PositionsTable: React.FC<PositionsTableProps> = ({
   positions,
   loading = false,
   scrollY,
@@ -67,7 +72,12 @@ const PositionsProTable: React.FC<PositionsProTableProps> = ({
   onOpenKline,
   onClosePosition,
   getCloseButtonProps,
+  accountId = null,
+  exchange,
 }) => {
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [pickedPosition, setPickedPosition] = React.useState<Position | null>(null);
+
   const symbolFilters = useMemo(
     () =>
       Array.from(new Set(positions.map((item) => item.symbol).filter(Boolean))).map((symbol) => ({
@@ -137,6 +147,7 @@ const PositionsProTable: React.FC<PositionsProTableProps> = ({
         dataIndex: 'amount',
         key: 'amount',
         align: 'right',
+        render: (text: any) => utils.math.formatByPrecision(text, 8),
       },
       {
         title: '开仓均价',
@@ -256,21 +267,45 @@ const PositionsProTable: React.FC<PositionsProTableProps> = ({
     : undefined;
 
   return (
-    <ProTable<Position>
-      style={{ marginBottom: 24 }}
-      pagination={false}
-      search={false}
-      loading={loading}
-      options={false}
-      toolBarRender={false}
-      dataSource={positions}
-      columns={columns}
-      rowKey={(record) => `${record.symbol}-${record.side}`}
-      summary={renderSummary}
-      scroll={{ y: scrollY }}
-    />
+    <>
+      <ProTable<Position>
+        style={{ marginBottom: 24 }}
+        pagination={false}
+        search={false}
+        loading={loading}
+        options={false}
+        toolBarRender={false}
+        dataSource={positions}
+        columns={columns}
+        rowKey={(record) => `${record.symbol}-${record.side}`}
+        summary={renderSummary}
+        scroll={{ y: scrollY }}
+        onRow={
+          accountId
+            ? (record) => ({
+              onDoubleClick: () => {
+                setPickedPosition(record);
+                setHistoryOpen(true);
+              },
+            })
+            : undefined
+        }
+      />
+      {accountId && exchange && pickedPosition ? (
+        <PositionHistoryModal
+          open={historyOpen}
+          onClose={() => {
+            setHistoryOpen(false);
+            setPickedPosition(null);
+          }}
+          exchange={exchange}
+          accountId={accountId}
+          position={pickedPosition}
+        />
+      ) : null}
+    </>
   );
 };
 
-export default PositionsProTable;
+export default PositionsTable;
 
