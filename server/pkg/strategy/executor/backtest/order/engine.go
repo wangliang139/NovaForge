@@ -8,6 +8,7 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
@@ -21,13 +22,13 @@ import (
 type Config struct {
 	AllowedSymbols []ctypes.ExSymbolKey
 
-	TakerCommissionRate float64
-	MakerCommissionRate float64
+	TakerCommissionRate decimal.Decimal
+	MakerCommissionRate decimal.Decimal
 
-	FutureTakerCommissionRate float64
-	FutureMakerCommissionRate float64
+	FutureTakerCommissionRate decimal.Decimal
+	FutureMakerCommissionRate decimal.Decimal
 
-	MarketOrderFreezeFactor float64
+	MarketOrderFreezeFactor decimal.Decimal
 }
 
 // orderEngine 订单引擎
@@ -391,7 +392,7 @@ func (m *orderEngine) computeReservation(
 
 		notional := px.Mul(qty)
 		margin := notional.Div(lev)
-		feeBuf := notional.Mul(decimal.NewFromFloat(m.config.TakerCommissionRate))
+		feeBuf := precision.FeeFromNotional(notional, m.config.TakerCommissionRate)
 		openPos := isOpenPosition(intent.Side, intent.IsBuy)
 
 		if openPos {
@@ -423,7 +424,7 @@ func (m *orderEngine) computeReservation(
 	if intent.IsBuy {
 		reserveAmt := px.Mul(qty)
 		if intent.OrderType == ctypes.OrderTypeMarket {
-			reserveAmt = reserveAmt.Mul(decimal.NewFromFloat(m.config.MarketOrderFreezeFactor))
+			reserveAmt = reserveAmt.Mul(m.config.MarketOrderFreezeFactor)
 		}
 		asset, err := m.accountEngine.GetAsset(ctx, accountID, exSymbol.Symbol, exSymbol.Symbol.Quote)
 		if err != nil || asset.Free().LessThan(reserveAmt) {
@@ -924,7 +925,7 @@ func (m *orderEngine) handleFillEvent(_ context.Context, event *stypes.FillSigna
 			if res.Amount.LessThan(decimal.Zero) {
 				res.Amount = decimal.Zero
 			}
-			if res.Amount.LessThan(decimal.NewFromFloat(0.0001)) {
+			if res.Amount.LessThan(precision.ReservationReleaseDust) {
 				delete(m.reserved, clientOrderID)
 			} else {
 				m.reserved[clientOrderID] = res
@@ -936,7 +937,7 @@ func (m *orderEngine) handleFillEvent(_ context.Context, event *stypes.FillSigna
 			if res.Amount.LessThan(decimal.Zero) {
 				res.Amount = decimal.Zero
 			}
-			if res.Amount.LessThan(decimal.NewFromFloat(0.0001)) {
+			if res.Amount.LessThan(precision.ReservationReleaseDust) {
 				delete(m.reserved, clientOrderID)
 			} else {
 				m.reserved[clientOrderID] = res

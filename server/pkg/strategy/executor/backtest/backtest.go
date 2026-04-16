@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/exchange"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/executor/backtest/account"
@@ -30,6 +30,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api/facade"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/symbolaccount"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -183,11 +184,11 @@ func NewBacktestExecutor(
 	orderManager, err := order.NewOrderEngineManager(
 		order.Config{
 			AllowedSymbols:            allowedSymbols,
-			MarketOrderFreezeFactor:   1.2,
-			TakerCommissionRate:       0.001,
-			MakerCommissionRate:       0.001,
-			FutureTakerCommissionRate: 0.0005,
-			FutureMakerCommissionRate: 0.0005,
+			MarketOrderFreezeFactor:   precision.BacktestDefaultMarketOrderFreezeFactor,
+			TakerCommissionRate:       decimal.RequireFromString("0.001"),
+			MakerCommissionRate:       decimal.RequireFromString("0.001"),
+			FutureTakerCommissionRate: decimal.RequireFromString("0.0005"),
+			FutureMakerCommissionRate: decimal.RequireFromString("0.0005"),
 		},
 		clock,
 		eventBus,

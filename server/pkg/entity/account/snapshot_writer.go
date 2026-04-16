@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/acct_snapshot"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
@@ -55,8 +56,8 @@ func (e *Entity) recordAssetSnapshotIfChanged(
 		Exchange:    exchange,
 		WalletType:  acct_snapshot.WalletType(walletType),
 		Asset:       asset,
-		Total:       utils.Decimal.DecimalToPgNumeric(newTotal),
-		Frozen:      utils.Decimal.DecimalToPgNumeric(newFrozen),
+		Total:       precision.DecimalToPgNumeric(newTotal),
+		Frozen:      precision.DecimalToPgNumeric(newFrozen),
 		EffectiveTs: ts,
 	})
 	if err != nil {
@@ -96,8 +97,8 @@ func (e *Entity) recordPositionSnapshotFromUpsertRow(ctx context.Context, row *p
 		Exchange:    row.Exchange,
 		Symbol:      row.Symbol,
 		Side:        acct_snapshot.PositionSide(row.Side),
-		Qty:         utils.Decimal.DecimalToPgNumeric(qty),
-		EntryPrice:  utils.Decimal.DecimalToPgNumeric(entry),
+		Qty:         precision.DecimalToPgNumeric(qty),
+		EntryPrice:  precision.DecimalToPgNumeric(entry),
 		Leverage:    row.Leverage,
 		EffectiveTs: ts,
 	})
@@ -129,8 +130,8 @@ func (e *Entity) recordPositionSnapshotFromPositionsRow(ctx context.Context, row
 		Exchange:    row.Exchange,
 		Symbol:      row.Symbol,
 		Side:        acct_snapshot.PositionSide(row.Side),
-		Qty:         utils.Decimal.DecimalToPgNumeric(qty),
-		EntryPrice:  utils.Decimal.DecimalToPgNumeric(entry),
+		Qty:         precision.DecimalToPgNumeric(qty),
+		EntryPrice:  precision.DecimalToPgNumeric(entry),
 		Leverage:    row.Leverage,
 		EffectiveTs: ts,
 	})

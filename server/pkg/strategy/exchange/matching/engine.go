@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	bridge "github.com/wangliang139/NovaForge/server/pkg/strategy/exchange/bridge"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
@@ -28,16 +29,16 @@ type MatchingConfig struct {
 	BaseCurrency string
 	BaseExchange ctypes.Exchange
 
-	// Maker/Taker 手续费率（若为 0，则回退到 CommissionRate）
-	MakerCommissionRate float64
-	TakerCommissionRate float64
+	// Maker/Taker 手续费率（若为零，则回退到 CommissionRate）
+	MakerCommissionRate decimal.Decimal
+	TakerCommissionRate decimal.Decimal
 
-	// CommissionRate 兼容历史：当 Maker/Taker 为 0 时使用
-	CommissionRate float64
+	// CommissionRate 兼容历史：当 Maker/Taker 为零时使用
+	CommissionRate decimal.Decimal
 
-	SlippageRate float64 // 市价单成交价格滑点率
+	SlippageRate decimal.Decimal // 市价单成交价格滑点率
 
-	MarketOrderFreezeFactor float64 // 市价单成交价格冻结因子
+	MarketOrderFreezeFactor decimal.Decimal // 市价单成交价格冻结因子（预留；当前主要由 order 引擎使用）
 
 	// ExchangeDelay 模拟交易所延迟：撮合引擎产出的 internal event 时间戳会在“触发该事件的基准时间”上整体加上该延迟。
 	// - 对 market signal 驱动的撮合：基准时间为 signal.Ts
@@ -56,31 +57,31 @@ type MatchingConfig struct {
 
 func DefaultMatchingConfig() MatchingConfig {
 	return MatchingConfig{
-		MakerCommissionRate:     0.0005,
-		TakerCommissionRate:     0.001,
-		CommissionRate:          0.001,
-		SlippageRate:            0,
-		MarketOrderFreezeFactor: 1.2,
+		MakerCommissionRate:     decimal.RequireFromString("0.0005"),
+		TakerCommissionRate:     decimal.RequireFromString("0.001"),
+		CommissionRate:          decimal.RequireFromString("0.001"),
+		SlippageRate:            decimal.Zero,
+		MarketOrderFreezeFactor: precision.BacktestDefaultMarketOrderFreezeFactor,
 		ExchangeDelay:           10 * time.Millisecond,
 		FillDelay:               10 * time.Millisecond,
 	}
 }
 
-func (c *MatchingConfig) MakerRate() float64 {
+func (c *MatchingConfig) MakerRate() decimal.Decimal {
 	if c == nil {
-		return 0
+		return decimal.Zero
 	}
-	if c.MakerCommissionRate != 0 {
+	if !c.MakerCommissionRate.IsZero() {
 		return c.MakerCommissionRate
 	}
 	return c.CommissionRate
 }
 
-func (c *MatchingConfig) TakerRate() float64 {
+func (c *MatchingConfig) TakerRate() decimal.Decimal {
 	if c == nil {
-		return 0
+		return decimal.Zero
 	}
-	if c.TakerCommissionRate != 0 {
+	if !c.TakerCommissionRate.IsZero() {
 		return c.TakerCommissionRate
 	}
 	return c.CommissionRate
@@ -713,7 +714,7 @@ func (m *MatchingEngine) perpLeverage(ctx context.Context, accountID string, exS
 }
 
 // calculateAffordQty 计算可承受数量（受资金/持仓约束）
-func (m *MatchingEngine) calculateAffordQty(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, px decimal.Decimal, feeRate float64, isBuy bool, marketInfo *ctypes.Market) (decimal.Decimal, error) {
+func (m *MatchingEngine) calculateAffordQty(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, px decimal.Decimal, feeRate decimal.Decimal, isBuy bool, marketInfo *ctypes.Market) (decimal.Decimal, error) {
 	if ord == nil || px.IsZero() {
 		return decimal.Zero, errors.New("order or price is zero")
 	}
@@ -727,7 +728,7 @@ func (m *MatchingEngine) calculateAffordQty(ctx context.Context, exSymbol ctypes
 	if exSymbol.GetType() == ctypes.MarketTypeFuture {
 		// FUTURE：单位数量所需预留：px/leverage + px*feeRate
 		lev := m.perpLeverage(ctx, accountID, exSymbol)
-		denom := px.Div(lev).Add(px.Mul(decimal.NewFromFloat(feeRate)))
+		denom := px.Div(lev).Add(px.Mul(feeRate))
 		if denom.IsZero() {
 			return decimal.Zero, errors.New("denom is zero")
 		}
@@ -759,7 +760,7 @@ func (m *MatchingEngine) calculateAffordQty(ctx context.Context, exSymbol ctypes
 	return misc.NormalizeBaseAssetQty(asset.Balance, ord.OrderType, marketInfo), nil
 }
 
-func (m *MatchingEngine) canAffordBuyLocked(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, qty decimal.Decimal, px decimal.Decimal, feeRate float64) (bool, error) {
+func (m *MatchingEngine) canAffordBuyLocked(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, qty decimal.Decimal, px decimal.Decimal, _ decimal.Decimal) (bool, error) {
 	if ord == nil {
 		return false, errors.New("order is nil")
 	}
@@ -848,7 +849,7 @@ func (m *MatchingEngine) calculateMarketPrice(marketInfo *ctypes.Market, basePri
 		return decimal.Zero
 	}
 	px := basePrice
-	slippage := basePrice.Mul(decimal.NewFromFloat(m.cfg.SlippageRate))
+	slippage := basePrice.Mul(m.cfg.SlippageRate)
 	if isBuy {
 		px = px.Add(slippage)
 	} else {
@@ -1133,7 +1134,7 @@ func (m *MatchingEngine) fillLimitSellLocked(ctx context.Context, exSymbol ctype
 	return true, done, nil
 }
 
-func (m *MatchingEngine) applyFillBuyLocked(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, fillQty decimal.Decimal, px decimal.Decimal, feeRate float64, ts time.Time, isMaker bool, marketInfo *ctypes.Market) error {
+func (m *MatchingEngine) applyFillBuyLocked(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, fillQty decimal.Decimal, px decimal.Decimal, feeRate decimal.Decimal, ts time.Time, _ /* isMaker */ bool, _ *ctypes.Market) error {
 	if m.accountEngine == nil {
 		return errors.New("account manager is nil")
 	}
@@ -1142,23 +1143,21 @@ func (m *MatchingEngine) applyFillBuyLocked(ctx context.Context, exSymbol ctypes
 		return errors.New("account id not found")
 	}
 
-	notional := px.Mul(fillQty)
+	notional := precision.Notional(px, fillQty)
 	feeAsset := exSymbol.Symbol.Base
-	fee := fillQty.Mul(decimal.NewFromFloat(feeRate))
+	fee := precision.FeeFromBaseQty(fillQty, feeRate)
 
 	if exSymbol.Symbol.Type == ctypes.MarketTypeFuture {
-		// FUTURE：手续费从保证金资产扣，需确保余额覆盖手续费
+		// 期货：手续费按名义价值计，扣在 quote 保证金资产上
+		feeAsset = exSymbol.Symbol.Quote
+		fee = precision.FeeFromNotional(notional, feeRate)
 		asset, _ := m.accountEngine.GetAsset(ctx, aid, exSymbol.Symbol, exSymbol.Symbol.Quote)
 		if asset == nil || asset.Free().LessThan(fee) {
-			// 资金不足以支付手续费：不成交（保守处理）
 			return errors.New("insufficient collateral balance")
 		}
-		// 期货场景手续费扣在保证金资产上
-		feeAsset = exSymbol.Symbol.Quote
-		fee = notional.Mul(decimal.NewFromFloat(feeRate))
 	}
 
-	fee = fee.RoundDown(int32(marketInfo.BaseAssetPrecision))
+	// 手续费不在撮合层截断；统一在订单落库前 precision.FinalizeOrderSnapshotForDB 收敛。
 
 	// 更新订单成交状态
 	ord.ExecutedQty = ord.ExecutedQty.Add(fillQty)
@@ -1172,7 +1171,7 @@ func (m *MatchingEngine) applyFillBuyLocked(ctx context.Context, exSymbol ctypes
 	return m.emitFillEvent(ctx, exSymbol, aid, ord.OrderID, ord.ClientOrderID, ord.Side, ord.IsBuy, fillQty, px, fee, feeAsset, ts)
 }
 
-func (m *MatchingEngine) applyFillSellLocked(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, fillQty decimal.Decimal, px decimal.Decimal, feeRate float64, ts time.Time, isMaker bool, marketInfo *ctypes.Market) error {
+func (m *MatchingEngine) applyFillSellLocked(ctx context.Context, exSymbol ctypes.ExSymbol, ord *ctypes.Order, fillQty decimal.Decimal, px decimal.Decimal, feeRate decimal.Decimal, ts time.Time, _ /* isMaker */ bool, _ *ctypes.Market) error {
 	if m.accountEngine == nil {
 		return errors.New("account manager or event bus is nil")
 	}
@@ -1181,9 +1180,9 @@ func (m *MatchingEngine) applyFillSellLocked(ctx context.Context, exSymbol ctype
 		return errors.New("account id not found")
 	}
 
-	notional := px.Mul(fillQty)
+	notional := precision.Notional(px, fillQty)
 	feeAsset := exSymbol.Symbol.Quote
-	fee := notional.Mul(decimal.NewFromFloat(feeRate))
+	fee := precision.FeeFromNotional(notional, feeRate)
 
 	if exSymbol.Symbol.Type == ctypes.MarketTypeFuture {
 		// FUTURE：卖出意味着 posQty 减少（可用于减多/开空），手续费从 collateral 扣
@@ -1193,7 +1192,7 @@ func (m *MatchingEngine) applyFillSellLocked(ctx context.Context, exSymbol ctype
 		}
 	}
 
-	fee = fee.RoundDown(int32(marketInfo.PricePrecision))
+	// 手续费不在撮合层截断；统一在订单落库前 precision.FinalizeOrderSnapshotForDB 收敛。
 
 	// 更新订单成交状态
 	ord.ExecutedQty = ord.ExecutedQty.Add(fillQty)

@@ -13,6 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stumble/wpgx"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -111,12 +112,12 @@ func (e *Entity) ApplyOrderSnapshot(ctx context.Context, order *ctypes.Order) (*
 
 	var fee pgtype.Numeric
 	if order.Fee != nil {
-		fee = utils.Decimal.DecimalToPgNumeric(*order.Fee)
+		fee = precision.DecimalToPgNumeric(*order.Fee)
 	}
 	var realizedPnl pgtype.Numeric
 	var pnlAsset *string
 	if order.RealizedPnl != nil {
-		realizedPnl = utils.Decimal.DecimalToPgNumeric(*order.RealizedPnl)
+		realizedPnl = precision.DecimalToPgNumeric(*order.RealizedPnl)
 	}
 	// 现货订单：计算 realized_pnl 和 pnl_asset（交易所不提供）
 	switch order.Symbol.Type {
@@ -124,7 +125,7 @@ func (e *Entity) ApplyOrderSnapshot(ctx context.Context, order *ctypes.Order) (*
 		if (status == "DONE" || status == "PARTIAL_DONE") && executedQty.GreaterThan(decimal.Zero) {
 			spotPnl, spotAsset := e.calcSpotOrderPnl(ctx, order, executedQty, executedQuoteQty)
 			if spotAsset != "" {
-				realizedPnl = utils.Decimal.DecimalToPgNumeric(spotPnl)
+				realizedPnl = precision.DecimalToPgNumeric(spotPnl)
 				pnlAsset = &spotAsset
 			}
 		}
@@ -151,11 +152,11 @@ func (e *Entity) ApplyOrderSnapshot(ctx context.Context, order *ctypes.Order) (*
 		ReduceOnly:    order.ReduceOnly,
 		PostOnly:      order.PostOnly,
 		Tif:           tif,
-		Price:         utils.Decimal.DecimalToPgNumeric(order.Price),
-		Quantity:      utils.Decimal.DecimalToPgNumeric(order.OriginalQty),
-		ExecutedQty:   utils.Decimal.DecimalToPgNumeric(executedQty),
-		ExecutedPrice: utils.Decimal.DecimalToPgNumeric(executedQuoteQty),
-		AvgPrice:      utils.Decimal.DecimalToPgNumeric(avgPrice),
+		Price:         precision.DecimalToPgNumeric(order.Price),
+		Quantity:      precision.DecimalToPgNumeric(order.OriginalQty),
+		ExecutedQty:   precision.DecimalToPgNumeric(executedQty),
+		ExecutedPrice: precision.DecimalToPgNumeric(executedQuoteQty),
+		AvgPrice:      precision.DecimalToPgNumeric(avgPrice),
 		Conditions:    conditionsJSON,
 		Detail:        details,
 		Status:        status,
@@ -471,8 +472,7 @@ func (e *Entity) deriveSpotOrderLocked(ctx context.Context, conn mdtypes.Connect
 			}
 
 			// 应用市价单缓冲系数 (1.05x)
-			marketOrderFreezeFactor := decimal.NewFromFloat(1.05)
-			locked := remain.Mul(estimatePrice).Mul(marketOrderFreezeFactor)
+			locked := remain.Mul(estimatePrice).Mul(precision.DefaultMarketOrderFreezeFactor)
 			asset := strings.ToUpper(order.Symbol.Quote)
 			return locked, asset, nil
 		} else {
@@ -568,7 +568,7 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 			_, err = e.db.OrdersRepo.WithTx(tx).SetOrderLockedAsset(ctx, orders.SetOrderLockedAssetParams{
 				AccountID:   order.AccountID,
 				OrderID:     order.OrderID.String(),
-				Locked:      utils.Decimal.DecimalToPgNumeric(curLocked),
+				Locked:      precision.DecimalToPgNumeric(curLocked),
 				LockedAsset: lo.ToPtr(curAsset),
 			})
 			if err != nil {
@@ -609,7 +609,7 @@ func (e *Entity) applyOrderFillBalanceUpdate(ctx context.Context, tx *wpgx.WTx, 
 	_, err := e.db.OrdersRepo.WithTx(tx).SetOrderLockedAsset(ctx, orders.SetOrderLockedAssetParams{
 		AccountID:   order.AccountID,
 		OrderID:     order.OrderID.String(),
-		Locked:      utils.Decimal.DecimalToPgNumeric(prevLocked.Add(delta)),
+		Locked:      precision.DecimalToPgNumeric(prevLocked.Add(delta)),
 		LockedAsset: lo.ToPtr(curAsset),
 	})
 	if err != nil {

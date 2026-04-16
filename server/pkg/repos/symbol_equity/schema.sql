@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS symbol_equity (
     account_id VARCHAR(64) NOT NULL,
     exchange VARCHAR(32) NOT NULL,
     symbol VARCHAR(64) NOT NULL,
-    net_value DECIMAL(32, 8) NOT NULL,
+    net_value DECIMAL(32, 18) NOT NULL,
     base_currency VARCHAR(16) NOT NULL DEFAULT 'USDT',
     ts TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

@@ -14,6 +14,7 @@ import (
 	"github.com/stumble/wpgx"
 	"github.com/wangliang139/NovaForge/server/pkg/entity/account"
 	mtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
@@ -445,7 +446,7 @@ func ValidateMarketFilters(market ctypes.Market, orderType ctypes.OrderType, pri
 
 // calcOrderFrozen 计算订单冻结资金（不包括手续费）
 func calcOrderFrozen(order *ctypes.Order, symbolCfg *ctypes.SymbolConfig) (decimal.Decimal, string, error) {
-	marketOrderFreezeFactor := decimal.NewFromFloat(1.05)
+	marketOrderFreezeFactor := precision.DefaultMarketOrderFreezeFactor
 	totalLocked := decimal.Zero
 	lockedAsset := ""
 

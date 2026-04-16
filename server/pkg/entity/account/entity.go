@@ -16,6 +16,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/market"
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
@@ -1255,8 +1256,8 @@ func (e *Entity) applyPositionSnapshotRow(ctx context.Context, accountID string,
 	_qty := pos.Amount.String()
 	_ = _qty
 
-	qtyNum := utils.Decimal.DecimalToPgNumeric(pos.Amount)
-	entryPriceNum := utils.Decimal.DecimalToPgNumeric(pos.EntryPrice)
+	qtyNum := precision.DecimalToPgNumeric(pos.Amount)
+	entryPriceNum := precision.DecimalToPgNumeric(pos.EntryPrice)
 	// leverage := int32(pos.Leverage)
 
 	params := positions.UpsertPositionParams{

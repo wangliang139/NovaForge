@@ -193,8 +193,8 @@ CREATE TABLE IF NOT EXISTS equity (
     id BIGSERIAL PRIMARY KEY,
     account_id VARCHAR(64) NOT NULL,
     ts TIMESTAMPTZ NOT NULL,
-    notional DECIMAL(32, 8) NOT NULL DEFAULT 0,
-    unrealized_profit DECIMAL(32, 8) NOT NULL DEFAULT 0,
+    notional DECIMAL(32, 18) NOT NULL DEFAULT 0,
+    unrealized_profit DECIMAL(32, 18) NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -204,7 +204,7 @@ CREATE TABLE IF NOT EXISTS symbol_equity (
     account_id VARCHAR(64) NOT NULL,
     exchange VARCHAR(32) NOT NULL,
     symbol VARCHAR(64) NOT NULL,
-    net_value DECIMAL(32, 8) NOT NULL,
+    net_value DECIMAL(32, 18) NOT NULL,
     base_currency VARCHAR(16) NOT NULL DEFAULT 'USDT',
     ts TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -315,9 +315,9 @@ CREATE TABLE IF NOT EXISTS backtest_results (
     symbol VARCHAR(64) NOT NULL,
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP NOT NULL,
-    initial_balance DECIMAL(32, 8) NOT NULL,
-    final_balance DECIMAL(32, 8) NOT NULL,
-    total_pnl DECIMAL(32, 8) NOT NULL,
+    initial_balance DECIMAL(32, 18) NOT NULL,
+    final_balance DECIMAL(32, 18) NOT NULL,
+    total_pnl DECIMAL(32, 18) NOT NULL,
     total_trades INT NOT NULL DEFAULT 0,
     win_trades INT NOT NULL DEFAULT 0,
     loss_trades INT NOT NULL DEFAULT 0,

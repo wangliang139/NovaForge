@@ -12,6 +12,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/wangliang139/NovaForge/server/pkg/internal/rstream"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -205,10 +206,10 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 				continue
 			}
 			if total != nil {
-				ledgerParams.Total = utils.Decimal.DecimalToPgNumeric(*total)
+				ledgerParams.Total = precision.DecimalToPgNumeric(*total)
 			}
 			if frozen != nil {
-				ledgerParams.Frozen = utils.Decimal.DecimalToPgNumeric(*frozen)
+				ledgerParams.Frozen = precision.DecimalToPgNumeric(*frozen)
 			}
 			if row != nil {
 				prevTotal := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
@@ -217,8 +218,8 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 				frozen := utils.Decimal.PgNumericToDecimal(row.Frozen)
 				totalDelta := total.Sub(prevTotal)
 				frozenDelta := frozen.Sub(prevFrozen)
-				ledgerParams.TotalDelta = utils.Decimal.DecimalToPgNumeric(totalDelta)
-				ledgerParams.FrozenDelta = utils.Decimal.DecimalToPgNumeric(frozenDelta)
+				ledgerParams.TotalDelta = precision.DecimalToPgNumeric(totalDelta)
+				ledgerParams.FrozenDelta = precision.DecimalToPgNumeric(frozenDelta)
 				ledgerParams.IsEffective = true
 				_totalDelta := totalDelta.String()
 				_frozenDelta := frozenDelta.String()
@@ -289,14 +290,14 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 			}
 
 			if totalDelta != nil {
-				ledgerParams.TotalDelta = utils.Decimal.DecimalToPgNumeric(*totalDelta)
+				ledgerParams.TotalDelta = precision.DecimalToPgNumeric(*totalDelta)
 			} else {
-				ledgerParams.TotalDelta = utils.Decimal.DecimalToPgNumeric(decimal.Zero)
+				ledgerParams.TotalDelta = precision.DecimalToPgNumeric(decimal.Zero)
 			}
 			if frozenDelta != nil {
-				ledgerParams.FrozenDelta = utils.Decimal.DecimalToPgNumeric(*frozenDelta)
+				ledgerParams.FrozenDelta = precision.DecimalToPgNumeric(*frozenDelta)
 			} else {
-				ledgerParams.FrozenDelta = utils.Decimal.DecimalToPgNumeric(decimal.Zero)
+				ledgerParams.FrozenDelta = precision.DecimalToPgNumeric(decimal.Zero)
 			}
 			if assetPo != nil {
 				ledgerParams.Total = assetPo.Total

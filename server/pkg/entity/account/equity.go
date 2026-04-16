@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/equity"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/symbol_equity"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 )
 
@@ -20,8 +21,8 @@ func (e *Entity) CreateEquity(ctx context.Context, accountID string, ts time.Tim
 	return e.db.EquityRepo.CreateEquity(ctx, equity.CreateEquityParams{
 		AccountID:        accountID,
 		Ts:               ts,
-		Notional:         utils.Decimal.DecimalToPgNumeric(notional),
-		UnrealizedProfit: utils.Decimal.DecimalToPgNumeric(unrealized),
+		Notional:         precision.DecimalToPgNumeric(notional),
+		UnrealizedProfit: precision.DecimalToPgNumeric(unrealized),
 	})
 }
 
@@ -84,7 +85,7 @@ func (e *Entity) CalculateAccountEquity(ctx context.Context, accountID string, e
 	return e.calculateAccountEquity(ctx, exchange, assets, positions)
 }
 
-func (e *Entity) calculateAccountEquity(ctx context.Context,exchange ctypes.Exchange, assets []*types.Asset, positions []*ctypes.Position) (decimal.Decimal, decimal.Decimal, error) {
+func (e *Entity) calculateAccountEquity(ctx context.Context, exchange ctypes.Exchange, assets []*types.Asset, positions []*ctypes.Position) (decimal.Decimal, decimal.Decimal, error) {
 	if len(assets) == 0 && len(positions) == 0 {
 		return decimal.Zero, decimal.Zero, nil
 	}
@@ -216,7 +217,7 @@ func (e *Entity) refreshSymbolEquity(ctx context.Context, accountID, exchangeStr
 			AccountID:    accountID,
 			Exchange:     exchangeStr,
 			Symbol:       symStr,
-			NetValue:     utils.Decimal.DecimalToPgNumeric(notional),
+			NetValue:     precision.DecimalToPgNumeric(notional),
 			BaseCurrency: baseCurrency,
 			Ts:           ts,
 		})

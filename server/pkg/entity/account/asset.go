@@ -12,6 +12,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	"github.com/stumble/wpgx"
+	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/assets"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
@@ -233,8 +234,8 @@ func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exch
 					Asset:       d.code,
 					WalletType:  ledgers.WalletType(d.walletType),
 					Type:        string(ctypes.LedgerReasonSnapshot),
-					TotalDelta:  utils.Decimal.DecimalToPgNumeric(d.totalDelta),
-					FrozenDelta: utils.Decimal.DecimalToPgNumeric(d.frozenDelta),
+					TotalDelta:  precision.DecimalToPgNumeric(d.totalDelta),
+					FrozenDelta: precision.DecimalToPgNumeric(d.frozenDelta),
 					Ts:          d.ts,
 					IsEffective: true,
 				}
@@ -266,11 +267,11 @@ func (e *Entity) ApplyAssetSnapshot(ctx context.Context, accountID string, excha
 
 	var totalNum pgtype.Numeric
 	if total != nil {
-		totalNum = utils.Decimal.DecimalToPgNumeric(*total)
+		totalNum = precision.DecimalToPgNumeric(*total)
 	}
 	var frozenNum pgtype.Numeric
 	if frozen != nil {
-		frozenNum = utils.Decimal.DecimalToPgNumeric(*frozen)
+		frozenNum = precision.DecimalToPgNumeric(*frozen)
 	}
 	result, err := e.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
 		row, err := e.db.AssetsRepo.WithTx(tx).UpsertAsset(ctx, assets.UpsertAssetParams{
@@ -334,8 +335,8 @@ func (e *Entity) updateAssetAvgPriceOnIncrease(ctx context.Context, tx *wpgx.WTx
 		AccountID:  accountID,
 		Asset:      asset,
 		WalletType: assets.WalletType(walletType),
-		TotalDelta: utils.Decimal.DecimalToPgNumeric(totalDelta),
-		PriceUsdt:  utils.Decimal.DecimalToPgNumeric(priceUsdt),
+		TotalDelta: precision.DecimalToPgNumeric(totalDelta),
+		PriceUsdt:  precision.DecimalToPgNumeric(priceUsdt),
 	})
 	return err
 }
@@ -360,7 +361,7 @@ func (e *Entity) fillMissingAvgPrice(ctx context.Context, tx *wpgx.WTx, accountI
 		AccountID:  accountID,
 		Asset:      asset,
 		WalletType: assets.WalletType(walletType),
-		AvgPrice:   utils.Decimal.DecimalToPgNumeric(priceUsdt),
+		AvgPrice:   precision.DecimalToPgNumeric(priceUsdt),
 	})
 	if err != nil {
 		return err
@@ -388,10 +389,10 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 		frozenNum = pgtype.Numeric{Valid: false}
 	)
 	if total != nil {
-		totalNum = utils.Decimal.DecimalToPgNumeric(*total)
+		totalNum = precision.DecimalToPgNumeric(*total)
 	}
 	if frozen != nil {
-		frozenNum = utils.Decimal.DecimalToPgNumeric(*frozen)
+		frozenNum = precision.DecimalToPgNumeric(*frozen)
 	}
 	result, err := e.db.ConnPool.Transact(ctx, pgx.TxOptions{}, func(ctx context.Context, tx *wpgx.WTx) (any, error) {
 		prevPo, err := e.db.AssetsRepo.WithTx(tx).GetAssetWithLock(ctx, assets.GetAssetWithLockParams{
@@ -419,11 +420,11 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 		} else {
 			upsertTotalNum := totalNum
 			if !upsertTotalNum.Valid {
-				upsertTotalNum = utils.Decimal.DecimalToPgNumeric(decimal.Zero)
+				upsertTotalNum = precision.DecimalToPgNumeric(decimal.Zero)
 			}
 			upsertFrozenNum := frozenNum
 			if !upsertFrozenNum.Valid {
-				upsertTotalNum = utils.Decimal.DecimalToPgNumeric(decimal.Zero)
+				upsertTotalNum = precision.DecimalToPgNumeric(decimal.Zero)
 			}
 			upsertRow, err := e.db.AssetsRepo.WithTx(tx).UpsertAsset(ctx, assets.UpsertAssetParams{
 				AccountID:     accountID,
@@ -570,7 +571,7 @@ func (e *Entity) ApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context, tx *wp
 		Exchange:    exchangeStr,
 		Asset:       asset.Code,
 		WalletType:  ledgers.WalletType(walletType),
-		FrozenDelta: utils.Decimal.DecimalToPgNumeric(*asset.Locked),
+		FrozenDelta: precision.DecimalToPgNumeric(*asset.Locked),
 		Type:        string(reason),
 		Detail:      detailBytes,
 		Ts:          ts,
@@ -588,7 +589,7 @@ func (e *Entity) ApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context, tx *wp
 		AccountID:     accountID,
 		Asset:         asset.Code,
 		WalletType:    assets.WalletType(walletType),
-		OrderOccupied: utils.Decimal.DecimalToPgNumeric(*asset.Locked),
+		OrderOccupied: precision.DecimalToPgNumeric(*asset.Locked),
 	})
 	if err != nil {
 		return err
@@ -600,7 +601,7 @@ func (e *Entity) ApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context, tx *wp
 		locked := frozen.Sub(orderOccupied)
 
 		ledgerParams.Total = assetPo.Total
-		ledgerParams.Frozen = utils.Decimal.DecimalToPgNumeric(locked)
+		ledgerParams.Frozen = precision.DecimalToPgNumeric(locked)
 		ledgerParams.IsEffective = true
 	}
 	// 增量语义直接对外发布（Balance/Locked 均为 delta）

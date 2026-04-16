@@ -84,21 +84,21 @@ type ExchangeConfig struct {
 
 type ExchangeSimConfig struct {
 	// 手续费率（spot）
-	SpotMakerCommissionRate float64
-	SpotTakerCommissionRate float64
+	SpotMakerCommissionRate decimal.Decimal
+	SpotTakerCommissionRate decimal.Decimal
 
 	// 手续费率（future）
-	FutureMakerCommissionRate float64
-	FutureTakerCommissionRate float64
+	FutureMakerCommissionRate decimal.Decimal
+	FutureTakerCommissionRate decimal.Decimal
 
-	// 兼容旧字段：当 Maker/Taker 为 0 时可回退到 CommissionRate（matching.MatchingConfig 有该字段）
-	CommissionRate float64
+	// 兼容旧字段：当 Maker/Taker 为零时可回退到 CommissionRate（matching.MatchingConfig 有该字段）
+	CommissionRate decimal.Decimal
 
 	// 市价单滑点率（matching.SlippageRate）
-	SlippageRate float64
+	SlippageRate decimal.Decimal
 
 	// 市价单冻结因子（matching.MarketOrderFreezeFactor / order.Config.MarketOrderFreezeFactor）
-	MarketOrderFreezeFactor float64
+	MarketOrderFreezeFactor decimal.Decimal
 
 	// 交易所/撮合延迟（matching.ExchangeDelay；FillDelay 仅兼容历史）
 	ExchangeDelay time.Duration
@@ -196,12 +196,12 @@ type BacktestOrderConfig struct {
 	AllowedSymbols []ctypes.ExSymbolKey
 
 	// 若不填，可从 Exchange.Sim 派生默认值
-	SpotMakerCommissionRate   float64
-	SpotTakerCommissionRate   float64
-	FutureMakerCommissionRate float64
-	FutureTakerCommissionRate float64
+	SpotMakerCommissionRate   decimal.Decimal
+	SpotTakerCommissionRate   decimal.Decimal
+	FutureMakerCommissionRate decimal.Decimal
+	FutureTakerCommissionRate decimal.Decimal
 
-	MarketOrderFreezeFactor float64
+	MarketOrderFreezeFactor decimal.Decimal
 }
 
 type BacktestRiskConfig struct {
