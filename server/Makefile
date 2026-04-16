@@ -2,7 +2,7 @@ CONTAINER_NAME=novaforge
 HEALTH_CHECK_PORT=8080
 METRICS_PORT=4014
 
-.PHONY: gqlgen repo convert lint lint-fix build
+.PHONY: gqlgen repo convert lint lint-fix build build-audit
 
 gqlgen:
 	@echo "--> Generating gql"
@@ -26,4 +26,8 @@ lint-fix:
 build:
 	@echo "--> Building server"
 	@CGO_ENABLED=1 go build -o ./bin ./cmd/app
+
+build-audit:
+	@echo "--> Building audit CLI"
+	@CGO_ENABLED=0 go build -o ./bin/audit ./cmd/audit
 

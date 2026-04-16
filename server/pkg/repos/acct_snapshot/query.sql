@@ -15,6 +15,18 @@ WHERE account_id = $1
 ORDER BY effective_ts DESC, id DESC
 LIMIT 1;
 
+-- name: GetAccountAssetSnapshotAtOrAfter :one
+-- -- timeout: 2s
+SELECT *
+FROM asset_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND asset = $3
+  AND wallet_type = $4
+  AND effective_ts >= $5
+ORDER BY effective_ts DESC, id DESC
+LIMIT 1;
+
 -- name: ListLatestAccountAssetSnapshotsAtOrBefore :many
 -- -- timeout: 2s
 SELECT DISTINCT ON (asset, wallet_type) *

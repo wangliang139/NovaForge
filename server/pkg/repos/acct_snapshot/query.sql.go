@@ -19,6 +19,76 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const getAccountAssetSnapshotAtOrAfter = `-- name: GetAccountAssetSnapshotAtOrAfter :one
+SELECT id, account_id, exchange, wallet_type, asset, total, effective_ts, created_at
+FROM asset_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND asset = $3
+  AND wallet_type = $4
+  AND effective_ts >= $5
+ORDER BY effective_ts DESC, id DESC
+LIMIT 1
+`
+
+type GetAccountAssetSnapshotAtOrAfterParams struct {
+	AccountID   string
+	Exchange    string
+	Asset       string
+	WalletType  WalletType
+	EffectiveTs time.Time
+}
+
+type GetAccountAssetSnapshotAtOrAfterRow struct {
+	ID          int64
+	AccountID   string
+	Exchange    string
+	WalletType  WalletType
+	Asset       string
+	Total       pgtype.Numeric
+	EffectiveTs time.Time
+	CreatedAt   time.Time
+}
+
+// -- timeout: 2s
+func (q *Queries) GetAccountAssetSnapshotAtOrAfter(ctx context.Context, arg GetAccountAssetSnapshotAtOrAfterParams) (*GetAccountAssetSnapshotAtOrAfterRow, error) {
+	return _GetAccountAssetSnapshotAtOrAfter(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) GetAccountAssetSnapshotAtOrAfter(ctx context.Context, arg GetAccountAssetSnapshotAtOrAfterParams) (*GetAccountAssetSnapshotAtOrAfterRow, error) {
+	return _GetAccountAssetSnapshotAtOrAfter(ctx, q, arg)
+}
+
+func _GetAccountAssetSnapshotAtOrAfter(ctx context.Context, q CacheQuerierConn, arg GetAccountAssetSnapshotAtOrAfterParams) (*GetAccountAssetSnapshotAtOrAfterRow, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*2000)
+	defer cancel()
+	q.GetConn().CountIntent("acct_snapshot.GetAccountAssetSnapshotAtOrAfter")
+	row := q.GetConn().WQueryRow(qctx, "acct_snapshot.GetAccountAssetSnapshotAtOrAfter", getAccountAssetSnapshotAtOrAfter,
+		arg.AccountID,
+		arg.Exchange,
+		arg.Asset,
+		arg.WalletType,
+		arg.EffectiveTs)
+	var i *GetAccountAssetSnapshotAtOrAfterRow = new(GetAccountAssetSnapshotAtOrAfterRow)
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Exchange,
+		&i.WalletType,
+		&i.Asset,
+		&i.Total,
+		&i.EffectiveTs,
+		&i.CreatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return (*GetAccountAssetSnapshotAtOrAfterRow)(nil), nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return i, err
+}
+
 const getAccountAssetSnapshotAtOrBefore = `-- name: GetAccountAssetSnapshotAtOrBefore :one
 SELECT id, account_id, exchange, wallet_type, asset, total, effective_ts, created_at
 FROM asset_snapshot
