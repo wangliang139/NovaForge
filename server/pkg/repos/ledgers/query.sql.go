@@ -57,12 +57,13 @@ func _CountLedgers(ctx context.Context, q CacheQuerierConn, arg CountLedgersPara
 }
 
 const createLedgerEntry = `-- name: CreateLedgerEntry :one
-INSERT INTO ledgers (account_id, exchange, asset, wallet_type, total, frozen, total_delta, frozen_delta, type, detail, ts, is_effective)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+INSERT INTO ledgers (id, account_id, exchange, asset, wallet_type, total, frozen, total_delta, frozen_delta, type, detail, ts, is_effective)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 RETURNING id, account_id, exchange, asset, wallet_type, total, frozen, total_delta, frozen_delta, type, detail, is_effective, ts, created_at
 `
 
 type CreateLedgerEntryParams struct {
+	ID          int64
 	AccountID   string
 	Exchange    string
 	Asset       string
@@ -103,6 +104,7 @@ func _CreateLedgerEntry(ctx context.Context, q CacheQuerierConn, arg CreateLedge
 	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*1000)
 	defer cancel()
 	row := q.GetConn().WQueryRow(qctx, "ledgers.CreateLedgerEntry", createLedgerEntry,
+		arg.ID,
 		arg.AccountID,
 		arg.Exchange,
 		arg.Asset,
@@ -145,7 +147,7 @@ const listLedgers = `-- name: ListLedgers :many
 SELECT id, account_id, exchange, asset, wallet_type, total, frozen, total_delta, frozen_delta, type, detail, is_effective, ts, created_at FROM ledgers
 WHERE account_id = $1
 AND ts between $2 and $3
-ORDER BY ts DESC, id DESC
+ORDER BY id DESC
 LIMIT $4
 OFFSET $5
 `

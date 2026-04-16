@@ -185,6 +185,12 @@ type Asset struct {
 	UpdatedTs        int        `json:"updatedTs"`
 }
 
+// 资产快照历史点（asset_snapshot.total，币本位）
+type AssetSnapshotHistoryPoint struct {
+	TsMs  int    `json:"tsMs"`
+	Total string `json:"total"`
+}
+
 type BacktestAssetInput struct {
 	Asset  string `json:"asset"`
 	Amount string `json:"amount"`
@@ -1207,6 +1213,13 @@ type Position struct {
 	UpdatedTs        int          `json:"updatedTs"`
 }
 
+// 仓位快照历史点（数量与开仓均价）
+type PositionSnapshotHistoryPoint struct {
+	TsMs       int    `json:"tsMs"`
+	Qty        string `json:"qty"`
+	EntryPrice string `json:"entryPrice"`
+}
+
 type PushConfig struct {
 	Provider            string `json:"provider"`
 	PushDocumentEnabled bool   `json:"pushDocumentEnabled"`
@@ -1253,6 +1266,15 @@ type QueryAccountsInput struct {
 	AccountType    *AccountType    `json:"accountType,omitempty"`
 	CreatedAtStart *int            `json:"createdAtStart,omitempty"`
 	CreatedAtEnd   *int            `json:"createdAtEnd,omitempty"`
+}
+
+type QueryAssetSnapshotHistoryInput struct {
+	AccountID  string     `json:"accountId"`
+	WalletType WalletType `json:"walletType"`
+	Asset      string     `json:"asset"`
+	// Unix 毫秒，区间闭区间 [startTsMs, endTsMs]
+	StartTsMs int `json:"startTsMs"`
+	EndTsMs   int `json:"endTsMs"`
 }
 
 type QueryBalanceInput struct {
@@ -1479,6 +1501,14 @@ type QueryOrdersInput struct {
 	FinishedEndTsMs   *int `json:"finishedEndTsMs,omitempty"`
 	Page              int  `json:"page"`
 	Size              int  `json:"size"`
+}
+
+type QueryPositionSnapshotHistoryInput struct {
+	AccountID string       `json:"accountId"`
+	Symbol    string       `json:"symbol"`
+	Side      PositionSide `json:"side"`
+	StartTsMs int          `json:"startTsMs"`
+	EndTsMs   int          `json:"endTsMs"`
 }
 
 type QueryPositionsInput struct {

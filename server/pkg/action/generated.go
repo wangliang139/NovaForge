@@ -188,6 +188,11 @@ type ComplexityRoot struct {
 		WalletType       func(childComplexity int) int
 	}
 
+	AssetSnapshotHistoryPoint struct {
+		Total func(childComplexity int) int
+		TsMs  func(childComplexity int) int
+	}
+
 	BacktestResultData struct {
 		Equity   func(childComplexity int) int
 		Fills    func(childComplexity int) int
@@ -1001,6 +1006,12 @@ type ComplexityRoot struct {
 		UpdatedTs        func(childComplexity int) int
 	}
 
+	PositionSnapshotHistoryPoint struct {
+		EntryPrice func(childComplexity int) int
+		Qty        func(childComplexity int) int
+		TsMs       func(childComplexity int) int
+	}
+
 	PushConfig struct {
 		FeishuKeyword       func(childComplexity int) int
 		FeishuSecret        func(childComplexity int) int
@@ -1020,6 +1031,7 @@ type ComplexityRoot struct {
 		AccountMultiBotDetails   func(childComplexity int, accountID string) int
 		AccountUnallocatedAssets func(childComplexity int, accountID string) int
 		Accounts                 func(childComplexity int, input model.QueryAccountsInput) int
+		AssetSnapshotHistory     func(childComplexity int, input model.QueryAssetSnapshotHistoryInput) int
 		Balance                  func(childComplexity int, input model.QueryBalanceInput) int
 		Bot                      func(childComplexity int, id int) int
 		BotBalance               func(childComplexity int, input model.QueryBotBalanceInput) int
@@ -1066,6 +1078,7 @@ type ComplexityRoot struct {
 		OpenInterest             func(childComplexity int, input model.QueryOpenInterestInput) int
 		OrderBook                func(childComplexity int, input model.QueryOrderBookInput) int
 		Orders                   func(childComplexity int, input model.QueryOrdersInput) int
+		PositionSnapshotHistory  func(childComplexity int, input model.QueryPositionSnapshotHistoryInput) int
 		Positions                func(childComplexity int, input model.QueryPositionsInput) int
 		PushConfig               func(childComplexity int) int
 		RiskEvents               func(childComplexity int, input model.QueryRiskEventsInput) int
@@ -1388,6 +1401,8 @@ type QueryResolver interface {
 	Positions(ctx context.Context, input model.QueryPositionsInput) ([]*model.Position, error)
 	Orders(ctx context.Context, input model.QueryOrdersInput) (*model.OrdersConnection, error)
 	Ledgers(ctx context.Context, input model.QueryLedgersInput) (*model.LedgersConnection, error)
+	AssetSnapshotHistory(ctx context.Context, input model.QueryAssetSnapshotHistoryInput) ([]*model.AssetSnapshotHistoryPoint, error)
+	PositionSnapshotHistory(ctx context.Context, input model.QueryPositionSnapshotHistoryInput) ([]*model.PositionSnapshotHistoryPoint, error)
 	EstimateOrder(ctx context.Context, input model.EstimateOrderInput) (*model.EstimateOrderResult, error)
 	ListAlerts(ctx context.Context, exchange types.Exchange, symbol string) ([]*model.AlertItem, error)
 	Strategies(ctx context.Context, input model.QueryStrategiesInput) (*model.StrategiesConnection, error)
@@ -2046,6 +2061,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Asset.WalletType(childComplexity), true
+
+	case "AssetSnapshotHistoryPoint.total":
+		if e.ComplexityRoot.AssetSnapshotHistoryPoint.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssetSnapshotHistoryPoint.Total(childComplexity), true
+	case "AssetSnapshotHistoryPoint.tsMs":
+		if e.ComplexityRoot.AssetSnapshotHistoryPoint.TsMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssetSnapshotHistoryPoint.TsMs(childComplexity), true
 
 	case "BacktestResultData.equity":
 		if e.ComplexityRoot.BacktestResultData.Equity == nil {
@@ -5664,6 +5692,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Position.UpdatedTs(childComplexity), true
 
+	case "PositionSnapshotHistoryPoint.entryPrice":
+		if e.ComplexityRoot.PositionSnapshotHistoryPoint.EntryPrice == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PositionSnapshotHistoryPoint.EntryPrice(childComplexity), true
+	case "PositionSnapshotHistoryPoint.qty":
+		if e.ComplexityRoot.PositionSnapshotHistoryPoint.Qty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PositionSnapshotHistoryPoint.Qty(childComplexity), true
+	case "PositionSnapshotHistoryPoint.tsMs":
+		if e.ComplexityRoot.PositionSnapshotHistoryPoint.TsMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PositionSnapshotHistoryPoint.TsMs(childComplexity), true
+
 	case "PushConfig.feishuKeyword":
 		if e.ComplexityRoot.PushConfig.FeishuKeyword == nil {
 			break
@@ -5785,6 +5832,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Accounts(childComplexity, args["input"].(model.QueryAccountsInput)), true
+	case "Query.AssetSnapshotHistory":
+		if e.ComplexityRoot.Query.AssetSnapshotHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_AssetSnapshotHistory_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AssetSnapshotHistory(childComplexity, args["input"].(model.QueryAssetSnapshotHistoryInput)), true
 	case "Query.Balance":
 		if e.ComplexityRoot.Query.Balance == nil {
 			break
@@ -6277,6 +6335,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Orders(childComplexity, args["input"].(model.QueryOrdersInput)), true
+	case "Query.PositionSnapshotHistory":
+		if e.ComplexityRoot.Query.PositionSnapshotHistory == nil {
+			break
+		}
+
+		args, err := ec.field_Query_PositionSnapshotHistory_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.PositionSnapshotHistory(childComplexity, args["input"].(model.QueryPositionSnapshotHistoryInput)), true
 	case "Query.Positions":
 		if e.ComplexityRoot.Query.Positions == nil {
 			break
@@ -7365,6 +7434,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputQueryAccountInfoInput,
 		ec.unmarshalInputQueryAccountMetricsInput,
 		ec.unmarshalInputQueryAccountsInput,
+		ec.unmarshalInputQueryAssetSnapshotHistoryInput,
 		ec.unmarshalInputQueryBalanceInput,
 		ec.unmarshalInputQueryBotBalanceInput,
 		ec.unmarshalInputQueryBotLedgersInput,
@@ -7392,6 +7462,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputQueryOpenInterestInput,
 		ec.unmarshalInputQueryOrderBookInput,
 		ec.unmarshalInputQueryOrdersInput,
+		ec.unmarshalInputQueryPositionSnapshotHistoryInput,
 		ec.unmarshalInputQueryPositionsInput,
 		ec.unmarshalInputQueryRiskEventsInput,
 		ec.unmarshalInputQueryStrategiesInput,
@@ -8142,6 +8213,17 @@ func (ec *executionContext) field_Query_Accounts_args(ctx context.Context, rawAr
 	return args, nil
 }
 
+func (ec *executionContext) field_Query_AssetSnapshotHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryAssetSnapshotHistoryInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAssetSnapshotHistoryInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Query_Balance_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -8648,6 +8730,17 @@ func (ec *executionContext) field_Query_Orders_args(ctx context.Context, rawArgs
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryOrdersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrdersInput)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_PositionSnapshotHistory_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input", ec.unmarshalNQueryPositionSnapshotHistoryInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryPositionSnapshotHistoryInput)
 	if err != nil {
 		return nil, err
 	}
@@ -11948,6 +12041,64 @@ func (ec *executionContext) fieldContext_Asset_updatedTs(_ context.Context, fiel
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssetSnapshotHistoryPoint_tsMs(ctx context.Context, field graphql.CollectedField, obj *model.AssetSnapshotHistoryPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssetSnapshotHistoryPoint_tsMs,
+		func(ctx context.Context) (any, error) {
+			return obj.TsMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssetSnapshotHistoryPoint_tsMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssetSnapshotHistoryPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssetSnapshotHistoryPoint_total(ctx context.Context, field graphql.CollectedField, obj *model.AssetSnapshotHistoryPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_AssetSnapshotHistoryPoint_total,
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_AssetSnapshotHistoryPoint_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssetSnapshotHistoryPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -30138,6 +30289,93 @@ func (ec *executionContext) fieldContext_Position_updatedTs(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _PositionSnapshotHistoryPoint_tsMs(ctx context.Context, field graphql.CollectedField, obj *model.PositionSnapshotHistoryPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PositionSnapshotHistoryPoint_tsMs,
+		func(ctx context.Context) (any, error) {
+			return obj.TsMs, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PositionSnapshotHistoryPoint_tsMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PositionSnapshotHistoryPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PositionSnapshotHistoryPoint_qty(ctx context.Context, field graphql.CollectedField, obj *model.PositionSnapshotHistoryPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PositionSnapshotHistoryPoint_qty,
+		func(ctx context.Context) (any, error) {
+			return obj.Qty, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PositionSnapshotHistoryPoint_qty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PositionSnapshotHistoryPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PositionSnapshotHistoryPoint_entryPrice(ctx context.Context, field graphql.CollectedField, obj *model.PositionSnapshotHistoryPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_PositionSnapshotHistoryPoint_entryPrice,
+		func(ctx context.Context) (any, error) {
+			return obj.EntryPrice, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_PositionSnapshotHistoryPoint_entryPrice(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PositionSnapshotHistoryPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PushConfig_provider(ctx context.Context, field graphql.CollectedField, obj *model.PushConfig) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -32351,6 +32589,102 @@ func (ec *executionContext) fieldContext_Query_Ledgers(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_Ledgers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_AssetSnapshotHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_AssetSnapshotHistory,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AssetSnapshotHistory(ctx, fc.Args["input"].(model.QueryAssetSnapshotHistoryInput))
+		},
+		nil,
+		ec.marshalNAssetSnapshotHistoryPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAssetSnapshotHistoryPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_AssetSnapshotHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "tsMs":
+				return ec.fieldContext_AssetSnapshotHistoryPoint_tsMs(ctx, field)
+			case "total":
+				return ec.fieldContext_AssetSnapshotHistoryPoint_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AssetSnapshotHistoryPoint", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_AssetSnapshotHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_PositionSnapshotHistory(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Query_PositionSnapshotHistory,
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().PositionSnapshotHistory(ctx, fc.Args["input"].(model.QueryPositionSnapshotHistoryInput))
+		},
+		nil,
+		ec.marshalNPositionSnapshotHistoryPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSnapshotHistoryPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Query_PositionSnapshotHistory(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "tsMs":
+				return ec.fieldContext_PositionSnapshotHistoryPoint_tsMs(ctx, field)
+			case "qty":
+				return ec.fieldContext_PositionSnapshotHistoryPoint_qty(ctx, field)
+			case "entryPrice":
+				return ec.fieldContext_PositionSnapshotHistoryPoint_entryPrice(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PositionSnapshotHistoryPoint", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_PositionSnapshotHistory_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -42307,6 +42641,64 @@ func (ec *executionContext) unmarshalInputQueryAccountsInput(ctx context.Context
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputQueryAssetSnapshotHistoryInput(ctx context.Context, obj any) (model.QueryAssetSnapshotHistoryInput, error) {
+	var it model.QueryAssetSnapshotHistoryInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"accountId", "walletType", "asset", "startTsMs", "endTsMs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "accountId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("accountId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AccountID = data
+		case "walletType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("walletType"))
+			data, err := ec.unmarshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WalletType = data
+		case "asset":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("asset"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Asset = data
+		case "startTsMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startTsMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartTsMs = data
+		case "endTsMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endTsMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EndTsMs = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputQueryBalanceInput(ctx context.Context, obj any) (model.QueryBalanceInput, error) {
 	var it model.QueryBalanceInput
 	if obj == nil {
@@ -43924,6 +44316,64 @@ func (ec *executionContext) unmarshalInputQueryOrdersInput(ctx context.Context, 
 				return it, err
 			}
 			it.Size = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputQueryPositionSnapshotHistoryInput(ctx context.Context, obj any) (model.QueryPositionSnapshotHistoryInput, error) {
+	var it model.QueryPositionSnapshotHistoryInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"accountId", "symbol", "side", "startTsMs", "endTsMs"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "accountId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("accountId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AccountID = data
+		case "symbol":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("symbol"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Symbol = data
+		case "side":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("side"))
+			data, err := ec.unmarshalNPositionSide2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSide(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Side = data
+		case "startTsMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("startTsMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.StartTsMs = data
+		case "endTsMs":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("endTsMs"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.EndTsMs = data
 		}
 	}
 	return it, nil
@@ -46331,6 +46781,50 @@ func (ec *executionContext) _Asset(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "updatedTs":
 			out.Values[i] = ec._Asset_updatedTs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var assetSnapshotHistoryPointImplementors = []string{"AssetSnapshotHistoryPoint"}
+
+func (ec *executionContext) _AssetSnapshotHistoryPoint(ctx context.Context, sel ast.SelectionSet, obj *model.AssetSnapshotHistoryPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assetSnapshotHistoryPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssetSnapshotHistoryPoint")
+		case "tsMs":
+			out.Values[i] = ec._AssetSnapshotHistoryPoint_tsMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._AssetSnapshotHistoryPoint_total(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -52080,6 +52574,55 @@ func (ec *executionContext) _Position(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
+var positionSnapshotHistoryPointImplementors = []string{"PositionSnapshotHistoryPoint"}
+
+func (ec *executionContext) _PositionSnapshotHistoryPoint(ctx context.Context, sel ast.SelectionSet, obj *model.PositionSnapshotHistoryPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, positionSnapshotHistoryPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PositionSnapshotHistoryPoint")
+		case "tsMs":
+			out.Values[i] = ec._PositionSnapshotHistoryPoint_tsMs(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "qty":
+			out.Values[i] = ec._PositionSnapshotHistoryPoint_qty(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "entryPrice":
+			out.Values[i] = ec._PositionSnapshotHistoryPoint_entryPrice(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var pushConfigImplementors = []string{"PushConfig"}
 
 func (ec *executionContext) _PushConfig(ctx context.Context, sel ast.SelectionSet, obj *model.PushConfig) graphql.Marshaler {
@@ -52922,6 +53465,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_Ledgers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "AssetSnapshotHistory":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_AssetSnapshotHistory(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "PositionSnapshotHistory":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_PositionSnapshotHistory(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -55436,6 +56023,32 @@ func (ec *executionContext) marshalNAsset2ᚖgithubᚗcomᚋwangliang139ᚋNovaF
 	return ec._Asset(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNAssetSnapshotHistoryPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAssetSnapshotHistoryPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssetSnapshotHistoryPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssetSnapshotHistoryPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAssetSnapshotHistoryPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssetSnapshotHistoryPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAssetSnapshotHistoryPoint(ctx context.Context, sel ast.SelectionSet, v *model.AssetSnapshotHistoryPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssetSnapshotHistoryPoint(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNAuthAlgorithm2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐAuthAlgorithm(ctx context.Context, v any) (model.AuthAlgorithm, error) {
 	var res model.AuthAlgorithm
 	err := res.UnmarshalGQL(v)
@@ -57271,6 +57884,32 @@ func (ec *executionContext) marshalNPositionSide2githubᚗcomᚋwangliang139ᚋN
 	return v
 }
 
+func (ec *executionContext) marshalNPositionSnapshotHistoryPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSnapshotHistoryPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PositionSnapshotHistoryPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNPositionSnapshotHistoryPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSnapshotHistoryPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNPositionSnapshotHistoryPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPositionSnapshotHistoryPoint(ctx context.Context, sel ast.SelectionSet, v *model.PositionSnapshotHistoryPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PositionSnapshotHistoryPoint(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNPushConfig2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐPushConfig(ctx context.Context, sel ast.SelectionSet, v model.PushConfig) graphql.Marshaler {
 	return ec._PushConfig(ctx, sel, &v)
 }
@@ -57302,6 +57941,11 @@ func (ec *executionContext) unmarshalNQueryAccountMetricsInput2githubᚗcomᚋwa
 
 func (ec *executionContext) unmarshalNQueryAccountsInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAccountsInput(ctx context.Context, v any) (model.QueryAccountsInput, error) {
 	res, err := ec.unmarshalInputQueryAccountsInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNQueryAssetSnapshotHistoryInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryAssetSnapshotHistoryInput(ctx context.Context, v any) (model.QueryAssetSnapshotHistoryInput, error) {
+	res, err := ec.unmarshalInputQueryAssetSnapshotHistoryInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -57437,6 +58081,11 @@ func (ec *executionContext) unmarshalNQueryOrderBookInput2githubᚗcomᚋwanglia
 
 func (ec *executionContext) unmarshalNQueryOrdersInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryOrdersInput(ctx context.Context, v any) (model.QueryOrdersInput, error) {
 	res, err := ec.unmarshalInputQueryOrdersInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNQueryPositionSnapshotHistoryInput2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐQueryPositionSnapshotHistoryInput(ctx context.Context, v any) (model.QueryPositionSnapshotHistoryInput, error) {
+	res, err := ec.unmarshalInputQueryPositionSnapshotHistoryInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

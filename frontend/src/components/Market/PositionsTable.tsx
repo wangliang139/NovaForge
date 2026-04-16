@@ -169,6 +169,7 @@ const PositionsTable: React.FC<PositionsTableProps> = ({
         dataIndex: 'notional',
         key: 'notional',
         align: 'right',
+        render: (text: any) => utils.math.formatByPrecision(text, 2),
       },
       {
         title: '保证金',
@@ -195,7 +196,7 @@ const PositionsTable: React.FC<PositionsTableProps> = ({
         render: (text: any) => {
           const value = parseFloat(String(text));
           const color = value >= 0 ? 'green' : 'red';
-          return <span style={{ color }}>{text}</span>;
+          return <span style={{ color }}>{utils.math.formatByPrecision(text, 2)}</span>;
         },
       },
       {
@@ -249,14 +250,14 @@ const PositionsTable: React.FC<PositionsTableProps> = ({
               合计
             </ProTable.Summary.Cell>
             <ProTable.Summary.Cell index={1} align="right">
-              {totals.netValue !== 0 ? utils.math.formatByPrecision(totals.netValue, 8) : '0'}
+              {totals.netValue !== 0 ? utils.math.formatByPrecision(totals.netValue, 2) : '0'}
             </ProTable.Summary.Cell>
             <ProTable.Summary.Cell index={3} colSpan={2} />
             <ProTable.Summary.Cell index={4} align="right">
               {unRealizedNum >= 0 ? (
-                <span style={{ color: '#52c41a' }}>{unRealizedText}</span>
+                <span style={{ color: '#52c41a' }}>{utils.math.formatByPrecision(unRealizedText, 2)}</span>
               ) : (
-                <span style={{ color: '#ff4d4f' }}>{unRealizedText}</span>
+                <span style={{ color: '#ff4d4f' }}>{utils.math.formatByPrecision(unRealizedText, 2)}</span>
               )}
             </ProTable.Summary.Cell>
             <ProTable.Summary.Cell index={5} colSpan={1} />

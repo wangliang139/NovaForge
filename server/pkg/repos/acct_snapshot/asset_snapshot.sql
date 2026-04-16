@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS asset_snapshot (
     wallet_type     wallet_type                           NOT NULL,
     asset           VARCHAR(16)                           NOT NULL,
     total           DECIMAL(32, 18)                       NOT NULL DEFAULT 0,
-    frozen          DECIMAL(32, 18)                       NOT NULL DEFAULT 0,
     effective_ts    TIMESTAMPTZ                           NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

@@ -1,6 +1,6 @@
 -- 账户资金流水表（账户维度，记录所有余额变化）
 CREATE TABLE IF NOT EXISTS ledgers (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT PRIMARY KEY,
     account_id VARCHAR(64) NOT NULL,
     exchange VARCHAR(32) NOT NULL,
     asset VARCHAR(32) NOT NULL,

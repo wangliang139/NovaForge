@@ -20,7 +20,7 @@ import (
 )
 
 const getAccountAssetSnapshotAtOrBefore = `-- name: GetAccountAssetSnapshotAtOrBefore :one
-SELECT id, account_id, exchange, wallet_type, asset, total, frozen, effective_ts, created_at
+SELECT id, account_id, exchange, wallet_type, asset, total, effective_ts, created_at
 FROM asset_snapshot
 WHERE account_id = $1
   AND exchange = $2
@@ -46,7 +46,6 @@ type GetAccountAssetSnapshotAtOrBeforeRow struct {
 	WalletType  WalletType
 	Asset       string
 	Total       pgtype.Numeric
-	Frozen      pgtype.Numeric
 	EffectiveTs time.Time
 	CreatedAt   time.Time
 }
@@ -78,7 +77,6 @@ func _GetAccountAssetSnapshotAtOrBefore(ctx context.Context, q CacheQuerierConn,
 		&i.WalletType,
 		&i.Asset,
 		&i.Total,
-		&i.Frozen,
 		&i.EffectiveTs,
 		&i.CreatedAt,
 	)
@@ -166,8 +164,8 @@ func _GetAccountPositionSnapshotAtOrBefore(ctx context.Context, q CacheQuerierCo
 }
 
 const insertAccountAssetSnapshot = `-- name: InsertAccountAssetSnapshot :exec
-INSERT INTO asset_snapshot (account_id, exchange, wallet_type, asset, total, frozen, effective_ts)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO asset_snapshot (account_id, exchange, wallet_type, asset, total, effective_ts)
+VALUES ($1, $2, $3, $4, $5, $6)
 `
 
 type InsertAccountAssetSnapshotParams struct {
@@ -176,7 +174,6 @@ type InsertAccountAssetSnapshotParams struct {
 	WalletType  WalletType
 	Asset       string
 	Total       pgtype.Numeric
-	Frozen      pgtype.Numeric
 	EffectiveTs time.Time
 }
 
@@ -190,7 +187,6 @@ func (q *Queries) InsertAccountAssetSnapshot(ctx context.Context, arg InsertAcco
 		arg.WalletType,
 		arg.Asset,
 		arg.Total,
-		arg.Frozen,
 		arg.EffectiveTs)
 	if err != nil {
 		return err
@@ -233,6 +229,207 @@ func (q *Queries) InsertAccountPositionSnapshot(ctx context.Context, arg InsertA
 	}
 
 	return nil
+}
+
+const listAccountAssetSnapshotsInRange = `-- name: ListAccountAssetSnapshotsInRange :many
+SELECT effective_ts, total
+FROM asset_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND asset = $3
+  AND wallet_type = $4
+  AND effective_ts >= $5
+  AND effective_ts <= $6
+ORDER BY effective_ts ASC, id ASC
+LIMIT 10000
+`
+
+type ListAccountAssetSnapshotsInRangeParams struct {
+	AccountID     string
+	Exchange      string
+	Asset         string
+	WalletType    WalletType
+	EffectiveTs   time.Time
+	EffectiveTs_2 time.Time
+}
+
+type ListAccountAssetSnapshotsInRangeRow struct {
+	EffectiveTs time.Time
+	Total       pgtype.Numeric
+}
+
+// -- timeout: 5s
+func (q *Queries) ListAccountAssetSnapshotsInRange(ctx context.Context, arg ListAccountAssetSnapshotsInRangeParams) ([]ListAccountAssetSnapshotsInRangeRow, error) {
+	return _ListAccountAssetSnapshotsInRange(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListAccountAssetSnapshotsInRange(ctx context.Context, arg ListAccountAssetSnapshotsInRangeParams) ([]ListAccountAssetSnapshotsInRangeRow, error) {
+	return _ListAccountAssetSnapshotsInRange(ctx, q, arg)
+}
+
+func _ListAccountAssetSnapshotsInRange(ctx context.Context, q CacheQuerierConn, arg ListAccountAssetSnapshotsInRangeParams) ([]ListAccountAssetSnapshotsInRangeRow, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*5000)
+	defer cancel()
+	q.GetConn().CountIntent("acct_snapshot.ListAccountAssetSnapshotsInRange")
+	rows, err := q.GetConn().WQuery(qctx, "acct_snapshot.ListAccountAssetSnapshotsInRange", listAccountAssetSnapshotsInRange,
+		arg.AccountID,
+		arg.Exchange,
+		arg.Asset,
+		arg.WalletType,
+		arg.EffectiveTs,
+		arg.EffectiveTs_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAccountAssetSnapshotsInRangeRow
+	for rows.Next() {
+		var i *ListAccountAssetSnapshotsInRangeRow = new(ListAccountAssetSnapshotsInRangeRow)
+		if err := rows.Scan(&i.EffectiveTs, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
+const listAccountPositionSnapshotsInRange = `-- name: ListAccountPositionSnapshotsInRange :many
+SELECT effective_ts, qty, entry_price
+FROM position_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND symbol = $3
+  AND side = $4
+  AND effective_ts >= $5
+  AND effective_ts <= $6
+ORDER BY effective_ts ASC, id ASC
+LIMIT 10000
+`
+
+type ListAccountPositionSnapshotsInRangeParams struct {
+	AccountID     string
+	Exchange      string
+	Symbol        string
+	Side          PositionSide
+	EffectiveTs   time.Time
+	EffectiveTs_2 time.Time
+}
+
+type ListAccountPositionSnapshotsInRangeRow struct {
+	EffectiveTs time.Time
+	Qty         pgtype.Numeric
+	EntryPrice  pgtype.Numeric
+}
+
+// -- timeout: 5s
+func (q *Queries) ListAccountPositionSnapshotsInRange(ctx context.Context, arg ListAccountPositionSnapshotsInRangeParams) ([]ListAccountPositionSnapshotsInRangeRow, error) {
+	return _ListAccountPositionSnapshotsInRange(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListAccountPositionSnapshotsInRange(ctx context.Context, arg ListAccountPositionSnapshotsInRangeParams) ([]ListAccountPositionSnapshotsInRangeRow, error) {
+	return _ListAccountPositionSnapshotsInRange(ctx, q, arg)
+}
+
+func _ListAccountPositionSnapshotsInRange(ctx context.Context, q CacheQuerierConn, arg ListAccountPositionSnapshotsInRangeParams) ([]ListAccountPositionSnapshotsInRangeRow, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*5000)
+	defer cancel()
+	q.GetConn().CountIntent("acct_snapshot.ListAccountPositionSnapshotsInRange")
+	rows, err := q.GetConn().WQuery(qctx, "acct_snapshot.ListAccountPositionSnapshotsInRange", listAccountPositionSnapshotsInRange,
+		arg.AccountID,
+		arg.Exchange,
+		arg.Symbol,
+		arg.Side,
+		arg.EffectiveTs,
+		arg.EffectiveTs_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAccountPositionSnapshotsInRangeRow
+	for rows.Next() {
+		var i *ListAccountPositionSnapshotsInRangeRow = new(ListAccountPositionSnapshotsInRangeRow)
+		if err := rows.Scan(&i.EffectiveTs, &i.Qty, &i.EntryPrice); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
+}
+
+const listLatestAccountAssetSnapshotsAtOrBefore = `-- name: ListLatestAccountAssetSnapshotsAtOrBefore :many
+SELECT DISTINCT ON (asset, wallet_type) id, account_id, exchange, wallet_type, asset, total, effective_ts, created_at
+FROM asset_snapshot
+WHERE account_id = $1
+  AND exchange = $2
+  AND effective_ts <= $3
+ORDER BY asset, wallet_type, effective_ts DESC, id DESC
+`
+
+type ListLatestAccountAssetSnapshotsAtOrBeforeParams struct {
+	AccountID   string
+	Exchange    string
+	EffectiveTs time.Time
+}
+
+type ListLatestAccountAssetSnapshotsAtOrBeforeRow struct {
+	ID          int64
+	AccountID   string
+	Exchange    string
+	WalletType  WalletType
+	Asset       string
+	Total       pgtype.Numeric
+	EffectiveTs time.Time
+	CreatedAt   time.Time
+}
+
+// -- timeout: 2s
+func (q *Queries) ListLatestAccountAssetSnapshotsAtOrBefore(ctx context.Context, arg ListLatestAccountAssetSnapshotsAtOrBeforeParams) ([]ListLatestAccountAssetSnapshotsAtOrBeforeRow, error) {
+	return _ListLatestAccountAssetSnapshotsAtOrBefore(ctx, q.AsReadOnly(), arg)
+}
+
+func (q *ReadOnlyQueries) ListLatestAccountAssetSnapshotsAtOrBefore(ctx context.Context, arg ListLatestAccountAssetSnapshotsAtOrBeforeParams) ([]ListLatestAccountAssetSnapshotsAtOrBeforeRow, error) {
+	return _ListLatestAccountAssetSnapshotsAtOrBefore(ctx, q, arg)
+}
+
+func _ListLatestAccountAssetSnapshotsAtOrBefore(ctx context.Context, q CacheQuerierConn, arg ListLatestAccountAssetSnapshotsAtOrBeforeParams) ([]ListLatestAccountAssetSnapshotsAtOrBeforeRow, error) {
+	qctx, cancel := context.WithTimeout(ctx, time.Millisecond*2000)
+	defer cancel()
+	q.GetConn().CountIntent("acct_snapshot.ListLatestAccountAssetSnapshotsAtOrBefore")
+	rows, err := q.GetConn().WQuery(qctx, "acct_snapshot.ListLatestAccountAssetSnapshotsAtOrBefore", listLatestAccountAssetSnapshotsAtOrBefore, arg.AccountID, arg.Exchange, arg.EffectiveTs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLatestAccountAssetSnapshotsAtOrBeforeRow
+	for rows.Next() {
+		var i *ListLatestAccountAssetSnapshotsAtOrBeforeRow = new(ListLatestAccountAssetSnapshotsAtOrBeforeRow)
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.Exchange,
+			&i.WalletType,
+			&i.Asset,
+			&i.Total,
+			&i.EffectiveTs,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, *i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, err
 }
 
 const listLatestAccountPositionSnapshotsAtOrBefore = `-- name: ListLatestAccountPositionSnapshotsAtOrBefore :many

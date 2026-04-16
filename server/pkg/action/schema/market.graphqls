@@ -511,6 +511,36 @@ input QueryLedgersInput {
   source: MarketSource
 }
 
+"""资产快照历史点（asset_snapshot.total，币本位）"""
+type AssetSnapshotHistoryPoint {
+  tsMs: Int!
+  total: String!
+}
+
+"""仓位快照历史点（数量与开仓均价）"""
+type PositionSnapshotHistoryPoint {
+  tsMs: Int!
+  qty: String!
+  entryPrice: String!
+}
+
+input QueryAssetSnapshotHistoryInput {
+  accountId: ID!
+  walletType: WalletType!
+  asset: String!
+  """Unix 毫秒，区间闭区间 [startTsMs, endTsMs]"""
+  startTsMs: Int!
+  endTsMs: Int!
+}
+
+input QueryPositionSnapshotHistoryInput {
+  accountId: ID!
+  symbol: String!
+  side: PositionSide!
+  startTsMs: Int!
+  endTsMs: Int!
+}
+
 input QueryOrderBookInput {
   exchange: Exchange!
   symbol: String!
@@ -547,6 +577,10 @@ extend type Query {
   Positions(input: QueryPositionsInput!): [Position!]!
   Orders(input: QueryOrdersInput!): OrdersConnection!
   Ledgers(input: QueryLedgersInput!): LedgersConnection!
+  """账户维度下某资产在时间窗内的快照序列（来自 asset_snapshot）"""
+  AssetSnapshotHistory(input: QueryAssetSnapshotHistoryInput!): [AssetSnapshotHistoryPoint!]!
+  """账户维度下某仓位在时间窗内的快照序列（来自 position_snapshot）"""
+  PositionSnapshotHistory(input: QueryPositionSnapshotHistoryInput!): [PositionSnapshotHistoryPoint!]!
   # 下单前预估订单核心风险/收益信息（强平价格/手续费/盈亏等）
   EstimateOrder(input: EstimateOrderInput!): EstimateOrderResult!
   ListAlerts(exchange: Exchange!, symbol: String!): [AlertItem!]!

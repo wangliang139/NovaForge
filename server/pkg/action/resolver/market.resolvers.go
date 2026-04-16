@@ -602,6 +602,55 @@ func (r *queryResolver) Ledgers(ctx context.Context, input model.QueryLedgersInp
 	}, nil
 }
 
+// AssetSnapshotHistory is the resolver for the AssetSnapshotHistory field.
+func (r *queryResolver) AssetSnapshotHistory(ctx context.Context, input model.QueryAssetSnapshotHistoryInput) ([]*model.AssetSnapshotHistoryPoint, error) {
+	_, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		return nil, mowerror.New(mowerror.PermissionDenied, "unauthorized")
+	}
+	if strings.TrimSpace(input.AccountID) == "" {
+		return nil, mowerror.New(mowerror.InvalidArgument, "accountId is required")
+	}
+	wt := converter.WalletTypeGql2Types(&input.WalletType)
+	if wt == nil || !wt.Valid() {
+		return nil, mowerror.New(mowerror.InvalidArgument, "walletType is required")
+	}
+	start := time.UnixMilli(int64(input.StartTsMs)).UTC()
+	end := time.UnixMilli(int64(input.EndTsMs)).UTC()
+	points, err := r.AccountSvc.ListAssetSnapshotHistory(ctx, input.AccountID, *wt, input.Asset, start, end)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.AssetSnapshotHistoryPoint, len(points))
+	for i, p := range points {
+		out[i] = &model.AssetSnapshotHistoryPoint{TsMs: p.TsMs, Total: p.Total}
+	}
+	return out, nil
+}
+
+// PositionSnapshotHistory is the resolver for the PositionSnapshotHistory field.
+func (r *queryResolver) PositionSnapshotHistory(ctx context.Context, input model.QueryPositionSnapshotHistoryInput) ([]*model.PositionSnapshotHistoryPoint, error) {
+	_, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		return nil, mowerror.New(mowerror.PermissionDenied, "unauthorized")
+	}
+	if strings.TrimSpace(input.AccountID) == "" {
+		return nil, mowerror.New(mowerror.InvalidArgument, "accountId is required")
+	}
+	side := converter.PositionSideGql2Types(input.Side)
+	start := time.UnixMilli(int64(input.StartTsMs)).UTC()
+	end := time.UnixMilli(int64(input.EndTsMs)).UTC()
+	points, err := r.AccountSvc.ListPositionSnapshotHistory(ctx, input.AccountID, input.Symbol, side, start, end)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.PositionSnapshotHistoryPoint, len(points))
+	for i, p := range points {
+		out[i] = &model.PositionSnapshotHistoryPoint{TsMs: p.TsMs, Qty: p.Qty, EntryPrice: p.EntryPrice}
+	}
+	return out, nil
+}
+
 // EstimateOrder is the resolver for the EstimateOrder field.
 func (r *queryResolver) EstimateOrder(ctx context.Context, input model.EstimateOrderInput) (*model.EstimateOrderResult, error) {
 	_, ok := auth.GetUserFromContext(ctx)

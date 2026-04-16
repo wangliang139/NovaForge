@@ -155,7 +155,6 @@ CREATE TABLE IF NOT EXISTS asset_snapshot (
     wallet_type     public.wallet_type                    NOT NULL,
     asset           VARCHAR(16)                           NOT NULL,
     total           DECIMAL(32, 18)                       NOT NULL DEFAULT 0,
-    frozen          DECIMAL(32, 18)                       NOT NULL DEFAULT 0,
     effective_ts    TIMESTAMPTZ                           NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -212,7 +211,7 @@ CREATE TABLE IF NOT EXISTS symbol_equity (
 
 -- ledgers
 CREATE TABLE IF NOT EXISTS ledgers (
-    id BIGSERIAL PRIMARY KEY,
+    id BIGINT PRIMARY KEY,
     account_id VARCHAR(64) NOT NULL,
     exchange VARCHAR(32) NOT NULL,
     asset VARCHAR(32) NOT NULL,

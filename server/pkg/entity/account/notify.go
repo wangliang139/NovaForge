@@ -14,9 +14,22 @@ import (
 )
 
 func (e *Entity) maybeNotifyOrderTelegram(ctx context.Context, prev *orders.Order, ord *ctypes.Order) {
-	if ord == nil {
+	if ord == nil || ord.AccountID == "" {
 		return
 	}
+
+	acct, err := e.GetAccount(ctx, ord.AccountID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("account_id", ord.AccountID).Msg("failed to get account for telegram notify")
+	}
+	if acct == nil {
+		return
+	}
+	if acct.AccountType == ctypes.AccountTypeVirtualSub {
+		// 虚拟子账户订单不发送通知，避免多 bot 场景下重复/噪音告警。
+		return
+	}
+
 	curStatus := ctypes.OrderStatus(strings.ToUpper(strings.TrimSpace(string(ord.Status))))
 	if curStatus == "" {
 		curStatus = ctypes.OrderStatusNew
@@ -41,15 +54,7 @@ func (e *Entity) maybeNotifyOrderTelegram(ctx context.Context, prev *orders.Orde
 		title = "✅ 订单已结束"
 	}
 
-	accountDisplay := ord.AccountID
-	if ord.AccountID != "" {
-		acct, err := e.GetAccount(ctx, ord.AccountID)
-		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).Str("account_id", ord.AccountID).Msg("failed to get account for telegram notify")
-		} else if acct != nil && strings.TrimSpace(acct.Name) != "" {
-			accountDisplay = fmt.Sprintf("%s (%s)", acct.Name, ord.AccountID)
-		}
-	}
+	accountDisplay := fmt.Sprintf("%s (%s)", acct.Name, ord.AccountID)
 
 	args := buildOrderNotifyArgs(title, ord, curStatus, accountDisplay)
 

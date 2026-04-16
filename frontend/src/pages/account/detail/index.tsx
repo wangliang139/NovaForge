@@ -1249,13 +1249,14 @@ const AccountDetail: FC = () => {
                     return <Tag color={info.color}>{info.text}</Tag>;
                   },
                 },
-                { title: '总资金', dataIndex: 'parentTotal', width: 120 },
+                { title: '总资金', dataIndex: 'parentTotal', width: 120, render: (value: string) => utils.math.formatByPrecision(value, 8) },
                 {
                   title: '未分配',
                   dataIndex: 'unallocated',
                   width: 120,
                   render: (value: string, record: any) => {
                     const unallocatedValue = Number(value);
+                    const display = utils.math.formatByPrecision(value, 8);
                     const parentTotalValue = Number(record.parentTotal);
                     const ratio =
                       Number.isFinite(unallocatedValue) &&
@@ -1265,7 +1266,7 @@ const AccountDetail: FC = () => {
                         : 0;
                     return (
                       <div>
-                        <div>{value || '0'}</div>
+                        <div>{display || '0'}</div>
                         <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
                       </div>
                     );
@@ -1280,6 +1281,7 @@ const AccountDetail: FC = () => {
                     );
                     const amount = allocation?.amount || '0';
                     const amountValue = Number(amount);
+                    const display = utils.math.formatByPrecision(amount, 8);
                     const parentTotalValue = Number(record.parentTotal);
                     const ratio =
                       Number.isFinite(amountValue) &&
@@ -1289,7 +1291,7 @@ const AccountDetail: FC = () => {
                         : 0;
                     return (
                       <div>
-                        <div>{amount}</div>
+                        <div>{display}</div>
                         <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
                       </div>
                     );
@@ -1328,6 +1330,7 @@ const AccountDetail: FC = () => {
                   width: 120,
                   render: (value: string, record: any) => {
                     const unallocatedValue = Number(value);
+                    const display = utils.math.formatByPrecision(value, 8);
                     const parentTotalValue = Number(record.parentTotal);
                     const ratio =
                       Number.isFinite(unallocatedValue) &&
@@ -1337,7 +1340,7 @@ const AccountDetail: FC = () => {
                         : 0;
                     return (
                       <div>
-                        <div>{value || '0'}</div>
+                        <div>{display || '0'}</div>
                         <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
                       </div>
                     );
@@ -1352,6 +1355,7 @@ const AccountDetail: FC = () => {
                     );
                     const amount = allocation?.amount || '0';
                     const amountValue = Number(amount);
+                    const display = utils.math.formatByPrecision(amount, 8);
                     const parentTotalValue = Number(record.parentTotal);
                     const ratio =
                       Number.isFinite(amountValue) &&
@@ -1361,7 +1365,7 @@ const AccountDetail: FC = () => {
                         : 0;
                     return (
                       <div>
-                        <div>{amount}</div>
+                        <div>{display}</div>
                         <Typography.Text type="secondary">{`${(ratio * 100).toFixed(2)}%`}</Typography.Text>
                       </div>
                     );
