@@ -32,7 +32,8 @@ const (
 
 // PlaceOrderRequest is the unified wire for spot and perp orders.
 type PlaceOrderRequest struct {
-	Symbol Symbol
+	AccountID string
+	Symbol    Symbol
 
 	OrderType OrderType
 	Side      Side
@@ -62,6 +63,7 @@ const (
 // SimOrder is a resting or completed simulated order record.
 type SimOrder struct {
 	ID            string
+	AccountID     string
 	ClientOrderID string
 	Symbol        Symbol
 

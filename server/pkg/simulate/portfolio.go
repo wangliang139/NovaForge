@@ -18,70 +18,76 @@ type Position struct {
 type Portfolio struct {
 	mu sync.Mutex
 
-	balances map[Asset]decimal.Decimal
+	accounts map[string]*AccountState
+}
 
+type AccountState struct {
+	balances  map[Asset]decimal.Decimal
 	positions map[Symbol]*Position
 }
 
 // NewPortfolio creates an empty portfolio.
 func NewPortfolio() *Portfolio {
 	return &Portfolio{
-		balances:  make(map[Asset]decimal.Decimal),
-		positions: make(map[Symbol]*Position),
+		accounts: make(map[string]*AccountState),
 	}
 }
 
 // SetBalance sets absolute balance for an asset (initialization / deposit).
-func (p *Portfolio) SetBalance(a Asset, v decimal.Decimal) {
+func (p *Portfolio) SetBalance(accountID string, a Asset, v decimal.Decimal) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.balances[a] = v
+	acc := p.ensureAccount(accountID)
+	acc.balances[a] = v
 }
 
 // Balances returns a snapshot of balances (including zeros for known keys only if set).
-func (p *Portfolio) Balances() map[Asset]decimal.Decimal {
+func (p *Portfolio) Balances(accountID string) map[Asset]decimal.Decimal {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	out := make(map[Asset]decimal.Decimal, len(p.balances))
-	for k, v := range p.balances {
+	acc := p.ensureAccount(accountID)
+	out := make(map[Asset]decimal.Decimal, len(acc.balances))
+	for k, v := range acc.balances {
 		out[k] = v
 	}
 	return out
 }
 
 // Balance returns balance for asset.
-func (p *Portfolio) Balance(a Asset) decimal.Decimal {
+func (p *Portfolio) Balance(accountID string, a Asset) decimal.Decimal {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.balances[a]
+	acc := p.ensureAccount(accountID)
+	return acc.balances[a]
 }
 
-func (p *Portfolio) addBal(a Asset, v decimal.Decimal) {
-	p.balances[a] = p.balances[a].Add(v)
+func (p *Portfolio) addBal(acc *AccountState, a Asset, v decimal.Decimal) {
+	acc.balances[a] = acc.balances[a].Add(v)
 }
 
-func (p *Portfolio) subBal(a Asset, v decimal.Decimal) error {
-	cur := p.balances[a]
+func (p *Portfolio) subBal(acc *AccountState, a Asset, v decimal.Decimal) error {
+	cur := acc.balances[a]
 	if cur.Sub(v).Sign() < 0 {
 		return ErrInsufficientBalance
 	}
-	p.balances[a] = cur.Sub(v)
+	acc.balances[a] = cur.Sub(v)
 	return nil
 }
 
 // Position returns a copy of the perp position for symbol.
-func (p *Portfolio) Position(sym Symbol) (Position, bool) {
+func (p *Portfolio) Position(accountID string, sym Symbol) (Position, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	pos, ok := p.positions[sym]
+	acc := p.ensureAccount(accountID)
+	pos, ok := acc.positions[sym]
 	if !ok {
 		return Position{}, false
 	}
 	return *pos, true
 }
 
-func (p *Portfolio) posPtr(sym Symbol) *Position {
-	if pos, ok := p.positions[sym]; ok {
+func (p *Portfolio) posPtr(acc *AccountState, sym Symbol) *Position {
+	if pos, ok := acc.positions[sym]; ok {
 		return pos
 	}
 	pos := &Position{
@@ -90,12 +96,35 @@ func (p *Portfolio) posPtr(sym Symbol) *Position {
 		UsedMargin: decimal.Zero,
 		Leverage:   1,
 	}
-	p.positions[sym] = pos
+	acc.positions[sym] = pos
 	return pos
 }
 
+func (p *Portfolio) ensureAccount(accountID string) *AccountState {
+	if accountID == "" {
+		accountID = "default"
+	}
+	if acc, ok := p.accounts[accountID]; ok {
+		return acc
+	}
+	acc := &AccountState{
+		balances:  make(map[Asset]decimal.Decimal),
+		positions: make(map[Symbol]*Position),
+	}
+	p.accounts[accountID] = acc
+	return acc
+}
+
+func (p *Portfolio) SetPosition(accountID string, sym Symbol, pos Position) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	acc := p.ensureAccount(accountID)
+	cp := pos
+	acc.positions[sym] = &cp
+}
+
 // ApplySpotBuy spends quote (incl. fee), receives base.
-func (p *Portfolio) ApplySpotBuy(ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
+func (p *Portfolio) ApplySpotBuy(accountID string, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
 	if len(fills) == 0 {
 		return nil
 	}
@@ -106,15 +135,16 @@ func (p *Portfolio) ApplySpotBuy(ins *Instrument, fills []Fill, feeQuote decimal
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if err := p.subBal(ins.Quote, quote.Add(feeQuote)); err != nil {
+	acc := p.ensureAccount(accountID)
+	if err := p.subBal(acc, ins.Quote, quote.Add(feeQuote)); err != nil {
 		return err
 	}
-	p.addBal(ins.Base, base)
+	p.addBal(acc, ins.Base, base)
 	return nil
 }
 
 // ApplySpotSell spends base, receives quote minus fee.
-func (p *Portfolio) ApplySpotSell(ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
+func (p *Portfolio) ApplySpotSell(accountID string, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
 	if len(fills) == 0 {
 		return nil
 	}
@@ -125,10 +155,11 @@ func (p *Portfolio) ApplySpotSell(ins *Instrument, fills []Fill, feeQuote decima
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if err := p.subBal(ins.Base, base); err != nil {
+	acc := p.ensureAccount(accountID)
+	if err := p.subBal(acc, ins.Base, base); err != nil {
 		return err
 	}
-	p.addBal(ins.Quote, quote.Sub(feeQuote))
+	p.addBal(acc, ins.Quote, quote.Sub(feeQuote))
 	return nil
 }
 
@@ -174,7 +205,7 @@ func weightedAvgEntryShort(oldQtyAbs, oldEntry, addQty, addPrice decimal.Decimal
 }
 
 // ApplyPerpOpenLong adds buy fills to a long or reduces short then errors if would flip (minimal: expect flat/long).
-func (p *Portfolio) ApplyPerpOpenLong(sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal, lev int32) error {
+func (p *Portfolio) ApplyPerpOpenLong(accountID string, sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal, lev int32) error {
 	if len(fills) == 0 {
 		return nil
 	}
@@ -188,10 +219,11 @@ func (p *Portfolio) ApplyPerpOpenLong(sym Symbol, ins *Instrument, fills []Fill,
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if err := p.subBal(ins.Quote, im.Add(feeQuote)); err != nil {
+	acc := p.ensureAccount(accountID)
+	if err := p.subBal(acc, ins.Quote, im.Add(feeQuote)); err != nil {
 		return err
 	}
-	pos := p.posPtr(sym)
+	pos := p.posPtr(acc, sym)
 	if pos.Qty.Sign() < 0 {
 		return ErrInvalidIntent
 	}
@@ -203,7 +235,7 @@ func (p *Portfolio) ApplyPerpOpenLong(sym Symbol, ins *Instrument, fills []Fill,
 }
 
 // ApplyPerpOpenShort adds sell fills to a short (negative qty). Rejects if existing long.
-func (p *Portfolio) ApplyPerpOpenShort(sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal, lev int32) error {
+func (p *Portfolio) ApplyPerpOpenShort(accountID string, sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal, lev int32) error {
 	if len(fills) == 0 {
 		return nil
 	}
@@ -217,10 +249,11 @@ func (p *Portfolio) ApplyPerpOpenShort(sym Symbol, ins *Instrument, fills []Fill
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if err := p.subBal(ins.Quote, im.Add(feeQuote)); err != nil {
+	acc := p.ensureAccount(accountID)
+	if err := p.subBal(acc, ins.Quote, im.Add(feeQuote)); err != nil {
 		return err
 	}
-	pos := p.posPtr(sym)
+	pos := p.posPtr(acc, sym)
 	if pos.Qty.Sign() > 0 {
 		return ErrInvalidIntent
 	}
@@ -233,7 +266,7 @@ func (p *Portfolio) ApplyPerpOpenShort(sym Symbol, ins *Instrument, fills []Fill
 }
 
 // ApplyPerpCloseLong applies sell fills closing a long: realizes PnL in quote, releases margin.
-func (p *Portfolio) ApplyPerpCloseLong(sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
+func (p *Portfolio) ApplyPerpCloseLong(accountID string, sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
 	if len(fills) == 0 {
 		return nil
 	}
@@ -246,7 +279,8 @@ func (p *Portfolio) ApplyPerpCloseLong(sym Symbol, ins *Instrument, fills []Fill
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	pos := p.posPtr(sym)
+	acc := p.ensureAccount(accountID)
+	pos := p.posPtr(acc, sym)
 	if pos.Qty.Sign() <= 0 {
 		return ErrInvalidIntent
 	}
@@ -261,12 +295,12 @@ func (p *Portfolio) ApplyPerpCloseLong(sym Symbol, ins *Instrument, fills []Fill
 	if pos.Qty.IsZero() {
 		pos.EntryPrice = decimal.Zero
 	}
-	p.addBal(ins.Quote, realized.Sub(feeQuote).Add(rel))
+	p.addBal(acc, ins.Quote, realized.Sub(feeQuote).Add(rel))
 	return nil
 }
 
 // ApplyPerpCloseShort applies buy fills closing a short.
-func (p *Portfolio) ApplyPerpCloseShort(sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
+func (p *Portfolio) ApplyPerpCloseShort(accountID string, sym Symbol, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
 	if len(fills) == 0 {
 		return nil
 	}
@@ -279,7 +313,8 @@ func (p *Portfolio) ApplyPerpCloseShort(sym Symbol, ins *Instrument, fills []Fil
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	pos := p.posPtr(sym)
+	acc := p.ensureAccount(accountID)
+	pos := p.posPtr(acc, sym)
 	if pos.Qty.Sign() >= 0 {
 		return ErrInvalidIntent
 	}
@@ -295,6 +330,6 @@ func (p *Portfolio) ApplyPerpCloseShort(sym Symbol, ins *Instrument, fills []Fil
 	if pos.Qty.IsZero() {
 		pos.EntryPrice = decimal.Zero
 	}
-	p.addBal(ins.Quote, realized.Sub(feeQuote).Add(rel))
+	p.addBal(acc, ins.Quote, realized.Sub(feeQuote).Add(rel))
 	return nil
 }

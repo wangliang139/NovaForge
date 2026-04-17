@@ -18,6 +18,7 @@ type MatchEvent struct {
 type SimBook struct {
 	mu     sync.Mutex
 	symbol Symbol
+	nowFn  func() time.Time
 
 	bidLevels map[string][]*SimOrder
 	askLevels map[string][]*SimOrder
@@ -25,9 +26,13 @@ type SimBook struct {
 }
 
 // NewSimBook creates an empty book for symbol.
-func NewSimBook(sym Symbol) *SimBook {
+func NewSimBook(sym Symbol, nowFn func() time.Time) *SimBook {
+	if nowFn == nil {
+		nowFn = func() time.Time { return time.Now().UTC() }
+	}
 	return &SimBook{
 		symbol:    sym,
+		nowFn:     nowFn,
 		bidLevels: make(map[string][]*SimOrder),
 		askLevels: make(map[string][]*SimOrder),
 		byID:      make(map[string]*SimOrder),
@@ -68,7 +73,7 @@ func (b *SimBook) Cancel(orderID string) (*SimOrder, bool) {
 	}
 	b.removeFromLevels(o)
 	o.Status = OrderStatusCanceled
-	now := time.Now().UTC()
+	now := b.nowFn().UTC()
 	o.LastUpdatedAt = now
 	return o, true
 }
@@ -206,7 +211,7 @@ func (b *SimBook) applyFillsUnlocked(o *SimOrder, fills []Fill) {
 	} else {
 		o.AvgFillPrice = o.AvgFillPrice.Mul(oldFilled).Add(notional).Div(o.QtyFilled)
 	}
-	now := time.Now().UTC()
+	now := b.nowFn().UTC()
 	o.LastUpdatedAt = now
 	if o.QtyRemaining.IsZero() {
 		o.Status = OrderStatusFilled

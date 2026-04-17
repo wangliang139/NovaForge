@@ -15,22 +15,84 @@ import (
 type SimExchange struct {
 	mu sync.Mutex
 
-	ins     map[Symbol]*Instrument
-	depths  map[Symbol]*MarketDepth
-	books   map[Symbol]*SimBook
-	port    *Portfolio
+	ins    map[Symbol]*Instrument
+	depths map[Symbol]*MarketDepth
+	books  map[accountSymbolKey]*SimBook
+	port   *Portfolio
+	nowFn  func() time.Time
 
 	nextOrderID int64
 }
 
+// SimExchangeOption customizes simulator runtime behavior.
+type SimExchangeOption func(*SimExchange)
+
+type accountSymbolKey struct {
+	AccountID string
+	Symbol    Symbol
+}
+
+// WithNowFn injects a deterministic clock source for replay/testing.
+func WithNowFn(nowFn func() time.Time) SimExchangeOption {
+	return func(e *SimExchange) {
+		if nowFn != nil {
+			e.nowFn = nowFn
+		}
+	}
+}
+
 // NewSimExchange creates an exchange with an empty portfolio.
-func NewSimExchange() *SimExchange {
-	return &SimExchange{
+func NewSimExchange(opts ...SimExchangeOption) *SimExchange {
+	nowFn := func() time.Time { return time.Now().UTC() }
+	e := &SimExchange{
 		ins:    make(map[Symbol]*Instrument),
 		depths: make(map[Symbol]*MarketDepth),
-		books:  make(map[Symbol]*SimBook),
+		books:  make(map[accountSymbolKey]*SimBook),
 		port:   NewPortfolio(),
+		nowFn:  nowFn,
 	}
+	for _, opt := range opts {
+		opt(e)
+	}
+	return e
+}
+
+func (e *SimExchange) now() time.Time {
+	if e.nowFn == nil {
+		return time.Now().UTC()
+	}
+	return e.nowFn().UTC()
+}
+
+func normalizeAccountID(accountID string) (string, error) {
+	if accountID == "" {
+		return "", ErrInvalidAccount
+	}
+	return accountID, nil
+}
+
+func (e *SimExchange) InitBalances(accountID string, bals map[Asset]decimal.Decimal) error {
+	if len(bals) == 0 {
+		return nil
+	}
+	var err error
+	accountID, err = normalizeAccountID(accountID)
+	if err != nil {
+		return err
+	}
+	for asset, amount := range bals {
+		e.port.SetBalance(accountID, asset, amount)
+	}
+	return nil
+}
+
+func (e *SimExchange) InitPosition(accountID string, sym Symbol, pos Position) error {
+	accountID, err := normalizeAccountID(accountID)
+	if err != nil {
+		return err
+	}
+	e.port.SetPosition(accountID, sym, pos)
+	return nil
 }
 
 // Portfolio returns the underlying portfolio (same pointer; external code should not mutate without care).
@@ -44,9 +106,6 @@ func (e *SimExchange) RegisterInstrument(ins *Instrument) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.ins[ins.Symbol] = ins
-	if _, ok := e.books[ins.Symbol]; !ok {
-		e.books[ins.Symbol] = NewSimBook(ins.Symbol)
-	}
 	return nil
 }
 
@@ -58,15 +117,28 @@ func (e *SimExchange) BindDepth(sym Symbol, d *MarketDepth) error {
 		return ErrUnknownSymbol
 	}
 	e.depths[sym] = d
-	if e.books[sym] == nil {
-		e.books[sym] = NewSimBook(sym)
-	}
 	return nil
+}
+
+func (e *SimExchange) getBook(accountID string, sym Symbol) *SimBook {
+	key := accountSymbolKey{AccountID: accountID, Symbol: sym}
+	b := e.books[key]
+	if b == nil {
+		b = NewSimBook(sym, e.now)
+		e.books[key] = b
+	}
+	return b
 }
 
 func (e *SimExchange) genOrderID() string {
 	n := atomic.AddInt64(&e.nextOrderID, 1)
 	return fmt.Sprintf("o%d", n)
+}
+
+func (e *SimExchange) getDepth(sym Symbol) *MarketDepth {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.depths[sym]
 }
 
 func midPrice(d *MarketDepth) decimal.Decimal {
@@ -132,6 +204,15 @@ func (e *SimExchange) validateRequest(req *PlaceOrderRequest, ins *Instrument, p
 
 // PlaceOrder validates, matches against public depth (shadow), updates portfolio, and rests the remainder.
 func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*PlaceOrderResult, error) {
+	return e.placeOrderAt(ctx, req, e.now())
+}
+
+// PlaceOrderAt is deterministic placement entry used by replay/event-pump.
+func (e *SimExchange) PlaceOrderAt(ctx context.Context, req PlaceOrderRequest, ts time.Time) (*PlaceOrderResult, error) {
+	return e.placeOrderAt(ctx, req, ts)
+}
+
+func (e *SimExchange) placeOrderAt(ctx context.Context, req PlaceOrderRequest, ts time.Time) (*PlaceOrderResult, error) {
 	_ = ctx
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -144,9 +225,13 @@ func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*P
 	if !ok || d == nil {
 		return nil, ErrNotInitialized
 	}
-	book := e.books[req.Symbol]
+	accountID, err := normalizeAccountID(req.AccountID)
+	if err != nil {
+		return nil, err
+	}
+	book := e.getBook(accountID, req.Symbol)
 
-	pos, _ := e.port.Position(req.Symbol)
+	pos, _ := e.port.Position(accountID, req.Symbol)
 	if err := e.validateRequest(&req, ins, pos); err != nil {
 		return nil, err
 	}
@@ -160,9 +245,10 @@ func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*P
 		return nil, err
 	}
 
-	now := time.Now().UTC()
+	now := ts.UTC()
 	order := &SimOrder{
 		ID:            e.genOrderID(),
+		AccountID:     accountID,
 		ClientOrderID: req.ClientOrderID,
 		Symbol:        req.Symbol,
 		OrderType:     req.OrderType,
@@ -206,17 +292,17 @@ func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*P
 			filledQty := totalFilledQty(fills)
 			fee := FeeNotional(notional, takerBps)
 			if req.Side == SideBuy {
-				if err := e.port.ApplySpotBuy(ins, fills, fee); err != nil {
+				if err := e.port.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
 					return nil, err
 				}
 			} else {
-				if err := e.port.ApplySpotSell(ins, fills, fee); err != nil {
+				if err := e.port.ApplySpotSell(accountID, ins, fills, fee); err != nil {
 					return nil, err
 				}
 			}
 			allFills = fills
 			feeSum = fee
-			fillOrderImmediate(order, fills, notional, filledQty)
+			fillOrderImmediate(order, fills, notional, filledQty, now)
 
 		case OrderTypeLimit:
 			if err := ins.ValidateOrderParams(price, qty, true); err != nil {
@@ -239,17 +325,17 @@ func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*P
 				filledQty := totalFilledQty(fills)
 				fee := FeeNotional(notional, takerBps)
 				if req.Side == SideBuy {
-					if err := e.port.ApplySpotBuy(ins, fills, fee); err != nil {
+					if err := e.port.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
 						return nil, err
 					}
 				} else {
-					if err := e.port.ApplySpotSell(ins, fills, fee); err != nil {
+					if err := e.port.ApplySpotSell(accountID, ins, fills, fee); err != nil {
 						return nil, err
 					}
 				}
 				allFills = append(allFills, fills...)
 				feeSum = feeSum.Add(fee)
-				partialFillOrder(order, fills, notional, filledQty)
+				partialFillOrder(order, fills, notional, filledQty, now)
 			}
 			if order.QtyRemaining.Sign() > 0 {
 				book.AddResting(order)
@@ -286,12 +372,12 @@ func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*P
 			}
 			filledQty := totalFilledQty(fills)
 			fee := FeeNotional(notional, takerBps)
-			if err := e.applyPerpFills(ins, &req, fills, fee, lev); err != nil {
+			if err := e.applyPerpFills(accountID, ins, &req, fills, fee, lev); err != nil {
 				return nil, err
 			}
 			allFills = fills
 			feeSum = fee
-			fillOrderImmediate(order, fills, notional, filledQty)
+			fillOrderImmediate(order, fills, notional, filledQty, now)
 
 		case OrderTypeLimit:
 			if err := ins.ValidateOrderParams(price, qty, true); err != nil {
@@ -313,12 +399,12 @@ func (e *SimExchange) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (*P
 			if len(fills) > 0 {
 				filledQty := totalFilledQty(fills)
 				fee := FeeNotional(notional, takerBps)
-				if err := e.applyPerpFills(ins, &req, fills, fee, lev); err != nil {
+				if err := e.applyPerpFills(accountID, ins, &req, fills, fee, lev); err != nil {
 					return nil, err
 				}
 				allFills = append(allFills, fills...)
 				feeSum = feeSum.Add(fee)
-				partialFillOrder(order, fills, notional, filledQty)
+				partialFillOrder(order, fills, notional, filledQty, now)
 			}
 			if order.QtyRemaining.Sign() > 0 {
 				book.AddResting(order)
@@ -346,15 +432,15 @@ func totalFilledQty(fills []Fill) decimal.Decimal {
 	return q
 }
 
-func fillOrderImmediate(o *SimOrder, fills []Fill, notional, filledQty decimal.Decimal) {
+func fillOrderImmediate(o *SimOrder, fills []Fill, notional, filledQty decimal.Decimal, now time.Time) {
 	o.QtyFilled = filledQty
 	o.QtyRemaining = decimal.Zero
 	o.AvgFillPrice = AveragePrice(notional, filledQty)
 	o.Status = OrderStatusFilled
-	o.LastUpdatedAt = time.Now().UTC()
+	o.LastUpdatedAt = now.UTC()
 }
 
-func partialFillOrder(o *SimOrder, fills []Fill, notional, filledQty decimal.Decimal) {
+func partialFillOrder(o *SimOrder, fills []Fill, notional, filledQty decimal.Decimal, now time.Time) {
 	o.QtyFilled = filledQty
 	o.QtyRemaining = o.QtyRemaining.Sub(filledQty)
 	if o.QtyRemaining.Sign() < 0 {
@@ -365,21 +451,21 @@ func partialFillOrder(o *SimOrder, fills []Fill, notional, filledQty decimal.Dec
 	if o.QtyRemaining.IsZero() {
 		o.Status = OrderStatusFilled
 	}
-	o.LastUpdatedAt = time.Now().UTC()
+	o.LastUpdatedAt = now.UTC()
 }
 
-func (e *SimExchange) applyPerpFills(ins *Instrument, req *PlaceOrderRequest, fills []Fill, fee decimal.Decimal, lev int32) error {
+func (e *SimExchange) applyPerpFills(accountID string, ins *Instrument, req *PlaceOrderRequest, fills []Fill, fee decimal.Decimal, lev int32) error {
 	switch req.Intent {
 	case IntentOpen:
 		if req.Side == SideBuy {
-			return e.port.ApplyPerpOpenLong(req.Symbol, ins, fills, fee, lev)
+			return e.port.ApplyPerpOpenLong(accountID, req.Symbol, ins, fills, fee, lev)
 		}
-		return e.port.ApplyPerpOpenShort(req.Symbol, ins, fills, fee, lev)
+		return e.port.ApplyPerpOpenShort(accountID, req.Symbol, ins, fills, fee, lev)
 	case IntentClose:
 		if req.Side == SideSell {
-			return e.port.ApplyPerpCloseLong(req.Symbol, ins, fills, fee)
+			return e.port.ApplyPerpCloseLong(accountID, req.Symbol, ins, fills, fee)
 		}
-		return e.port.ApplyPerpCloseShort(req.Symbol, ins, fills, fee)
+		return e.port.ApplyPerpCloseShort(accountID, req.Symbol, ins, fills, fee)
 	default:
 		return ErrInvalidIntent
 	}
@@ -397,89 +483,110 @@ func (e *SimExchange) OnDepthUpdated(sym Symbol) ([]MatchEvent, error) {
 	if !ok {
 		return nil, ErrUnknownSymbol
 	}
-	book := e.books[sym]
-	events := book.OnDepth(d)
-	for _, ev := range events {
-		var notional decimal.Decimal
-		for _, f := range ev.Fills {
-			notional = notional.Add(f.Price.Mul(f.Size))
+	allEvents := make([]MatchEvent, 0)
+	for key, book := range e.books {
+		if key.Symbol != sym {
+			continue
 		}
-		fee := FeeNotional(notional, ins.MakerFeeBps)
-		req := PlaceOrderRequest{
-			Symbol:     sym,
-			Side:       ev.Order.Side,
-			Intent:     ev.Order.Intent,
-			ReduceOnly: ev.Order.ReduceOnly,
-			Leverage:   ev.Order.Leverage,
-		}
-		switch ins.Kind {
-		case KindSpot:
-			if ev.Order.Side == SideBuy {
-				if err := e.port.ApplySpotBuy(ins, ev.Fills, fee); err != nil {
-					return events, err
+		events := book.OnDepth(d)
+		for _, ev := range events {
+			var notional decimal.Decimal
+			for _, f := range ev.Fills {
+				notional = notional.Add(f.Price.Mul(f.Size))
+			}
+			fee := FeeNotional(notional, ins.MakerFeeBps)
+			req := PlaceOrderRequest{
+				AccountID:  ev.Order.AccountID,
+				Symbol:     sym,
+				Side:       ev.Order.Side,
+				Intent:     ev.Order.Intent,
+				ReduceOnly: ev.Order.ReduceOnly,
+				Leverage:   ev.Order.Leverage,
+			}
+			switch ins.Kind {
+			case KindSpot:
+				if ev.Order.Side == SideBuy {
+					if err := e.port.ApplySpotBuy(ev.Order.AccountID, ins, ev.Fills, fee); err != nil {
+						return allEvents, err
+					}
+				} else {
+					if err := e.port.ApplySpotSell(ev.Order.AccountID, ins, ev.Fills, fee); err != nil {
+						return allEvents, err
+					}
 				}
-			} else {
-				if err := e.port.ApplySpotSell(ins, ev.Fills, fee); err != nil {
-					return events, err
+			case KindPerp:
+				lev := ev.Order.Leverage
+				if lev <= 0 {
+					lev = 1
+				}
+				if err := e.applyPerpFills(ev.Order.AccountID, ins, &req, ev.Fills, fee, lev); err != nil {
+					return allEvents, err
 				}
 			}
-		case KindPerp:
-			lev := ev.Order.Leverage
-			if lev <= 0 {
-				lev = 1
-			}
-			if err := e.applyPerpFills(ins, &req, ev.Fills, fee, lev); err != nil {
-				return events, err
-			}
+			allEvents = append(allEvents, ev)
 		}
 	}
-	return events, nil
+	return allEvents, nil
 }
 
 // CancelOrder cancels a resting order by id.
-func (e *SimExchange) CancelOrder(ctx context.Context, sym Symbol, orderID string) error {
+func (e *SimExchange) CancelOrder(ctx context.Context, accountID string, sym Symbol, orderID string) error {
+	return e.CancelOrderAt(ctx, accountID, sym, orderID, e.now())
+}
+
+func (e *SimExchange) CancelOrderAt(ctx context.Context, accountID string, sym Symbol, orderID string, ts time.Time) error {
 	_ = ctx
+	var err error
+	accountID, err = normalizeAccountID(accountID)
+	if err != nil {
+		return err
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	b := e.books[sym]
-	if b == nil {
-		return ErrOrderNotFound
-	}
+	b := e.getBook(accountID, sym)
 	_, ok := b.Cancel(orderID)
 	if !ok {
 		return ErrOrderNotFound
 	}
+	_ = ts
 	return nil
 }
 
 // GetOrder returns a copy of the order if known to the symbol book.
-func (e *SimExchange) GetOrder(sym Symbol, orderID string) (SimOrder, bool) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	b := e.books[sym]
-	if b == nil {
+func (e *SimExchange) GetOrder(accountID string, sym Symbol, orderID string) (SimOrder, bool) {
+	accountID, err := normalizeAccountID(accountID)
+	if err != nil {
 		return SimOrder{}, false
 	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	b := e.getBook(accountID, sym)
 	return b.GetOrder(orderID)
 }
 
-// ListOpenOrders lists resting orders for a symbol.
-func (e *SimExchange) ListOpenOrders(sym Symbol) []SimOrder {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	b := e.books[sym]
-	if b == nil {
+func (e *SimExchange) ListOpenOrders(accountID string, sym Symbol) []SimOrder {
+	accountID, err := normalizeAccountID(accountID)
+	if err != nil {
 		return nil
 	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	b := e.getBook(accountID, sym)
 	return b.ListOpenOrders()
 }
 
-// GetBalances snapshots spot balances.
-func (e *SimExchange) GetBalances() map[Asset]decimal.Decimal {
-	return e.port.Balances()
+func (e *SimExchange) GetBalances(accountID string) map[Asset]decimal.Decimal {
+	accountID, err := normalizeAccountID(accountID)
+	if err != nil {
+		return nil
+	}
+	return e.port.Balances(accountID)
 }
 
-// GetPosition returns perp position for symbol.
-func (e *SimExchange) GetPosition(sym Symbol) (Position, bool) {
-	return e.port.Position(sym)
+func (e *SimExchange) GetPosition(accountID string, sym Symbol) (Position, bool) {
+	accountID, err := normalizeAccountID(accountID)
+	if err != nil {
+		return Position{}, false
+	}
+	return e.port.Position(accountID, sym)
 }

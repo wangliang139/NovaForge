@@ -33,11 +33,12 @@ func TestSimExchangeSpotMarketBuy(t *testing.T) {
 	})
 
 	ex := NewSimExchange()
-	ex.Portfolio().SetBalance(Asset("USDT"), decimal.NewFromInt(10000))
+	ex.Portfolio().SetBalance("default", Asset("USDT"), decimal.NewFromInt(10000))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
 	res, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "default",
 		Symbol:    sym,
 		OrderType: OrderTypeMarket,
 		Side:      SideBuy,
@@ -52,7 +53,7 @@ func TestSimExchangeSpotMarketBuy(t *testing.T) {
 	if len(res.Fills) != 1 {
 		t.Fatalf("fills %d", len(res.Fills))
 	}
-	bal := ex.GetBalances()
+	bal := ex.GetBalances("default")
 	if !bal[Asset("BTC")].Equal(decimal.NewFromInt(2)) {
 		t.Fatalf("base %s", bal[Asset("BTC")])
 	}
@@ -61,17 +62,17 @@ func TestSimExchangeSpotMarketBuy(t *testing.T) {
 func TestSimExchangePerpOpenClose(t *testing.T) {
 	sym := Symbol("BTC-PERP")
 	ins := &Instrument{
-		Symbol:        sym,
-		Kind:          KindPerp,
-		Base:          Asset("BTC"),
-		Quote:         Asset("USDT"),
-		PriceTick:     decimal.NewFromInt(1),
-		QtyStep:       decimal.NewFromInt(1),
-		MinQty:        decimal.NewFromInt(1),
-		MinNotional:   decimal.NewFromInt(1),
-		TakerFeeBps:   0,
-		MakerFeeBps:   0,
-		LeverageMax:   10,
+		Symbol:             sym,
+		Kind:               KindPerp,
+		Base:               Asset("BTC"),
+		Quote:              Asset("USDT"),
+		PriceTick:          decimal.NewFromInt(1),
+		QtyStep:            decimal.NewFromInt(1),
+		MinQty:             decimal.NewFromInt(1),
+		MinNotional:        decimal.NewFromInt(1),
+		TakerFeeBps:        0,
+		MakerFeeBps:        0,
+		LeverageMax:        10,
 		ContractMultiplier: decimal.NewFromInt(1),
 	}
 	depth := NewMarketDepth()
@@ -85,11 +86,12 @@ func TestSimExchangePerpOpenClose(t *testing.T) {
 		},
 	})
 	ex := NewSimExchange()
-	ex.Portfolio().SetBalance(Asset("USDT"), decimal.NewFromInt(100000))
+	ex.Portfolio().SetBalance("default", Asset("USDT"), decimal.NewFromInt(100000))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
 	_, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "default",
 		Symbol:    sym,
 		OrderType: OrderTypeMarket,
 		Side:      SideBuy,
@@ -100,12 +102,13 @@ func TestSimExchangePerpOpenClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pos, ok := ex.GetPosition(sym)
+	pos, ok := ex.GetPosition("default", sym)
 	if !ok || !pos.Qty.Equal(decimal.NewFromInt(2)) {
 		t.Fatalf("position %+v", pos)
 	}
 
 	_, err = ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID:  "default",
 		Symbol:     sym,
 		OrderType:  OrderTypeMarket,
 		Side:       SideSell,
@@ -117,7 +120,7 @@ func TestSimExchangePerpOpenClose(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pos, ok = ex.GetPosition(sym)
+	pos, ok = ex.GetPosition("default", sym)
 	if !ok || !pos.Qty.IsZero() {
 		t.Fatalf("position after close %+v", pos)
 	}
@@ -145,11 +148,12 @@ func TestSimExchangeRestingLimitDepthTrigger(t *testing.T) {
 		},
 	})
 	ex := NewSimExchange()
-	ex.Portfolio().SetBalance(Asset("USDT"), decimal.NewFromInt(1_000_000))
+	ex.Portfolio().SetBalance("default", Asset("USDT"), decimal.NewFromInt(1_000_000))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
 	_, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "default",
 		Symbol:    sym,
 		OrderType: OrderTypeLimit,
 		Side:      SideBuy,
@@ -159,7 +163,7 @@ func TestSimExchangeRestingLimitDepthTrigger(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := len(ex.ListOpenOrders(sym)); n != 1 {
+	if n := len(ex.ListOpenOrders("default", sym)); n != 1 {
 		t.Fatalf("open orders %d", n)
 	}
 
@@ -178,7 +182,54 @@ func TestSimExchangeRestingLimitDepthTrigger(t *testing.T) {
 	if len(evs) != 1 {
 		t.Fatalf("events %d", len(evs))
 	}
-	if n := len(ex.ListOpenOrders(sym)); n != 0 {
+	if n := len(ex.ListOpenOrders("default", sym)); n != 0 {
 		t.Fatalf("expected filled, open %d", n)
+	}
+}
+
+func TestSimExchangeMultiAccountIsolation(t *testing.T) {
+	sym := Symbol("XRPUSDT")
+	ins := &Instrument{
+		Symbol:      sym,
+		Kind:        KindSpot,
+		Base:        Asset("XRP"),
+		Quote:       Asset("USDT"),
+		PriceTick:   decimal.NewFromInt(1),
+		QtyStep:     decimal.NewFromInt(1),
+		MinQty:      decimal.NewFromInt(1),
+		MinNotional: decimal.NewFromInt(1),
+		TakerFeeBps: 0,
+		MakerFeeBps: 0,
+	}
+	depth := NewMarketDepth()
+	_ = depth.ApplySnapshot(&OrderBook{
+		SeqId: 1,
+		Asks:  []OrderBookLevel{{Price: decimal.NewFromInt(10), Size: decimal.NewFromInt(100)}},
+		Bids:  []OrderBookLevel{{Price: decimal.NewFromInt(9), Size: decimal.NewFromInt(100)}},
+	})
+	ex := NewSimExchange()
+	_ = ex.InitBalances("a1", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(100)})
+	_ = ex.InitBalances("a2", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(100)})
+	_ = ex.RegisterInstrument(ins)
+	_ = ex.BindDepth(sym, depth)
+
+	_, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "a1",
+		Symbol:    sym,
+		OrderType: OrderTypeMarket,
+		Side:      SideBuy,
+		Qty:       decimal.NewFromInt(5),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b1 := ex.GetBalances("a1")
+	b2 := ex.GetBalances("a2")
+	if !b1[Asset("XRP")].Equal(decimal.NewFromInt(5)) {
+		t.Fatalf("a1 xrp=%s", b1[Asset("XRP")])
+	}
+	if !b2[Asset("XRP")].IsZero() {
+		t.Fatalf("a2 xrp=%s", b2[Asset("XRP")])
 	}
 }
