@@ -16,6 +16,7 @@ export type OrdersTableProps = {
   /** 加载状态（本地控制模式） */
   loading?: boolean;
   pricePrecision?: number;
+  volumePrecision?: number;
   /** 分页配置（本地控制模式或服务端模式均可复用） */
   pagination?: ProTableProps<Order, ParamsType>['pagination'];
   /** 表格变更回调（筛选/分页变更时触发，由外层决定如何重新拉取数据） */
@@ -222,6 +223,7 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
   onlyOnTheWay,
   showConditionsColumn,
   pricePrecision,
+  volumePrecision,
   onCancelOrder,
   getCancelButtonProps,
   onRowDoubleClick,
@@ -405,6 +407,12 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         key: 'originalQty',
         align: 'right',
         width: 120,
+        render: (v: any, row: Order) => {
+          if (row.orderType === OrderType.Market) {
+            return '市价';
+          }
+          return utils.math.formatByPrecision(v, 8);
+        },
       },
       {
         title: '价格',
@@ -426,6 +434,9 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         key: 'executedQty',
         align: 'right',
         width: 120,
+        render: (v: any, row: Order) => {
+          return utils.math.formatByPrecision(v, 8);
+        },
       },
       {
         title: '成交均价',
