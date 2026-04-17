@@ -179,6 +179,7 @@ type ComplexityRoot struct {
 	}
 
 	Asset struct {
+		AvgPrice         func(childComplexity int) int
 		Balance          func(childComplexity int) int
 		Code             func(childComplexity int) int
 		Locked           func(childComplexity int) int
@@ -2019,6 +2020,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AmountLimit.Ratio(childComplexity), true
 
+	case "Asset.avgPrice":
+		if e.ComplexityRoot.Asset.AvgPrice == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Asset.AvgPrice(childComplexity), true
 	case "Asset.balance":
 		if e.ComplexityRoot.Asset.Balance == nil {
 			break
@@ -11988,6 +11995,35 @@ func (ec *executionContext) fieldContext_Asset_unRealizedProfit(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Asset_avgPrice(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_Asset_avgPrice,
+		func(ctx context.Context) (any, error) {
+			return obj.AvgPrice, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_Asset_avgPrice(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Asset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Asset_walletType(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12546,6 +12582,8 @@ func (ec *executionContext) fieldContext_Balance_assets(_ context.Context, field
 				return ec.fieldContext_Asset_notional(ctx, field)
 			case "unRealizedProfit":
 				return ec.fieldContext_Asset_unRealizedProfit(ctx, field)
+			case "avgPrice":
+				return ec.fieldContext_Asset_avgPrice(ctx, field)
 			case "walletType":
 				return ec.fieldContext_Asset_walletType(ctx, field)
 			case "updatedTs":
@@ -46771,6 +46809,11 @@ func (ec *executionContext) _Asset(ctx context.Context, sel ast.SelectionSet, ob
 			}
 		case "unRealizedProfit":
 			out.Values[i] = ec._Asset_unRealizedProfit(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "avgPrice":
+			out.Values[i] = ec._Asset_avgPrice(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

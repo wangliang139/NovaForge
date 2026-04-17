@@ -77,17 +77,13 @@ const assetColumns: ProColumns<Asset>[] = [
     title: '均价 (USDT)',
     key: 'avgPrice',
     align: 'right',
-    tooltip: '按现金价值/余额计算的平均持仓价格',
+    tooltip: '持仓均价（asset/USDT），来自服务端 assets.avg_price',
     render: (_: any, record: Asset) => {
-      const balance = parseFloat(record.balance as any);
-      const notional = parseFloat(record.notional as any);
-      const b = Number.isNaN(balance) ? 0 : balance;
-      const n = Number.isNaN(notional) ? 0 : notional;
-      if (b <= 0 || !Number.isFinite(n) || n === 0) {
-        return '-';
+      const ap = utils.math.toSafeNumber(record.avgPrice);
+      if (Number.isFinite(ap) && ap > 0) {
+        return utils.math.formatByPrecision(ap, 8);
       }
-      const avg = n / b;
-      return avg !== 0 ? utils.math.formatByPrecision(avg, 8) : '0';
+      return '-';
     },
   },
   {

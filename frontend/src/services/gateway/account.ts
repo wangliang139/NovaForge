@@ -119,6 +119,8 @@ export type Asset = {
   locked: string;
   notional: string;
   unRealizedProfit?: string;
+  /** 持仓均价（asset/USDT），来自 assets.avg_price */
+  avgPrice?: string;
   walletType: WalletType;
   updatedTs: number;
 };
@@ -719,6 +721,7 @@ const GET_BALANCE = `
         balance
         locked
         notional
+        avgPrice
         walletType
         updatedTs
       }

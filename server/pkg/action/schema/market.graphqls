@@ -278,6 +278,8 @@ type Asset {
   locked: String!
   notional: String!
   unRealizedProfit: String!
+  """持仓均价（asset/USDT），来自持久化 assets.avg_price；缺失时为 0"""
+  avgPrice: String!
   walletType: WalletType!
   updatedTs: Int!
 }

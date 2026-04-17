@@ -176,13 +176,15 @@ type ArchiveDocumentInput struct {
 }
 
 type Asset struct {
-	Code             string     `json:"code"`
-	Balance          string     `json:"balance"`
-	Locked           string     `json:"locked"`
-	Notional         string     `json:"notional"`
-	UnRealizedProfit string     `json:"unRealizedProfit"`
-	WalletType       WalletType `json:"walletType"`
-	UpdatedTs        int        `json:"updatedTs"`
+	Code             string `json:"code"`
+	Balance          string `json:"balance"`
+	Locked           string `json:"locked"`
+	Notional         string `json:"notional"`
+	UnRealizedProfit string `json:"unRealizedProfit"`
+	// 持仓均价（asset/USDT），来自持久化 assets.avg_price；缺失时为 0
+	AvgPrice   string     `json:"avgPrice"`
+	WalletType WalletType `json:"walletType"`
+	UpdatedTs  int        `json:"updatedTs"`
 }
 
 // 资产快照历史点（asset_snapshot.total，币本位）

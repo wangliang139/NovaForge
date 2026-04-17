@@ -1201,6 +1201,7 @@ const QUERY_BOT_BALANCE = `
         balance
         locked
         notional
+        avgPrice
         walletType
         updatedTs
         unRealizedProfit

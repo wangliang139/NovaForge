@@ -126,6 +126,7 @@ func BalanceTypes2Gql(b *ctypes.Balance) *model.Balance {
 			Locked:           a.Locked.String(),
 			Notional:         a.Notional.String(),
 			UnRealizedProfit: a.UnRealizedProfit.String(),
+			AvgPrice:         a.AvgPrice.String(),
 			WalletType:       WalletTypeTypes2Gql(a.WalletType),
 			UpdatedTs:        int(a.UpdatedTs.UnixMilli()),
 		})
