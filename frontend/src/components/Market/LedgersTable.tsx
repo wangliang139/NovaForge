@@ -201,14 +201,14 @@ export const buildLedgerColumns = (options: LedgerColumnsOptions = {}): ProColum
           }
 
           if (detail.fillQty && detail.fillPrice) {
-            rows.push(renderDetailRow('成交', `${detail.fillQty} @ ${detail.fillPrice}`));
+            rows.push(renderDetailRow('成交', `${utils.math.formatByPrecision(detail.fillQty, 8)} @ ${detail.fillPrice}`));
           }
           if (detail.fee) {
             const feeAsset = detail.feeAsset ? ` ${detail.feeAsset}` : '';
-            rows.push(renderDetailRow('手续费', `${detail.fee}${feeAsset}`));
+            rows.push(renderDetailRow('手续费', `${utils.math.formatByPrecision(detail.fee, 8)}${feeAsset}`));
           }
           if (detail.pnl) {
-            rows.push(renderDetailRow('收益', detail.pnl));
+            rows.push(renderDetailRow('收益', `${utils.math.formatByPrecision(detail.pnl, 8)}`));
           }
 
           if (rows.length === 0) {

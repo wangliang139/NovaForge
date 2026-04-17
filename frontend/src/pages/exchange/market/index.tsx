@@ -2500,6 +2500,7 @@ const MarketPage: React.FC = () => {
                     dataSource={openOrders || []}
                     pagination={{ pageSize: 20, total: openOrders?.length || 0 }}
                     pricePrecision={pricePrecision}
+                    volumePrecision={volumePrecision}
                     onCancelOrder={handleCancelOrder}
                   />
                 ),
