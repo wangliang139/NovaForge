@@ -5,6 +5,8 @@
 //
 // 注意：asset_snapshot.frozen 已删除，脚本仅比较 total，不参与 frozen 对账。
 // 注意：单订单若生命周期内存在其它资金变动，或多次部分成交与「整单一次性」舍入不一致，可能出现偏差；请用 range 或逐笔 ledger 排查。
+//
+// fanout：多 Bot 父账户（real + multi_bot_mode）订单行 fanout 与按规则重算份额比对。
 package main
 
 import (
@@ -12,13 +14,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/converter"
+	acctentity "github.com/wangliang139/NovaForge/server/pkg/entity/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
-	"github.com/wangliang139/NovaForge/server/pkg/repos/account"
+	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/acct_snapshot"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -33,58 +40,97 @@ type assetKey struct {
 }
 
 func main() {
-	if len(os.Args) < 2 {
+	args := shiftGlobalEnvFlags(os.Args[1:])
+	if len(args) < 1 {
 		printUsage()
 		os.Exit(2)
 	}
 
 	ctx := context.Background()
-	switch os.Args[1] {
+	switch args[0] {
 	case "single":
-		runSingle(ctx, os.Args[2:])
+		runSingle(ctx, args[1:])
 	case "range":
-		runRange(ctx, os.Args[2:])
+		runRange(ctx, args[1:])
+	case "fanout":
+		runFanout(ctx, args[1:])
 	case "help", "-h", "--help":
 		printUsage()
 	default:
-		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n\n", args[0])
 		printUsage()
 		os.Exit(2)
 	}
 }
 
+// shiftGlobalEnvFlags 解析并消费「子命令之前」的全局参数（如 -env-file），再返回剩余 argv。
+func shiftGlobalEnvFlags(args []string) []string {
+	i := 0
+	for i < len(args) {
+		switch {
+		case args[i] == "-env-file" && i+1 < len(args):
+			p := strings.TrimSpace(args[i+1])
+			if p == "" {
+				fmt.Fprintf(os.Stderr, "audit: -env-file needs a path\n")
+				os.Exit(2)
+			}
+			if err := godotenv.Load(filepath.Clean(p)); err != nil {
+				fmt.Fprintf(os.Stderr, "audit: load %s: %v\n", p, err)
+				os.Exit(2)
+			}
+			i += 2
+		case strings.HasPrefix(args[i], "-env-file="):
+			p := strings.TrimSpace(strings.TrimPrefix(args[i], "-env-file="))
+			if p == "" {
+				fmt.Fprintf(os.Stderr, "audit: -env-file= needs a path\n")
+				os.Exit(2)
+			}
+			if err := godotenv.Load(filepath.Clean(p)); err != nil {
+				fmt.Fprintf(os.Stderr, "audit: load %s: %v\n", p, err)
+				os.Exit(2)
+			}
+			i++
+		default:
+			return args[i:]
+		}
+	}
+	return args[i:]
+}
+
 func printUsage() {
 	fmt.Fprintf(os.Stderr, `usage:
-  audit single  -account <id> -order-id <id> [-tol <decimal>] [-html-out <path>] [-no-browser]
-  audit range   -account <id> -symbol <sym> -start <RFC3339> -end <RFC3339> [-tol <decimal>] [-html-out <path>] [-no-browser]
+  audit [-env-file <path>] single  -account <id> -order-id <id> [-tol <decimal>] [-html-out <path>] [-no-browser]
+  audit [-env-file <path>] range   -account <id> -symbol <sym> -start <RFC3339> -end <RFC3339> [-tol <decimal>] [-html-out <path>] [-no-browser]
+  audit [-env-file <path>] fanout  -parent-account <id> -order-id <id> [-tol <decimal>] [-qty-tol <decimal>] [-html-out <path>] [-no-browser]
+
+-env-file：在子命令之前可写一次或多次，按顺序加载 dotenv（KEY=VAL，# 注释）；供 postgres/redis 等环境变量使用。
+若不使用 -env-file，也可在 shell 中 source .env 或 export 后再运行本程序。
 
 默认在临时目录生成 HTML 并用系统浏览器打开；-no-browser 仅写文件；-html-out 指定输出路径。
+
+fanout：父账户须为 real 且开启 multi_bot_mode；比对 orders.fanout 份额，并比对各子账户 orders.quantity 与缩放后的期望 originalQty（-qty-tol，默认与 -tol 相同）。
 
 环境：与主进程相同，需可连接 postgres（wpgx NewWPGXPool "postgres"）。
 `)
 }
 
-func openRepos(ctx context.Context) (*repos.Entity, func(), error) {
-	os.Setenv("POSTGRES_HOST", "localhost")
-	os.Setenv("POSTGRES_PASSWORD", "my-secret")
-	os.Setenv("POSTGRES_APPNAME", "novaforge")
-	os.Setenv("POSTGRES_DBNAME", "llt_data_db")
+func openRepos(ctx context.Context) (*repos.Entity, redis.UniversalClient, func(), error) {
 	pool, err := wpgx.NewWPGXPool(ctx, "postgres")
 	if err != nil {
-		return nil, nil, fmt.Errorf("db pool: %w", err)
+		return nil, nil, nil, fmt.Errorf("db pool: %w", err)
 	}
 	redisCli := cache.NewRedisClient("redis")
 	dCache, err := cache.NewDCache("dcache", redisCli)
 	if err != nil {
 		pool.Close()
-		return nil, nil, fmt.Errorf("dcache: %w", err)
+		return nil, nil, nil, fmt.Errorf("dcache: %w", err)
 	}
 	db := repos.New(pool, dCache)
 	closer := func() {
 		pool.Close()
 		_ = redisCli.Close()
 	}
-	return db, closer, nil
+	return db, redisCli, closer, nil
 }
 
 func runSingle(ctx context.Context, args []string) {
@@ -106,7 +152,7 @@ func runSingle(ctx context.Context, args []string) {
 		os.Exit(2)
 	}
 
-	db, closer, err := openRepos(ctx)
+	db, _, closer, err := openRepos(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connect: %v\n", err)
 		os.Exit(1)
@@ -118,7 +164,7 @@ func runSingle(ctx context.Context, args []string) {
 		fmt.Fprintf(os.Stderr, "account: %v\n", err)
 		os.Exit(1)
 	}
-	if acct.AccountType != account.AccountTypeVirtualSub {
+	if acct.AccountType != accountrepo.AccountTypeVirtualSub {
 		fmt.Fprintf(os.Stderr, "account %s is not virtual_sub\n", *accountID)
 		os.Exit(1)
 	}
@@ -299,7 +345,7 @@ func runRange(ctx context.Context, args []string) {
 		os.Exit(2)
 	}
 
-	db, closer, err := openRepos(ctx)
+	db, _, closer, err := openRepos(ctx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "connect: %v\n", err)
 		os.Exit(1)
@@ -311,7 +357,7 @@ func runRange(ctx context.Context, args []string) {
 		fmt.Fprintf(os.Stderr, "account: %v\n", err)
 		os.Exit(1)
 	}
-	if acct.AccountType != account.AccountTypeVirtualSub {
+	if acct.AccountType != accountrepo.AccountTypeVirtualSub {
 		fmt.Fprintf(os.Stderr, "account %s is not virtual_sub\n", *accountID)
 		os.Exit(1)
 	}
@@ -466,6 +512,375 @@ func runRange(ctx context.Context, args []string) {
 		}
 	}
 	os.Exit(exit)
+}
+
+// findSubOrderForFanout 按子账户查找父单分摊对应的子订单行（与派发时 clone 的 client_order_id / order_id 一致）。
+func findSubOrderForFanout(ctx context.Context, db *repos.Entity, parentID, subID, exStr, clientOID, exchOID string) (*orders.Order, string) {
+	if coid := strings.TrimSpace(clientOID); coid != "" {
+		o, err := db.OrdersRepo.GetOrderByClientOrderId(ctx, orders.GetOrderByClientOrderIdParams{
+			AccountID: subID, ClientOrderID: coid,
+		})
+		if err != nil {
+			return nil, fmt.Sprintf("client_order_id err: %v", err)
+		}
+		if o != nil {
+			return o, "client_order_id"
+		}
+	}
+	o, err := db.OrdersRepo.GetOrderByOrderId(ctx, orders.GetOrderByOrderIdParams{
+		AccountID: subID,
+		OrderID:   strings.TrimSpace(exchOID),
+	})
+	if err != nil {
+		return nil, fmt.Sprintf("order_id err: %v", err)
+	}
+	if o != nil {
+		return o, "order_id"
+	}
+	pid := parentID
+	o2, err := db.OrdersRepo.GetOrderByOrderIdUnderVirtualSubs(ctx, orders.GetOrderByOrderIdUnderVirtualSubsParams{
+		OrderID: strings.TrimSpace(exchOID), Exchange: exStr, ParentAccountID: &pid,
+	})
+	if err != nil {
+		return nil, fmt.Sprintf("order_id_under_parent err: %v", err)
+	}
+	if o2 != nil && o2.AccountID == subID {
+		return o2, "order_id_under_parent"
+	}
+	return nil, ""
+}
+
+// runFanout：多 Bot 父账户订单 fanout 稽核（DB 已冻结份额 vs 按 calcOrderFanoutShares 重算）。
+func runFanout(ctx context.Context, args []string) {
+	fs := flag.NewFlagSet("fanout", flag.ExitOnError)
+	parentID := fs.String("parent-account", "", "multi_bot real parent account id")
+	orderID := fs.String("order-id", "", "parent order id (exchange order id)")
+	tolStr := fs.String("tol", "0", "absolute tolerance per sub share (decimal)")
+	qtyTolStr := fs.String("qty-tol", "", "absolute tolerance for sub order quantity vs expected originalQty (default: same as -tol)")
+	htmlOut := fs.String("html-out", "", "write HTML report to this path (default: temp file)")
+	noBrowser := fs.Bool("no-browser", false, "do not open HTML in browser")
+	_ = fs.Parse(args)
+
+	if strings.TrimSpace(*parentID) == "" || strings.TrimSpace(*orderID) == "" {
+		fs.Usage()
+		os.Exit(2)
+	}
+	tol, err := decimal.NewFromString(*tolStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid -tol: %v\n", err)
+		os.Exit(2)
+	}
+	qtyTol := tol
+	if strings.TrimSpace(*qtyTolStr) != "" {
+		qtyTol, err = decimal.NewFromString(strings.TrimSpace(*qtyTolStr))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid -qty-tol: %v\n", err)
+			os.Exit(2)
+		}
+	}
+
+	db, redisCli, closer, err := openRepos(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "connect: %v\n", err)
+		os.Exit(1)
+	}
+	defer closer()
+
+	ent := acctentity.New(db, nil, redisCli, nil)
+
+	po, err := db.AccountRepo.GetById(ctx, *parentID)
+	if err != nil || po == nil {
+		fmt.Fprintf(os.Stderr, "parent account: %v\n", err)
+		os.Exit(1)
+	}
+	if po.AccountType != accountrepo.AccountTypeReal {
+		fmt.Fprintf(os.Stderr, "parent %s must be account_type=real\n", *parentID)
+		os.Exit(1)
+	}
+	if !po.MultiBotMode {
+		fmt.Fprintf(os.Stderr, "parent %s must have multi_bot_mode enabled\n", *parentID)
+		os.Exit(1)
+	}
+	exStr := string(po.Exchange)
+
+	ordPo, err := db.OrdersRepo.GetOrderByOrderId(ctx, orders.GetOrderByOrderIdParams{
+		AccountID: *parentID,
+		OrderID:   strings.TrimSpace(*orderID),
+	})
+	if err != nil || ordPo == nil {
+		fmt.Fprintf(os.Stderr, "order: %v\n", err)
+		os.Exit(1)
+	}
+	if ordPo.Exchange != exStr {
+		fmt.Fprintf(os.Stderr, "order.exchange %q != parent.exchange %q\n", ordPo.Exchange, exStr)
+		os.Exit(1)
+	}
+
+	co, err := converter.OrderDb2Types(*ordPo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "convert order: %v\n", err)
+		os.Exit(1)
+	}
+
+	dbShares := normalizeFanoutMap(co.Fanout)
+	recomputed := *co
+	recomputed.Fanout = nil
+	expShares, err := ent.RecomputeMultiBotFanoutSharesForAudit(ctx, *parentID, co.Exchange, &recomputed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "recompute fanout: %v\n", err)
+		os.Exit(1)
+	}
+	expNorm := normalizeFanoutMap(expShares)
+
+	unionSubs := fanoutUnionKeys(dbShares, expNorm)
+	keys := unionSubs
+	exit := 0
+	rows := make([]fanoutCompareRow, 0, len(keys))
+
+	for _, k := range keys {
+		dv, dOk := dbShares[k]
+		ev, eOk := expNorm[k]
+		row := fanoutCompareRow{SubAccountID: k}
+		switch {
+		case !dOk && eOk:
+			row.DBShare = "—"
+			row.ExpectedShare = ev.String()
+			row.Diff = "—"
+			row.Status = "MISSING_IN_DB"
+			exit = 1
+		case dOk && !eOk:
+			row.DBShare = dv.String()
+			row.ExpectedShare = "—"
+			row.Diff = "—"
+			row.Status = "EXTRA_IN_DB"
+			exit = 1
+		default:
+			diff := dv.Sub(ev)
+			row.DBShare = dv.String()
+			row.ExpectedShare = ev.String()
+			row.Diff = diff.String()
+			if diff.Abs().LessThanOrEqual(tol) {
+				row.Status = "OK"
+			} else {
+				row.Status = "MISMATCH"
+				exit = 1
+			}
+		}
+		rows = append(rows, row)
+	}
+
+	if len(keys) == 0 {
+		rows = []fanoutCompareRow{{
+			SubAccountID:  "(无子分摊)",
+			DBShare:       "—",
+			ExpectedShare: "—",
+			Diff:          "—",
+			Status:        "OK",
+		}}
+	}
+
+	fmt.Printf("mode=fanout parent=%s order_id=%s sum_db=%s sum_recomputed=%s\n",
+		*parentID, co.OrderID.String(), sumFanoutMap(dbShares).String(), sumFanoutMap(expNorm).String())
+	for _, r := range rows {
+		fmt.Printf("sub=%s db=%s expected=%s diff=%s %s\n", r.SubAccountID, r.DBShare, r.ExpectedShare, r.Diff, r.Status)
+	}
+
+	sharesForScale := expNorm
+	if len(dbShares) > 0 {
+		sharesForScale = dbShares
+	}
+	parentOID := strings.TrimSpace(co.OrderID.String())
+	parentCOID := strings.TrimSpace(co.ClientOrderID.String())
+	scaledMap, errScaled := ent.BuildFanoutScaledOrdersForAudit(ctx, co.Exchange, co, sharesForScale)
+	if errScaled != nil {
+		fmt.Fprintf(os.Stderr, "build scaled orders for audit: %v\n", errScaled)
+		os.Exit(1)
+	}
+
+	qtyExit := 0
+	qtyRows := make([]fanoutQtyCompareRow, 0, len(unionSubs))
+	for _, sid := range unionSubs {
+		row := fanoutQtyCompareRow{SubAccountID: sid}
+		sh, hasSh := sharesForScale[sid]
+		if !hasSh {
+			sh = decimal.Zero
+		}
+		if sh.IsZero() {
+			subPo, how := findSubOrderForFanout(ctx, db, *parentID, sid, exStr, parentCOID, parentOID)
+			if subPo == nil {
+				row.ExpectedOriginalQty = "0"
+				row.DBOriginalQty = "—"
+				row.Diff = "—"
+				row.Lookup = how
+				row.Status = "OK"
+				row.Note = "份额为 0，无子单预期"
+			} else {
+				dbq := utils.Decimal.PgNumericToDecimal(subPo.Quantity)
+				row.ExpectedOriginalQty = "0"
+				row.DBOriginalQty = dbq.String()
+				row.Diff = dbq.String()
+				row.Lookup = how
+				row.Status = "EXTRA_SUB_ORDER"
+				row.Note = "份额为 0 但存在子订单行"
+				qtyExit = 1
+			}
+			qtyRows = append(qtyRows, row)
+			continue
+		}
+
+		expO, ok := scaledMap[sid]
+		if !ok {
+			row.ExpectedOriginalQty = "—"
+			row.DBOriginalQty = "—"
+			row.Diff = "—"
+			row.Lookup = "—"
+			row.Status = "MISSING_SCALED_EXPECT"
+			row.Note = "有正份额但无缩放期望（内部不一致）"
+			qtyExit = 1
+			qtyRows = append(qtyRows, row)
+			continue
+		}
+		expQty := expO.OriginalQty
+		skipped := ent.FanoutSubOrderSkippedBelowMinStep(ctx, co.Exchange, expO)
+		subPo, how := findSubOrderForFanout(ctx, db, *parentID, sid, exStr, parentCOID, parentOID)
+		if subPo == nil {
+			if skipped {
+				row.ExpectedOriginalQty = expQty.String()
+				row.DBOriginalQty = "—"
+				row.Diff = "—"
+				row.Lookup = how
+				row.Status = "SKIPPED_BELOW_MIN_STEP"
+				row.Note = "低于最小步长，未派发子流"
+			} else {
+				row.ExpectedOriginalQty = expQty.String()
+				row.DBOriginalQty = "—"
+				row.Diff = "—"
+				row.Lookup = how
+				row.Status = "MISSING_SUB_ORDER"
+				row.Note = "未找到子订单行"
+				qtyExit = 1
+			}
+			qtyRows = append(qtyRows, row)
+			continue
+		}
+		dbq := utils.Decimal.PgNumericToDecimal(subPo.Quantity)
+		diff := dbq.Sub(expQty)
+		row.ExpectedOriginalQty = expQty.String()
+		row.DBOriginalQty = dbq.String()
+		row.Diff = diff.String()
+		row.Lookup = how
+		if skipped {
+			if diff.Abs().LessThanOrEqual(qtyTol) {
+				row.Status = "WARN_SUB_ROW_UNEXPECTED"
+				row.Note = "按规则应跳过派发，但库中仍有子单且 quantity 在容差内"
+			} else {
+				row.Status = "MISMATCH"
+				row.Note = "按规则应跳过派发，但子单 quantity 与期望差异超过容差"
+				qtyExit = 1
+			}
+			qtyRows = append(qtyRows, row)
+			continue
+		}
+		if diff.Abs().LessThanOrEqual(qtyTol) {
+			row.Status = "OK"
+		} else {
+			row.Status = "MISMATCH"
+			row.Note = "子单 quantity 与缩放期望 originalQty 不一致"
+			qtyExit = 1
+		}
+		qtyRows = append(qtyRows, row)
+	}
+
+	if qtyExit > exit {
+		exit = qtyExit
+	}
+
+	fmt.Printf("\n--- 子单 originalQty（orders.quantity）缩放比对 ---\n")
+	for _, r := range qtyRows {
+		fmt.Printf("sub=%s exp=%s db=%s diff=%s via=%s %s %s\n",
+			r.SubAccountID, r.ExpectedOriginalQty, r.DBOriginalQty, r.Diff, r.Lookup, r.Status, r.Note)
+	}
+
+	scaleSrc := "重算份额"
+	if len(dbShares) > 0 {
+		scaleSrc = "DB fanout"
+	}
+	rep := &htmlReport{
+		GeneratedAt:  time.Now(),
+		Mode:         "fanout",
+		AccountID:    *parentID,
+		Tolerance:    tol.String(),
+		QtyTolerance: qtyTol.String(),
+		MetaLines: []string{
+			fmt.Sprintf("parent_account=%s order_id=%s symbol=%s bot_id=%d client_order_id=%s created_ts=%s",
+				*parentID, co.OrderID.String(), co.Symbol.String(), co.BotID, co.ClientOrderID.String(), co.CreatedTs.Format(time.RFC3339Nano)),
+			fmt.Sprintf("orders.fanout 子份额之和=%s；重算子份额之和=%s（比例分支下可小于 1，余量由父吸收）", sumFanoutMap(dbShares).String(), sumFanoutMap(expNorm).String()),
+			fmt.Sprintf("子单 quantity 期望：以 %s 为份额缩放（DB fanout 非空时优先 DB，否则用重算份额）；稽核进程未接 market engine 时与线上舍入可能略有差异", scaleSrc),
+		},
+		FanoutRows:    rows,
+		FanoutQtyRows: qtyRows,
+		ExitCode:      exit,
+	}
+	htmlPath := strings.TrimSpace(*htmlOut)
+	if htmlPath == "" {
+		var herr error
+		htmlPath, herr = defaultReportPath()
+		if herr != nil {
+			fmt.Fprintf(os.Stderr, "report path: %v\n", herr)
+			os.Exit(1)
+		}
+	}
+	rep.HTMLPath = htmlPath
+	if err := writeHTMLReport(htmlPath, rep); err != nil {
+		fmt.Fprintf(os.Stderr, "write html: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("\nHTML 报告: %s\n", htmlPath)
+	if !*noBrowser {
+		if err := openInBrowser(htmlPath); err != nil {
+			fmt.Fprintf(os.Stderr, "open browser: %v\n", err)
+		}
+	}
+	os.Exit(exit)
+}
+
+func normalizeFanoutMap(m map[string]decimal.Decimal) map[string]decimal.Decimal {
+	out := make(map[string]decimal.Decimal)
+	if m == nil {
+		return out
+	}
+	for k, v := range m {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		out[k] = v
+	}
+	return out
+}
+
+func fanoutUnionKeys(a, b map[string]decimal.Decimal) []string {
+	seen := make(map[string]struct{})
+	for k := range a {
+		seen[k] = struct{}{}
+	}
+	for k := range b {
+		seen[k] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sumFanoutMap(m map[string]decimal.Decimal) decimal.Decimal {
+	var s decimal.Decimal
+	for _, v := range m {
+		s = s.Add(v)
+	}
+	return s
 }
 
 func sortedAssetKeys(m map[assetKey]decimal.Decimal) []assetKey {

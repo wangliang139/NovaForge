@@ -55,6 +55,7 @@ type AssetBo struct {
 
 	Notional         decimal.Decimal `json:"notional,omitempty"`         // 当前总量对应的现金价值（USDT）
 	UnRealizedProfit decimal.Decimal `json:"unRealizedProfit,omitempty"` // 未结算收益（币种单位）
+	AvgPrice         decimal.Decimal `json:"avgPrice,omitempty"`         // 持仓均价（asset/USDT，来自 assets.avg_price）
 
 	UpdatedTs time.Time `json:"updatedTs,omitempty"` // 更新时间
 }
@@ -71,6 +72,7 @@ type Asset struct {
 	Balance       decimal.Decimal `json:"balance,omitempty"`       // 当前总量
 	Frozened      decimal.Decimal `json:"frozened,omitempty"`      // 冻结数量
 	OrderOccupied decimal.Decimal `json:"orderOccupied,omitempty"` // 订单占用数量
+	AvgPrice      decimal.Decimal `json:"avgPrice,omitempty"`      // 持仓均价（asset/USDT）
 
 	UpdatedTs time.Time `json:"updatedTs,omitempty"` // 更新时间
 }

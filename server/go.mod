@@ -62,6 +62,7 @@ require (
 
 require (
 	github.com/google/jsonschema-go v0.4.2 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.7.0 // indirect

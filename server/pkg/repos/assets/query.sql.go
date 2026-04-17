@@ -118,9 +118,9 @@ func _GetAssetWithLock(ctx context.Context, q CacheQuerierConn, arg GetAssetWith
 
 const incrementAsset = `-- name: IncrementAsset :one
 UPDATE assets SET 
-    total = total + COALESCE($1::numeric, 0), 
-    frozen = frozen + COALESCE($2::numeric, 0), 
-    order_occupied = order_occupied + COALESCE($3::numeric, 0), 
+    total = GREATEST(total + COALESCE($1::numeric, 0), 0), 
+    frozen = GREATEST(frozen + COALESCE($2::numeric, 0), 0), 
+    order_occupied = GREATEST(order_occupied + COALESCE($3::numeric, 0), 0), 
     updated_at = CURRENT_TIMESTAMP 
 WHERE account_id = $4::varchar
 AND asset = $5::varchar
@@ -180,7 +180,7 @@ func _IncrementAsset(ctx context.Context, q CacheQuerierConn, arg IncrementAsset
 
 const incrementOrderOccupied = `-- name: IncrementOrderOccupied :one
 UPDATE assets SET 
-    order_occupied = order_occupied + COALESCE($1::numeric, 0), 
+    order_occupied = GREATEST(order_occupied + COALESCE($1::numeric, 0), 0), 
     updated_at = CURRENT_TIMESTAMP 
 WHERE account_id = $2::varchar
 AND asset = $3::varchar
@@ -306,7 +306,7 @@ all_assets AS (
         a.account_id,
         a.asset,
         a.wallet_type,
-        COALESCE(s.order_occupied, 0) AS order_occupied
+        GREATEST(COALESCE(s.order_occupied, 0), 0) AS order_occupied
     FROM assets a
     LEFT JOIN locked_sums s
       ON s.account_id = a.account_id
@@ -506,16 +506,16 @@ upsert AS (
         $4::varchar, 
         $2::varchar, 
         $3::wallet_type, 
-        COALESCE($5::numeric, 0),   -- insert: NULL → 0
-        COALESCE($6::numeric, 0),   -- insert: NULL → 0
-        COALESCE($7::numeric, 0),   -- insert: NULL → 0
+        GREATEST(COALESCE($5::numeric, 0), 0),   -- insert: NULL → 0，且不允许负值
+        GREATEST(COALESCE($6::numeric, 0), 0),
+        GREATEST(COALESCE($7::numeric, 0), 0),
         COALESCE($8::numeric, 0),   -- insert: NULL → 0
         $9::timestamptz)
     ON CONFLICT (account_id, asset, wallet_type)
     DO UPDATE SET 
-        total = COALESCE($5::numeric, assets.total),     -- update: NULL → 原值
-        frozen = COALESCE($6::numeric, assets.frozen),  -- update: NULL → 原值
-        order_occupied = COALESCE($7::numeric, assets.order_occupied),  -- update: NULL → 原值
+        total = GREATEST(COALESCE($5::numeric, assets.total), 0),     -- update: NULL → 原值，且不允许负值
+        frozen = GREATEST(COALESCE($6::numeric, assets.frozen), 0),
+        order_occupied = GREATEST(COALESCE($7::numeric, assets.order_occupied), 0),
         avg_price = COALESCE($8::numeric, assets.avg_price),  -- update: NULL → 原值
         last_updated_ts = EXCLUDED.last_updated_ts,
         updated_at = CURRENT_TIMESTAMP

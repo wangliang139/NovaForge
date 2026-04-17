@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 type Portfolio struct {
@@ -86,7 +86,7 @@ func (p *Portfolio) Init(ctx context.Context, accountEngine strategy.AccountEngi
 		}
 		view := p.reducer.balances[key]
 		view.Asset = a.Code
-		view.Free = a.Balance
+		view.Free = a.Free()
 		view.Frozen = a.Locked
 		// 初始快照时间使用当前时间
 		view.UpdateAt = now.UnixNano()
@@ -184,9 +184,10 @@ func (p *Portfolio) GetAsset(exchange ctypes.Exchange, symbol ctypes.Symbol, ass
 	}
 
 	return &ctypes.AssetBo{
-		Code:    asset,
-		Balance: balance.Free,
-		Locked:  balance.Frozen,
+		WalletType: walletType,
+		Code:       asset,
+		Balance:    balance.Free.Add(balance.Frozen),
+		Locked:     balance.Frozen,
 	}, nil
 }
 
@@ -386,9 +387,8 @@ func (p *Portfolio) BuildRiskState() *stypes.RiskState {
 			AccountID:  p.accountID,
 			WalletType: ak.WalletType,
 			Code:       ak.Asset,
-			Balance:    av.Free,
+			Balance:    av.Free.Add(av.Frozen),
 			Locked:     av.Frozen,
-			Notional:   av.Free.Add(av.Frozen),
 			UpdatedTs:  time.Unix(av.UpdateAt, 0),
 		})
 	}

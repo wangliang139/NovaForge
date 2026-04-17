@@ -456,7 +456,7 @@ func (p *MarketProvider) GetPrices(ctx context.Context, ex ctypes.Exchange) ([]*
 
 // GetLastPrice 获取最新价格
 func (p *MarketProvider) GetLastPrice(ctx context.Context, ex ctypes.Exchange, symbol ctypes.Symbol) (decimal.Decimal, error) {
-	if symbol.Base == symbol.Quote {
+	if strings.EqualFold(symbol.Base, symbol.Quote) {
 		return decimal.NewFromInt(1), nil
 	}
 	key := newKey(CacheKeyPrice, ex.String(), symbol.String())

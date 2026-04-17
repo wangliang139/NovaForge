@@ -19,16 +19,16 @@ upsert AS (
         sqlc.arg('exchange')::varchar, 
         sqlc.arg('asset')::varchar, 
         sqlc.arg('wallet_type')::wallet_type, 
-        COALESCE(sqlc.narg('total')::numeric, 0),   -- insert: NULL → 0
-        COALESCE(sqlc.narg('frozen')::numeric, 0),   -- insert: NULL → 0
-        COALESCE(sqlc.narg('order_occupied')::numeric, 0),   -- insert: NULL → 0
+        GREATEST(COALESCE(sqlc.narg('total')::numeric, 0), 0),   -- insert: NULL → 0，且不允许负值
+        GREATEST(COALESCE(sqlc.narg('frozen')::numeric, 0), 0),
+        GREATEST(COALESCE(sqlc.narg('order_occupied')::numeric, 0), 0),
         COALESCE(sqlc.narg('avg_price')::numeric, 0),   -- insert: NULL → 0
         sqlc.arg('last_updated_ts')::timestamptz)
     ON CONFLICT (account_id, asset, wallet_type)
     DO UPDATE SET 
-        total = COALESCE(sqlc.narg('total')::numeric, assets.total),     -- update: NULL → 原值
-        frozen = COALESCE(sqlc.narg('frozen')::numeric, assets.frozen),  -- update: NULL → 原值
-        order_occupied = COALESCE(sqlc.narg('order_occupied')::numeric, assets.order_occupied),  -- update: NULL → 原值
+        total = GREATEST(COALESCE(sqlc.narg('total')::numeric, assets.total), 0),     -- update: NULL → 原值，且不允许负值
+        frozen = GREATEST(COALESCE(sqlc.narg('frozen')::numeric, assets.frozen), 0),
+        order_occupied = GREATEST(COALESCE(sqlc.narg('order_occupied')::numeric, assets.order_occupied), 0),
         avg_price = COALESCE(sqlc.narg('avg_price')::numeric, assets.avg_price),  -- update: NULL → 原值
         last_updated_ts = EXCLUDED.last_updated_ts,
         updated_at = CURRENT_TIMESTAMP
@@ -56,9 +56,9 @@ FULL JOIN upsert u ON true;
 -- name: IncrementAsset :one
 -- -- timeout: 1s
 UPDATE assets SET 
-    total = total + COALESCE(sqlc.narg('total')::numeric, 0), 
-    frozen = frozen + COALESCE(sqlc.narg('frozen')::numeric, 0), 
-    order_occupied = order_occupied + COALESCE(sqlc.narg('order_occupied')::numeric, 0), 
+    total = GREATEST(total + COALESCE(sqlc.narg('total')::numeric, 0), 0), 
+    frozen = GREATEST(frozen + COALESCE(sqlc.narg('frozen')::numeric, 0), 0), 
+    order_occupied = GREATEST(order_occupied + COALESCE(sqlc.narg('order_occupied')::numeric, 0), 0), 
     updated_at = CURRENT_TIMESTAMP 
 WHERE account_id = sqlc.arg('account_id')::varchar
 AND asset = sqlc.arg('asset')::varchar
@@ -69,7 +69,7 @@ RETURNING *;
 -- name: IncrementOrderOccupied :one
 -- -- timeout: 1s
 UPDATE assets SET 
-    order_occupied = order_occupied + COALESCE(sqlc.narg('order_occupied')::numeric, 0), 
+    order_occupied = GREATEST(order_occupied + COALESCE(sqlc.narg('order_occupied')::numeric, 0), 0), 
     updated_at = CURRENT_TIMESTAMP 
 WHERE account_id = sqlc.arg('account_id')::varchar
 AND asset = sqlc.arg('asset')::varchar
@@ -151,7 +151,7 @@ all_assets AS (
         a.account_id,
         a.asset,
         a.wallet_type,
-        COALESCE(s.order_occupied, 0) AS order_occupied
+        GREATEST(COALESCE(s.order_occupied, 0), 0) AS order_occupied
     FROM assets a
     LEFT JOIN locked_sums s
       ON s.account_id = a.account_id

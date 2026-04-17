@@ -12,16 +12,19 @@ import (
 
 // htmlReport 稽核结果（用于终端 + HTML）。
 type htmlReport struct {
-	GeneratedAt time.Time
-	Mode        string
-	AccountID   string
-	Tolerance   string
-	MetaLines   []string
-	AssetRows   []assetCompareRow
-	OrderRows   []orderAuditRow
-	Warnings    []string
-	ExitCode    int
-	HTMLPath    string
+	GeneratedAt   time.Time
+	Mode          string
+	AccountID     string
+	Tolerance     string
+	MetaLines     []string
+	AssetRows     []assetCompareRow
+	FanoutRows    []fanoutCompareRow
+	FanoutQtyRows []fanoutQtyCompareRow
+	QtyTolerance  string
+	OrderRows     []orderAuditRow
+	Warnings      []string
+	ExitCode      int
+	HTMLPath      string
 }
 
 type assetCompareRow struct {
@@ -45,6 +48,26 @@ type orderAuditRow struct {
 	Fee        string
 	FeeAsset   string
 	SkipReason string
+}
+
+// fanoutCompareRow 父单 fanout 子账户份额比对行。
+type fanoutCompareRow struct {
+	SubAccountID  string
+	DBShare       string
+	ExpectedShare string
+	Diff          string
+	Status        string
+}
+
+// fanoutQtyCompareRow 子账户订单 quantity（对应 OriginalQty）与缩放期望值比对。
+type fanoutQtyCompareRow struct {
+	SubAccountID        string
+	ExpectedOriginalQty string
+	DBOriginalQty       string
+	Diff                string
+	Lookup              string
+	Status              string
+	Note                string
 }
 
 const reportTemplate = `<!DOCTYPE html>
@@ -81,7 +104,7 @@ tr.row-warn td:first-child { border-left: 3px solid #f57f17; }
 <h1>虚拟子账户订单稽核报告</h1>
 <div class="sub">
   <div><strong>生成时间</strong>：{{.GeneratedAt.Format "2006-01-02 15:04:05 MST"}}</div>
-  <div><strong>模式</strong>：{{.Mode}} &nbsp;|&nbsp; <strong>账户</strong>：<span class="mono">{{.AccountID}}</span> &nbsp;|&nbsp; <strong>容差</strong>：{{.Tolerance}}</div>
+  <div><strong>模式</strong>：{{.Mode}} &nbsp;|&nbsp; <strong>账户</strong>：<span class="mono">{{.AccountID}}</span> &nbsp;|&nbsp; <strong>份额容差</strong>：{{.Tolerance}}{{if .QtyTolerance}} &nbsp;|&nbsp; <strong>originalQty 容差</strong>：{{.QtyTolerance}}{{end}}</div>
   <div><strong>结果</strong>：
     {{if eq .ExitCode 0}}<span class="badge badge-ok">全部通过</span>{{else}}<span class="badge badge-fail">存在差异或缺失</span>{{end}}
   </div>
@@ -95,6 +118,58 @@ tr.row-warn td:first-child { border-left: 3px solid #f57f17; }
 </section>
 {{end}}
 
+{{if .FanoutRows}}
+<section>
+<h2>多 Bot 父单 fanout 分摊</h2>
+<table>
+  <thead>
+    <tr>
+      <th>子账户</th><th>DB fanout 份额</th><th>重算份额</th><th>差额</th><th>状态</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .FanoutRows}}
+    <tr class="{{if eq .Status "OK"}}row-ok{{else if eq .Status "MISSING_IN_DB"}}row-warn{{else}}row-bad{{end}}">
+      <td class="mono">{{.SubAccountID}}</td>
+      <td class="mono">{{.DBShare}}</td>
+      <td class="mono">{{.ExpectedShare}}</td>
+      <td class="mono">{{.Diff}}</td>
+      <td><strong>{{.Status}}</strong></td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}
+
+{{if .FanoutQtyRows}}
+<section>
+<h2>子单 originalQty（orders.quantity）比对</h2>
+<p class="sub" style="margin-top:-0.5rem">期望来自 BuildFanoutScaledOrdersForAudit，与 multi_bot 缩放一致；未接 market engine 时用默认精度可能与线上略有差异。SKIPPED_BELOW_MIN_STEP 表示过小不下发子流。</p>
+<table>
+  <thead>
+    <tr>
+      <th>子账户</th><th>期望 originalQty</th><th>子单 quantity</th><th>差额</th><th>匹配方式</th><th>状态</th><th>备注</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{range .FanoutQtyRows}}
+    <tr class="{{if or (eq .Status "OK") (eq .Status "SKIPPED_BELOW_MIN_STEP")}}row-ok{{else if eq .Status "WARN_SUB_ROW_UNEXPECTED"}}row-warn{{else}}row-bad{{end}}">
+      <td class="mono">{{.SubAccountID}}</td>
+      <td class="mono">{{.ExpectedOriginalQty}}</td>
+      <td class="mono">{{.DBOriginalQty}}</td>
+      <td class="mono">{{.Diff}}</td>
+      <td class="mono">{{.Lookup}}</td>
+      <td><strong>{{.Status}}</strong></td>
+      <td>{{.Note}}</td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</section>
+{{end}}
+
+{{if .AssetRows}}
 <section>
 <h2>资产比对（仅 total）</h2>
 <table>
@@ -120,6 +195,7 @@ tr.row-warn td:first-child { border-left: 3px solid #f57f17; }
   </tbody>
 </table>
 </section>
+{{end}}
 
 {{if .OrderRows}}
 <section>

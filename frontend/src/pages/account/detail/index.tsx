@@ -71,6 +71,7 @@ import {
   Row,
   Segmented,
   Space,
+  Spin,
   Statistic,
   Table,
   Tag,
@@ -559,7 +560,7 @@ const AccountDetail: FC = () => {
   };
 
   const handleSyncSnapshots = async () => {
-    if (!id || syncLoading) {
+    if (!id || syncLoading || reloading || statusOperating) {
       return;
     }
     setSyncLoading(true);
@@ -587,7 +588,8 @@ const AccountDetail: FC = () => {
   };
 
   const reloadAll = async () => {
-    if (!id || reloading) return;
+    // 不上线 statusOperating：上线/下线成功后会在 statusOperating 仍为 true 时调用本函数刷新数据
+    if (!id || reloading || syncLoading) return;
     setReloading(true);
     try {
       await Promise.all([
@@ -721,6 +723,8 @@ const AccountDetail: FC = () => {
   const multiBotSubAccounts = multiBotDetails?.subAccounts || [];
   const multiBotAssetRows = multiBotDetails?.assetAllocations || [];
   const multiBotPositionRows = multiBotDetails?.positionAllocations || [];
+  /** 刷新 / 上线 / 下线 / 同步 任一进行中时，全页遮罩与按钮防重复 */
+  const pageActionBusy = reloading || syncLoading || statusOperating;
 
   const onClickButtonGroup = async ({ key }: MenuInfo) => {
     if (!id) return;
@@ -803,8 +807,8 @@ const AccountDetail: FC = () => {
       <Dropdown.Button
         menu={{ items: items, onClick: onClickButtonGroup }}
         onClick={reloadAll}
-        loading={reloading}
-        disabled={reloading}
+        loading={pageActionBusy}
+        disabled={pageActionBusy}
       >
         <ReloadOutlined /> 刷新
       </Dropdown.Button>
@@ -835,6 +839,7 @@ const AccountDetail: FC = () => {
 
   return (
     <PageContainer>
+      <Spin spinning={pageActionBusy} fullscreen tip="处理中..." />
       <Flex justify="space-between" style={{ marginBottom: 16 }}>
         <Card
           variant="borderless"

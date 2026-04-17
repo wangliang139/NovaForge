@@ -1037,6 +1037,7 @@ func (s *Service) GetBalance(ctx context.Context, req *types.GetBalanceRequest) 
 			Code:       p.Code,
 			Balance:    p.Balance,
 			Locked:     p.Locked(),
+			AvgPrice:   p.AvgPrice,
 			UpdatedTs:  p.UpdatedTs,
 		})
 	}
@@ -1071,9 +1072,17 @@ func (s *Service) GetBalance(ctx context.Context, req *types.GetBalanceRequest) 
 				bo.UnRealizedProfit = bo.UnRealizedProfit.Add(upl)
 			}
 			uplUsdt := s.calcAssetNotional(bo.Code, bo.UnRealizedProfit, priceMap)
-			bo.Notional = s.calcAssetNotional(bo.Code, bo.Balance.Add(bo.UnRealizedProfit), priceMap)
+			// USDT 为基础计价单位，行内现金价值应等于余额；不要把合约 UPL 并入 notional，
+			// 否则前端用 notional/balance 推导的「均价」会错误地 >1。
+			qtyForNotional := bo.Balance.Add(bo.UnRealizedProfit)
+			strippedUpl := decimal.Zero
+			if types.ParseAssetCode(bo.Code) == "USDT" {
+				strippedUpl = bo.UnRealizedProfit
+				qtyForNotional = bo.Balance
+			}
+			bo.Notional = s.calcAssetNotional(bo.Code, qtyForNotional, priceMap)
 			totalUpl = totalUpl.Add(uplUsdt)
-			totalNotional = totalNotional.Add(bo.Notional)
+			totalNotional = totalNotional.Add(bo.Notional).Add(strippedUpl)
 		}
 
 		notional24HChange := s.getNotional24HChange(ctx, acct.ID, totalNotional)

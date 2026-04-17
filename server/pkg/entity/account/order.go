@@ -686,16 +686,10 @@ func (e *Entity) sendOrderDerivedFillEvent(ctx context.Context, order *ctypes.Or
 
 // shouldFreezeExternalOrder 判断外部订单是否需要冻结资金
 // 规则：
-// 1. 内部订单（bot_id > 0）由 ordersvc 预占，此处返回 false
 // 2. Binance 现货无法区分策略单，全部需要冻结，返回 true
 // 3. 交易所侧策略单/算法单不冻结，返回 false
 // 4. 普通外部订单需要冻结，返回 true
 func shouldFreezeExternalOrder(order ctypes.Order) bool {
-	// 内部订单由 ordersvc 预占，此处不处理
-	if order.BotID > 0 {
-		return false
-	}
-
 	// 已完结的订单不处理
 	if order.Status.IsFinished() {
 		return false
