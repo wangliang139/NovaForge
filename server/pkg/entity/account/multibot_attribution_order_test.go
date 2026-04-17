@@ -42,37 +42,28 @@ func TestBuildSubRawDispatchesFromUnitShares_conserves112(t *testing.T) {
 }
 
 func TestAllocateFieldAmongSubs_spotBaseRemainderToMax(t *testing.T) {
-	m := &ctypes.Market{BaseAssetPrecision: 0, QuoteAssetPrecision: 2}
 	shares := []subShare{{id: "a", s: decimal.RequireFromString("0.3")}, {id: "b", s: decimal.RequireFromString("0.3")}}
 	// sumShares=0.6, sumTicks=100*0.6=60; a floor(30)=30, b gets 60-30=30
-	got := allocateFieldAmongSubs(decimal.NewFromInt(100), shares, false, scaleFieldBaseQty, m)
+	got := allocateFieldAmongSubs(decimal.NewFromInt(100), shares, false, scaleFieldBaseQty)
 	if !got["a"].Equal(decimal.NewFromInt(30)) || !got["b"].Equal(decimal.NewFromInt(30)) {
 		t.Fatalf("got %#v", got)
 	}
 }
 
 func TestAllocateFieldAmongSubs_futureLotRemainderToMax(t *testing.T) {
-	lot := decimal.NewFromInt(1)
-	m := &ctypes.Market{BaseAssetPrecision: 8, Rules: ctypes.MarketRules{LotSize: lot}}
 	shares := []subShare{{id: "a", s: decimal.RequireFromString("0.31")}, {id: "b", s: decimal.RequireFromString("0.31")}}
-	// t_a=3.1 floor lot 3, sumTicks=10*0.62=6.2, b 余量也按 lot floor 为 3，尘量 0.2 由父吸收
-	got := allocateFieldAmongSubs(decimal.NewFromInt(10), shares, true, scaleFieldBaseQty, m)
-	if !got["a"].Equal(decimal.NewFromInt(3)) || !got["b"].Equal(decimal.NewFromInt(3)) {
+	// 合约与现货保持一致：按 DefaultAssetPrecision 比例 floor，不做 lot 截断。
+	got := allocateFieldAmongSubs(decimal.NewFromInt(10), shares, true, scaleFieldBaseQty)
+	want := floorDecimalPlaces(decimal.RequireFromString("3.1"), int32(consts.DefaultAssetPrecision))
+	if !got["a"].Equal(want) || !got["b"].Equal(want) {
 		t.Fatalf("got %#v", got)
-	}
-	step := marketLotStepBase(m)
-	for sid, qty := range got {
-		ticks := qty.Div(step)
-		if !ticks.Equal(ticks.Floor()) {
-			t.Fatalf("sub %s qty=%s is not lot multiple %s", sid, qty, step)
-		}
 	}
 	sumChild := got["a"].Add(got["b"])
 	sumTicks := decimal.NewFromInt(10).Mul(decimal.RequireFromString("0.62"))
 	if sumChild.GreaterThan(sumTicks) {
 		t.Fatalf("child sum should not exceed sumTicks: child=%s sumTicks=%s", sumChild, sumTicks)
 	}
-	if !sumTicks.Sub(sumChild).Equal(decimal.RequireFromString("0.2")) {
+	if !sumTicks.Sub(sumChild).Equal(decimal.Zero) {
 		t.Fatalf("parent dust absorb mismatch, got %s", sumTicks.Sub(sumChild))
 	}
 }
@@ -114,9 +105,8 @@ func TestIsFutureOpenPositionOrder(t *testing.T) {
 }
 
 func TestAllocateFieldAmongSubs_moneyDefaultPrecision(t *testing.T) {
-	m := (*ctypes.Market)(nil)
 	shares := []subShare{{id: "a", s: decimal.RequireFromString("0.25")}, {id: "b", s: decimal.RequireFromString("0.25")}}
-	got := allocateFieldAmongSubs(decimal.NewFromInt(4), shares, false, scaleFieldMoney, m)
+	got := allocateFieldAmongSubs(decimal.NewFromInt(4), shares, false, scaleFieldMoney)
 	if !got["a"].Equal(decimal.NewFromInt(1)) || !got["b"].Equal(decimal.NewFromInt(1)) {
 		t.Fatalf("fee split got %#v", got)
 	}

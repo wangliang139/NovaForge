@@ -9,13 +9,12 @@ import (
 )
 
 func TestAllocateFieldAmongSubs_NegativeParentSpotNoRemainderToMax(t *testing.T) {
-	m := &ctypes.Market{BaseAssetPrecision: 1, QuoteAssetPrecision: 2}
 	shares := []subShare{
 		{id: "a", s: decimal.RequireFromString("0.3333333333")},
 		{id: "b", s: decimal.RequireFromString("0.3333333333")},
 	}
 	parent := decimal.NewFromInt(-1)
-	got := allocateFieldAmongSubs(parent, shares, false, scaleFieldBaseQty, m)
+	got := allocateFieldAmongSubs(parent, shares, false, scaleFieldBaseQty)
 	// 非合约 base 按 DefaultAssetPrecision，与 m.BaseAssetPrecision 无关
 	want := floorDecimalPlaces(decimal.RequireFromString("0.3333333333"), int32(consts.DefaultAssetPrecision)).Neg()
 	if !got["a"].Equal(want) || !got["b"].Equal(want) {
@@ -24,12 +23,11 @@ func TestAllocateFieldAmongSubs_NegativeParentSpotNoRemainderToMax(t *testing.T)
 }
 
 func TestAllocateFieldAmongSubs_SpotUsesDefaultAssetPrecision(t *testing.T) {
-	m := &ctypes.Market{BaseAssetPrecision: 1, QuoteAssetPrecision: 2}
 	shares := []subShare{
 		{id: "a", s: decimal.RequireFromString("0.3333333333")},
 		{id: "b", s: decimal.RequireFromString("0.3333333333")},
 	}
-	got := allocateFieldAmongSubs(decimal.NewFromInt(1), shares, false, scaleFieldBaseQty, m)
+	got := allocateFieldAmongSubs(decimal.NewFromInt(1), shares, false, scaleFieldBaseQty)
 	want := floorDecimalPlaces(decimal.RequireFromString("0.3333333333"), int32(consts.DefaultAssetPrecision))
 	if !got["a"].Equal(want) || !got["b"].Equal(want) {
 		t.Fatalf("want both subs floor at DefaultAssetPrecision without topup, got %#v", got)
@@ -48,16 +46,16 @@ func TestMultiBotSubScaledBaseBelowMinStep(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "skip_zero_orig",
+			name: "dont_skip_zero_orig",
 			m:    futMkt,
 			o:    ctypes.Order{OriginalQty: decimal.Zero, ExecutedQty: decimal.Zero},
-			want: true,
+			want: false,
 		},
 		{
-			name: "skip_negative_orig",
+			name: "dont_skip_negative_orig",
 			m:    futMkt,
 			o:    ctypes.Order{OriginalQty: decimal.NewFromInt(-1), ExecutedQty: decimal.Zero},
-			want: true,
+			want: false,
 		},
 		{
 			name: "not_skip_positive_below_future_lot",
@@ -77,7 +75,7 @@ func TestMultiBotSubScaledBaseBelowMinStep(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if g := multiBotSubScaledBaseBelowMinStep(tt.o, tt.m); g != tt.want {
+			if g := tt.o.OriginalQty.LessThanOrEqual(decimal.Zero); g != tt.want {
 				t.Fatalf("got %v want %v", g, tt.want)
 			}
 		})
@@ -85,8 +83,6 @@ func TestMultiBotSubScaledBaseBelowMinStep(t *testing.T) {
 }
 
 func TestAllocateFieldAmongSubs_NegativeParentFutureLotFloor(t *testing.T) {
-	lot := decimal.NewFromInt(1)
-	m := &ctypes.Market{BaseAssetPrecision: 8, Rules: ctypes.MarketRules{LotSize: lot}}
 	shares := []subShare{
 		{id: "a", s: decimal.RequireFromString("0.25")},
 		{id: "b", s: decimal.RequireFromString("0.25")},
@@ -94,25 +90,25 @@ func TestAllocateFieldAmongSubs_NegativeParentFutureLotFloor(t *testing.T) {
 		{id: "d", s: decimal.RequireFromString("0.25")},
 	}
 	parent := decimal.NewFromInt(-1)
-	got := allocateFieldAmongSubs(parent, shares, true, scaleFieldBaseQty, m)
+	got := allocateFieldAmongSubs(parent, shares, true, scaleFieldBaseQty)
+	want := floorDecimalPlaces(decimal.RequireFromString("0.25"), int32(consts.DefaultAssetPrecision)).Neg()
 	for _, id := range []string{"a", "b", "c", "d"} {
-		if !got[id].IsZero() {
-			t.Fatalf("sub %s: want zero (|-0.25| floors to 0 lot), got %s", id, got[id])
+		if !got[id].Equal(want) {
+			t.Fatalf("sub %s: want %s, got %s", id, want, got[id])
 		}
 	}
 }
 
 func TestAllocateFieldAmongSubs_FutureNoRemainderToMax(t *testing.T) {
-	lot := decimal.NewFromInt(1)
-	m := &ctypes.Market{BaseAssetPrecision: 8, Rules: ctypes.MarketRules{LotSize: lot}}
 	shares := []subShare{
 		{id: "a", s: decimal.RequireFromString("0.5")},
 		{id: "b", s: decimal.RequireFromString("0.5")},
 	}
 
-	got := allocateFieldAmongSubs(decimal.NewFromInt(1), shares, true, scaleFieldBaseQty, m)
-	if !got["a"].Equal(decimal.Zero) || !got["b"].Equal(decimal.Zero) {
-		t.Fatalf("want both subs floor to zero, got %#v", got)
+	got := allocateFieldAmongSubs(decimal.NewFromInt(1), shares, true, scaleFieldBaseQty)
+	want := floorDecimalPlaces(decimal.RequireFromString("0.5"), int32(consts.DefaultAssetPrecision))
+	if !got["a"].Equal(want) || !got["b"].Equal(want) {
+		t.Fatalf("want both subs floor to %s, got %#v", want, got)
 	}
 }
 

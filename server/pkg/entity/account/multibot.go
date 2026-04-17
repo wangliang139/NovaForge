@@ -8,7 +8,6 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	acctsnapshotrepo "github.com/wangliang139/NovaForge/server/pkg/repos/acct_snapshot"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -106,28 +105,21 @@ func (e *Entity) applyMultiBotParentOrderStage(ctx context.Context, parentID str
 	if err != nil {
 		return false, err
 	}
-	for _, d := range disp {
-		if d.Share.LessThanOrEqual(decimal.Zero) {
-			continue
-		}
-		o, ok := scaled[d.SubAccountID]
-		if !ok {
-			o = d.Order
-		}
+	for _, d := range scaled {
 		ts := time.Now()
 		if !ord.UpdatedTs.IsZero() {
 			ts = ord.UpdatedTs
 		}
 		selector := ctypes.StreamSelector{
 			Stream:  ctypes.StreamTypeAccountRaw,
-			Account: lo.ToPtr(d.SubAccountID),
+			Account: lo.ToPtr(d.AccountID),
 		}
-		msg := ctypes.NewMessage(exchange, selector, o, ts)
+		msg := ctypes.NewMessage(exchange, selector, &d, ts)
 		if err := e.PublishEvent(ctx, msg); err != nil {
 			logger.Ctx(ctx).Err(err).
 				Str("parent_account_id", parentID).
-				Str("sub_account_id", d.SubAccountID).
-				Str("order_id", o.OrderID.String()).
+				Str("sub_account_id", d.AccountID).
+				Str("order_id", d.OrderID.String()).
 				Msg("multi_bot parent order stage publish failed")
 			return true, err
 		}
@@ -249,12 +241,19 @@ func (e *Entity) fundingRateAtOrBefore(ctx context.Context, exchange ctypes.Exch
 	return best.FundingRate, nil
 }
 
-// fundingFeeByAssetAtOrBefore 计算账户在 asOf 的理论资金费（按 quote 资产聚合）：
-// 1) 按 symbol 聚合净仓位；2) 按 asOf 价格转净现金敞口；3) 乘该 symbol 的资金费率；4) 按 quote 聚合。
-func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID string, exchange ctypes.Exchange, asOf time.Time) (map[string]decimal.Decimal, error) {
+// fundingFeeByAssetAtOrBefore 计算账户在 asOf 的理论资金费（按传入 assetCode 对应合约汇总）：
+// 1) 仅保留 quote=assetCode 的永续合约；2) 按 symbol 聚合净仓位；3) 按 asOf 价格与资金费率计算；4) 汇总到 assetCode。
+func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID string, exchange ctypes.Exchange, assetCode string, asOf time.Time) (decimal.Decimal, error) {
 	exchangeStr := exchange.String()
 	if accountID == "" || exchangeStr == "" || asOf.IsZero() {
-		return map[string]decimal.Decimal{}, nil
+		return decimal.Zero, nil
+	}
+	assetCodeUpper := strings.ToUpper(strings.TrimSpace(assetCode))
+	if assetCodeUpper == "" {
+		return decimal.Zero, nil
+	}
+	if e.engine == nil || e.engine.GetMarketProvider() == nil {
+		return decimal.Zero, fmt.Errorf("market provider unavailable")
 	}
 	rows, err := e.db.AcctSnapshotRepo.ListLatestAccountPositionSnapshotsAtOrBefore(ctx, acctsnapshotrepo.ListLatestAccountPositionSnapshotsAtOrBeforeParams{
 		AccountID:   accountID,
@@ -262,16 +261,16 @@ func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID stri
 		EffectiveTs: asOf,
 	})
 	if err != nil {
-		return nil, err
-	}
-	if e.engine == nil || e.engine.GetMarketProvider() == nil {
-		return nil, fmt.Errorf("market provider unavailable")
+		return decimal.Zero, err
 	}
 	netQtyBySymbol := make(map[string]decimal.Decimal)
 	symBySymbol := make(map[string]ctypes.Symbol)
 	for i := range rows {
 		sym, err := ctypes.ParseSymbol(rows[i].Symbol)
 		if err != nil || sym.Type != ctypes.MarketTypeFuture {
+			continue
+		}
+		if strings.ToUpper(sym.Quote) != assetCodeUpper {
 			continue
 		}
 		q := utils.Decimal.PgNumericToDecimal(rows[i].Qty).Abs()
@@ -290,7 +289,7 @@ func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID stri
 	}
 	priceBySymbol := make(map[string]decimal.Decimal)
 	rateBySymbol := make(map[string]decimal.Decimal)
-	feesByAsset := make(map[string]decimal.Decimal)
+	totalFee := decimal.Zero
 	for symbol, netQty := range netQtyBySymbol {
 		if netQty.IsZero() {
 			continue
@@ -300,7 +299,7 @@ func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID stri
 		if !ok {
 			p, err := e.engine.GetMarketProvider().GetPriceAt(ctx, exchange, sym, asOf, ctypes.Interval1m)
 			if err != nil || !p.IsPositive() {
-				return nil, fmt.Errorf("price at asOf unavailable for %s: %w", sym.String(), err)
+				return decimal.Zero, fmt.Errorf("price at asOf unavailable for %s: %w", sym.String(), err)
 			}
 			priceBySymbol[symbol] = p
 			price = p
@@ -309,18 +308,13 @@ func (e *Entity) fundingFeeByAssetAtOrBefore(ctx context.Context, accountID stri
 		if !ok {
 			r, err := e.fundingRateAtOrBefore(ctx, exchange, sym, asOf)
 			if err != nil {
-				return nil, err
+				return decimal.Zero, err
 			}
 			rateBySymbol[symbol] = r
 			rate = r
 		}
 		fee := netQty.Mul(price).Mul(rate)
-		quote := strings.ToUpper(sym.Quote)
-		feesByAsset[quote] = feesByAsset[quote].Add(fee)
+		totalFee = totalFee.Add(fee)
 	}
-	return feesByAsset, nil
-}
-
-func roundFundingFeeAmount(d decimal.Decimal) decimal.Decimal {
-	return d.RoundDown(int32(consts.DefaultAssetPrecision))
+	return totalFee, nil
 }

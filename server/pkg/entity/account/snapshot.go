@@ -40,7 +40,6 @@ type AssetSnapshotAt struct {
 	Key           AccountStateAtAssetKey
 	Found         bool
 	Total         decimal.Decimal
-	Frozen        decimal.Decimal
 	EffectiveTs   time.Time
 	SnapshotRowID int64
 }
@@ -86,7 +85,6 @@ func (e *Entity) GetAccountAssetSnapshotAtOrBefore(ctx context.Context, accountI
 	}
 	out.Found = true
 	out.Total = utils.Decimal.PgNumericToDecimal(row.Total)
-	out.Frozen = utils.Decimal.PgNumericToDecimal(row.Frozen)
 	out.EffectiveTs = row.EffectiveTs
 	out.SnapshotRowID = row.ID
 	return out, nil
@@ -165,8 +163,6 @@ func (e *Entity) BuildAccountStateAt(ctx context.Context, accountID string, asOf
 	return res, nil
 }
 
-
-
 // positionUpsertMeaningfulChange 与 ApplyAccountPositions 中「是否对外广播」判定一致，用于决定是否写入仓位历史快照。
 func positionUpsertMeaningfulChange(row *positions.UpsertPositionRow) bool {
 	if row == nil {
@@ -194,24 +190,44 @@ func (e *Entity) recordAssetSnapshotIfChanged(
 	accountID, exchange string,
 	walletType assets.WalletType,
 	asset string,
-	prevTotal, prevFrozen, newTotal, newFrozen decimal.Decimal,
-	effectiveTs time.Time,
+	total decimal.Decimal,
 ) {
-	d := func(a, b decimal.Decimal) bool { return a.Sub(b).Abs().LessThan(MinDelta) }
-	if d(prevTotal, newTotal) && d(prevFrozen, newFrozen) {
-		return
+	if total.LessThan(decimal.Zero) {
+		total = decimal.Zero
 	}
-	ts := effectiveTs
-	if ts.IsZero() {
-		ts = time.Now()
-	}
-	err := e.db.AcctSnapshotRepo.InsertAccountAssetSnapshot(ctx, acct_snapshot.InsertAccountAssetSnapshotParams{
+
+	ts := time.Now()
+
+	// 根据 快照表 的最新记录比对是否需要新增一条记录
+	latestRow, err := e.db.AcctSnapshotRepo.GetAccountAssetSnapshotAtOrBefore(ctx, acct_snapshot.GetAccountAssetSnapshotAtOrBeforeParams{
 		AccountID:   accountID,
 		Exchange:    exchange,
 		WalletType:  acct_snapshot.WalletType(walletType),
 		Asset:       asset,
-		Total:       precision.DecimalToPgNumeric(newTotal),
-		Frozen:      precision.DecimalToPgNumeric(newFrozen),
+		EffectiveTs: ts,
+	})
+	if err != nil {
+		logger.Ctx(ctx).Err(err).
+			Str("account_id", accountID).
+			Str("exchange", exchange).
+			Str("asset", asset).
+			Str("wallet_type", string(walletType)).
+			Msg("get latest account asset snapshot")
+		return
+	}
+	if latestRow != nil {
+		latestTotal := utils.Decimal.PgNumericToDecimal(latestRow.Total)
+		if latestTotal.Equal(total) {
+			return
+		}
+	}
+
+	err = e.db.AcctSnapshotRepo.InsertAccountAssetSnapshot(ctx, acct_snapshot.InsertAccountAssetSnapshotParams{
+		AccountID:   accountID,
+		Exchange:    exchange,
+		WalletType:  acct_snapshot.WalletType(walletType),
+		Asset:       asset,
+		Total:       precision.DecimalToPgNumeric(total),
 		EffectiveTs: ts,
 	})
 	if err != nil {
@@ -221,80 +237,67 @@ func (e *Entity) recordAssetSnapshotIfChanged(
 			Str("asset", asset).
 			Str("wallet_type", string(walletType)).
 			Msg("insert asset_snapshot")
+		return
 	}
 }
 
-func (e *Entity) recordAssetSnapshotFromUpsertRow(ctx context.Context, row *assets.UpsertAssetRow) {
-	if row == nil {
-		return
+func (e *Entity) recordPositionSnapshotIfChanged(ctx context.Context,
+	accountID string,
+	exchange ctypes.Exchange,
+	symbol string,
+	side positions.PositionSide,
+	qty decimal.Decimal,
+	entry decimal.Decimal,
+	leverage int32,
+) {
+	if qty.LessThan(decimal.Zero) {
+		qty = decimal.Zero
+		entry = decimal.Zero
 	}
-	prevT := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
-	prevF := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
-	newT := utils.Decimal.PgNumericToDecimal(row.Total)
-	newF := utils.Decimal.PgNumericToDecimal(row.Frozen)
-	e.recordAssetSnapshotIfChanged(ctx, row.AccountID, row.Exchange, row.WalletType, row.Asset,
-		prevT, prevF, newT, newF, row.LastUpdatedTs)
-}
 
-func (e *Entity) recordPositionSnapshotFromUpsertRow(ctx context.Context, row *positions.UpsertPositionRow) {
-	if row == nil {
-		return
-	}
-	ts := row.UpdatedTs
-	if ts.IsZero() {
-		ts = time.Now()
-	}
-	qty := utils.Decimal.PgNumericToDecimal(row.Qty)
-	entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
-	err := e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
-		AccountID:   row.AccountID,
-		Exchange:    row.Exchange,
-		Symbol:      row.Symbol,
-		Side:        acct_snapshot.PositionSide(row.Side),
-		Qty:         precision.DecimalToPgNumeric(qty),
-		EntryPrice:  precision.DecimalToPgNumeric(entry),
-		Leverage:    row.Leverage,
+	ts := time.Now()
+
+	latestRow, err := e.db.AcctSnapshotRepo.GetAccountPositionSnapshotAtOrBefore(ctx, acct_snapshot.GetAccountPositionSnapshotAtOrBeforeParams{
+		AccountID:   accountID,
+		Exchange:    exchange.String(),
+		Symbol:      symbol,
+		Side:        acct_snapshot.PositionSide(side),
 		EffectiveTs: ts,
 	})
 	if err != nil {
 		logger.Ctx(ctx).Err(err).
-			Str("account_id", row.AccountID).
-			Str("symbol", row.Symbol).
-			Str("side", string(row.Side)).
+			Str("account_id", accountID).
+			Str("exchange", exchange.String()).
+			Str("symbol", symbol).
+			Str("side", string(side)).
+			Msg("get latest account position snapshot")
+	}
+	if latestRow != nil {
+		latestQty := utils.Decimal.PgNumericToDecimal(latestRow.Qty)
+		latestEntry := utils.Decimal.PgNumericToDecimal(latestRow.EntryPrice)
+		latestLeverage := latestRow.Leverage
+		if latestQty.Equal(qty) && latestEntry.Equal(entry) && latestLeverage == leverage {
+			return
+		}
+	}
+
+	err = e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
+		AccountID:   accountID,
+		Exchange:    exchange.String(),
+		Symbol:      symbol,
+		Side:        acct_snapshot.PositionSide(side),
+		Qty:         precision.DecimalToPgNumeric(qty),
+		EntryPrice:  precision.DecimalToPgNumeric(entry),
+		Leverage:    leverage,
+		EffectiveTs: ts,
+	})
+	if err != nil {
+		logger.Ctx(ctx).Err(err).
+			Str("account_id", accountID).
+			Str("exchange", exchange.String()).
+			Str("symbol", symbol).
+			Str("side", string(side)).
 			Msg("insert position_snapshot")
-	}
-}
-
-// recordPositionSnapshotFromPositionsRow 在 UpsertSymbolLeverage 等仅更新 positions 行但未返回 UpsertPositionRow 时使用。
-func (e *Entity) recordPositionSnapshotFromPositionsRow(ctx context.Context, row *positions.Position, effectiveTs time.Time) {
-	if row == nil {
-		return
-	}
-	ts := effectiveTs
-	if ts.IsZero() {
-		ts = row.UpdatedTs
-	}
-	if ts.IsZero() {
-		ts = time.Now()
-	}
-	qty := utils.Decimal.PgNumericToDecimal(row.Qty)
-	entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
-	err := e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
-		AccountID:   row.AccountID,
-		Exchange:    row.Exchange,
-		Symbol:      row.Symbol,
-		Side:        acct_snapshot.PositionSide(row.Side),
-		Qty:         precision.DecimalToPgNumeric(qty),
-		EntryPrice:  precision.DecimalToPgNumeric(entry),
-		Leverage:    row.Leverage,
-		EffectiveTs: ts,
-	})
-	if err != nil {
-		logger.Ctx(ctx).Err(err).
-			Str("account_id", row.AccountID).
-			Str("symbol", row.Symbol).
-			Str("side", string(row.Side)).
-			Msg("insert position_snapshot from positions row")
 	}
 }
 
@@ -304,9 +307,6 @@ func (e *Entity) appendSnapshotRecordsAfterRefresh(ctx context.Context, accountI
 		return err
 	}
 	if err := e.appendPositionSnapshotsAfterRefresh(ctx, accountID, exchange); err != nil {
-		return err
-	}
-	if err := e.patchZeroSnapshotsAfterRefresh(ctx, accountID, exchange); err != nil {
 		return err
 	}
 	return nil
@@ -334,106 +334,42 @@ func (e *Entity) appendAssetSnapshotsAfterRefresh(ctx context.Context, accountID
 		return err
 	}
 
-	for _, a := range rows {
-		if a == nil {
-			continue
-		}
-		ts := a.UpdatedTs
-		if ts.IsZero() {
-			ts = time.Now()
-		}
-		total := precision.DecimalToPgNumeric(a.Balance)
-		frozen := precision.DecimalToPgNumeric(a.Locked())
-		if err := e.db.AcctSnapshotRepo.InsertAccountAssetSnapshot(ctx, acct_snapshot.InsertAccountAssetSnapshotParams{
-			AccountID:   accountID,
-			Exchange:    exchange.String(),
-			WalletType:  acct_snapshot.WalletType(a.WalletType),
-			Asset:       a.Code,
-			Total:       total,
-			Frozen:      frozen,
-			EffectiveTs: ts,
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (e *Entity) appendPositionSnapshotsAfterRefresh(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
-	rows, err := e.GetPositions(ctx, accountID)
-	if err != nil {
-		return err
-	}
-	for _, p := range rows {
-		if p == nil || p.Exchange != exchange || p.Symbol.Type != ctypes.MarketTypeFuture {
-			continue
-		}
-		ts := p.UpdatedTs
-		if ts.IsZero() {
-			ts = time.Now()
-		}
-		if err := e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
-			AccountID:   accountID,
-			Exchange:    exchange.String(),
-			Symbol:      p.Symbol.String(),
-			Side:        acct_snapshot.PositionSide(p.Side),
-			Qty:         precision.DecimalToPgNumeric(p.Amount),
-			EntryPrice:  precision.DecimalToPgNumeric(p.EntryPrice),
-			Leverage:    int32(p.Leverage),
-			EffectiveTs: ts,
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// patchZeroSnapshotsAfterRefresh 根据快照末态与当前表状态补全归零点，避免历史曲线悬挂。
-func (e *Entity) patchZeroSnapshotsAfterRefresh(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
-	if err := e.patchZeroAssetSnapshotsAfterRefresh(ctx, accountID, exchange); err != nil {
-		return err
-	}
-	if err := e.patchZeroPositionSnapshotsAfterRefresh(ctx, accountID, exchange); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (e *Entity) patchZeroAssetSnapshotsAfterRefresh(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
+	now := time.Now()
 	latestRows, err := e.db.AcctSnapshotRepo.ListLatestAccountAssetSnapshotsAtOrBefore(
 		ctx,
 		acct_snapshot.ListLatestAccountAssetSnapshotsAtOrBeforeParams{
 			AccountID:   accountID,
 			Exchange:    exchange.String(),
-			EffectiveTs: time.Now(),
+			EffectiveTs: now,
 		},
 	)
 	if err != nil {
 		return err
 	}
 
-	currentRows, err := e.db.AssetsRepo.ListAssetsByAccount(ctx, accountID)
-	if err != nil {
-		return err
-	}
-	current := make(map[string]decimal.Decimal, len(currentRows))
-	for _, row := range currentRows {
-		if row.Exchange != exchange.String() {
+	current := make(map[string]decimal.Decimal, len(rows))
+
+	for _, row := range rows {
+		if row == nil {
 			continue
 		}
-		key := row.Asset + ":" + string(row.WalletType)
-		current[key] = utils.Decimal.PgNumericToDecimal(row.Total)
+
+		key := row.Code + ":" + string(row.WalletType)
+		current[key] = row.Balance
+		if row.Balance.LessThan(decimal.Zero) {
+			current[key] = decimal.Zero
+		}
+
+		e.recordAssetSnapshotIfChanged(ctx, accountID, exchange.String(), assets.WalletType(row.WalletType), row.Code, row.Balance)
 	}
 
-	now := time.Now()
 	for _, row := range latestRows {
 		lastTotal := utils.Decimal.PgNumericToDecimal(row.Total)
-		if !lastTotal.GreaterThan(decimal.Zero) {
+		if lastTotal.Equal(decimal.Zero) {
 			continue
 		}
 		key := row.Asset + ":" + string(row.WalletType)
-		curTotal, ok := current[key]
-		if ok && curTotal.GreaterThan(decimal.Zero) {
+		if _, ok := current[key]; ok {
 			continue
 		}
 		if err := e.db.AcctSnapshotRepo.InsertAccountAssetSnapshot(ctx, acct_snapshot.InsertAccountAssetSnapshotParams{
@@ -442,50 +378,58 @@ func (e *Entity) patchZeroAssetSnapshotsAfterRefresh(ctx context.Context, accoun
 			WalletType:  row.WalletType,
 			Asset:       row.Asset,
 			Total:       precision.DecimalToPgNumeric(decimal.Zero),
-			Frozen:      precision.DecimalToPgNumeric(decimal.Zero),
 			EffectiveTs: now,
 		}); err != nil {
-			return err
+			logger.Ctx(ctx).Err(err).
+				Str("account_id", accountID).
+				Str("exchange", exchange.String()).
+				Str("asset", row.Asset).
+				Str("wallet_type", string(row.WalletType)).
+				Msg("insert asset_snapshot")
 		}
 	}
+
 	return nil
 }
 
-func (e *Entity) patchZeroPositionSnapshotsAfterRefresh(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
+func (e *Entity) appendPositionSnapshotsAfterRefresh(ctx context.Context, accountID string, exchange ctypes.Exchange) error {
+	rows, err := e.GetPositions(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+
 	latestRows, err := e.db.AcctSnapshotRepo.ListLatestAccountPositionSnapshotsAtOrBefore(
 		ctx,
 		acct_snapshot.ListLatestAccountPositionSnapshotsAtOrBeforeParams{
 			AccountID:   accountID,
 			Exchange:    exchange.String(),
-			EffectiveTs: time.Now(),
+			EffectiveTs: now,
 		},
 	)
 	if err != nil {
 		return err
 	}
 
-	currentRows, err := e.db.PositionsRepo.ListPositionsByAccountAndExchange(ctx, positions.ListPositionsByAccountAndExchangeParams{
-		AccountID: accountID,
-		Exchange:  exchange.String(),
-	})
-	if err != nil {
-		return err
-	}
-	current := make(map[string]decimal.Decimal, len(currentRows))
-	for _, row := range currentRows {
-		key := row.Symbol + ":" + string(row.Side)
-		current[key] = utils.Decimal.PgNumericToDecimal(row.Qty)
+	current := make(map[string]decimal.Decimal, len(rows))
+
+	for _, row := range rows {
+		if row == nil || row.Exchange != exchange || row.Symbol.Type != ctypes.MarketTypeFuture {
+			continue
+		}
+		key := row.Symbol.String() + ":" + string(row.Side)
+		current[key] = row.Amount
+		e.recordPositionSnapshotIfChanged(ctx, accountID, exchange, row.Symbol.String(), positions.PositionSide(row.Side), row.Amount, row.EntryPrice, int32(row.Leverage))
 	}
 
-	now := time.Now()
 	for _, row := range latestRows {
 		lastQty := utils.Decimal.PgNumericToDecimal(row.Qty)
-		if !lastQty.GreaterThan(decimal.Zero) {
+		if lastQty.Equal(decimal.Zero) {
 			continue
 		}
 		key := row.Symbol + ":" + string(row.Side)
-		curQty, ok := current[key]
-		if ok && curQty.GreaterThan(decimal.Zero) {
+		if _, ok := current[key]; ok {
 			continue
 		}
 		if err := e.db.AcctSnapshotRepo.InsertAccountPositionSnapshot(ctx, acct_snapshot.InsertAccountPositionSnapshotParams{
@@ -498,8 +442,14 @@ func (e *Entity) patchZeroPositionSnapshotsAfterRefresh(ctx context.Context, acc
 			Leverage:    row.Leverage,
 			EffectiveTs: now,
 		}); err != nil {
-			return err
+			logger.Ctx(ctx).Err(err).
+				Str("account_id", accountID).
+				Str("exchange", exchange.String()).
+				Str("symbol", row.Symbol).
+				Str("side", string(row.Side)).
+				Msg("insert position_snapshot")
 		}
 	}
+
 	return nil
 }

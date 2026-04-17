@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/shopspring/decimal"
@@ -21,20 +22,6 @@ const (
 	scaleFieldQuoteQty
 	scaleFieldMoney
 )
-
-func effectiveBasePlaces(m *ctypes.Market) int32 {
-	if m != nil && m.BaseAssetPrecision > 0 {
-		return int32(m.BaseAssetPrecision)
-	}
-	return int32(consts.DefaultAssetPrecision)
-}
-
-func effectiveQuotePlaces(m *ctypes.Market) int32 {
-	if m != nil && m.QuoteAssetPrecision > 0 {
-		return int32(m.QuoteAssetPrecision)
-	}
-	return int32(consts.DefaultAssetPrecision)
-}
 
 func marketLotStepBase(m *ctypes.Market) decimal.Decimal {
 	if m != nil && m.Rules.LotSize.IsPositive() {
@@ -57,17 +44,9 @@ func floorDecimalPlaces(d decimal.Decimal, places int32) decimal.Decimal {
 	return d.RoundDown(places)
 }
 
-func floorToStep(t, step decimal.Decimal) decimal.Decimal {
-	if !step.IsPositive() {
-		return t
-	}
-	return t.Div(step).Floor().Mul(step)
-}
-
 func deriveQuoteFromBaseMap(
 	baseMap map[string]decimal.Decimal,
 	avgPrice decimal.Decimal,
-	m *ctypes.Market,
 ) map[string]decimal.Decimal {
 	out := make(map[string]decimal.Decimal, len(baseMap))
 	for key, value := range baseMap {
@@ -76,16 +55,16 @@ func deriveQuoteFromBaseMap(
 	return out
 }
 
-func floorFieldShare(parentVal decimal.Decimal, row subShare, isFuture bool, kind scaleFieldKind, m *ctypes.Market) decimal.Decimal {
-	t := parentVal.Mul(row.s)
+// floorScaledPortion 对已按份额缩放后的量 t 做向下取整。若 t 为负，则对 |t| 按与正数相同规则 floor 后再取负，避免 Floor 向 -∞ 导致子合计比父更负。
+func floorScaledPortion(t decimal.Decimal, isFuture bool, kind scaleFieldKind) decimal.Decimal {
+	if t.IsNegative() {
+		return floorScaledPortion(t.Abs(), isFuture, kind).Neg()
+	}
 	switch kind {
 	case scaleFieldBaseQty:
-		if isFuture {
-			return floorToStep(t, marketLotStepBase(m))
-		}
-		return floorDecimalPlaces(t, effectiveBasePlaces(m))
+		return floorDecimalPlaces(t, int32(consts.DefaultAssetPrecision))
 	case scaleFieldQuoteQty:
-		return floorDecimalPlaces(t, effectiveQuotePlaces(m))
+		return floorDecimalPlaces(t, int32(consts.DefaultAssetPrecision))
 	case scaleFieldMoney:
 		return floorDecimalPlaces(t, int32(consts.DefaultAssetPrecision))
 	default:
@@ -93,8 +72,13 @@ func floorFieldShare(parentVal decimal.Decimal, row subShare, isFuture bool, kin
 	}
 }
 
-// allocateFieldAmongSubs 将 parentVal 按 share 拆到各子；非 max 子向下取整（合约 base 按 lot，其余按精度），余量归 maxSub，且 sum(子) = parentVal*sum(shares)。
-func allocateFieldAmongSubs(parentVal decimal.Decimal, shares []subShare, maxSub string, isFuture bool, kind scaleFieldKind, m *ctypes.Market) map[string]decimal.Decimal {
+func floorFieldShare(parentVal decimal.Decimal, row subShare, isFuture bool, kind scaleFieldKind) decimal.Decimal {
+	return floorScaledPortion(parentVal.Mul(row.s), isFuture, kind)
+}
+
+// allocateFieldAmongSubs 将 parentVal 按 share 拆到各子；各子统一向下取整（合约 base 按 lot，其余按精度）。
+// floor 后的剩余量不再补给任一子账户，统一由父侧吸收，避免子侧出现尾差超配。
+func allocateFieldAmongSubs(parentVal decimal.Decimal, shares []subShare, isFuture bool, kind scaleFieldKind) map[string]decimal.Decimal {
 	out := make(map[string]decimal.Decimal, len(shares))
 	for _, row := range shares {
 		out[row.id] = decimal.Zero
@@ -110,33 +94,16 @@ func allocateFieldAmongSubs(parentVal decimal.Decimal, shares []subShare, maxSub
 		return out
 	}
 	if len(shares) == 1 {
-		out[shares[0].id] = floorFieldShare(parentVal, shares[0], isFuture, kind, m)
+		out[shares[0].id] = floorFieldShare(parentVal, shares[0], isFuture, kind)
 		return out
 	}
-	if parentVal.IsNegative() {
-		for _, row := range shares {
-			out[row.id] = parentVal.Mul(row.s)
-		}
-		return out
-	}
-	sumTicks := parentVal.Mul(sumShares)
-	sumOthers := decimal.Zero
 	for _, row := range shares {
-		if row.id == maxSub {
-			continue
-		}
-		q := floorFieldShare(parentVal, row, isFuture, kind, m)
-		if q.IsNegative() {
+		q := floorScaledPortion(parentVal.Mul(row.s), isFuture, kind)
+		if parentVal.IsPositive() && q.IsNegative() {
 			q = decimal.Zero
 		}
 		out[row.id] = q
-		sumOthers = sumOthers.Add(q)
 	}
-	rem := sumTicks.Sub(sumOthers)
-	if rem.IsNegative() {
-		rem = decimal.Zero
-	}
-	out[maxSub] = rem
 	return out
 }
 
@@ -157,22 +124,7 @@ func sortedSubSharesFromDispatches(disp []SubRawDispatch) []subShare {
 	return out
 }
 
-func maxShareSubAccountID(disp []SubRawDispatch) string {
-	if len(disp) == 0 {
-		return ""
-	}
-	best := ""
-	bestShare := decimal.NewFromInt(-2)
-	for _, d := range disp {
-		if d.Share.GreaterThan(bestShare) || (d.Share.Equal(bestShare) && d.SubAccountID > best) {
-			bestShare = d.Share
-			best = d.SubAccountID
-		}
-	}
-	return best
-}
-
-func (e *Entity) getMarketForOrderFanout(ctx context.Context, ex ctypes.Exchange, sym ctypes.Symbol) *ctypes.Market {
+func (e *Entity) getMarket(ctx context.Context, ex ctypes.Exchange, sym ctypes.Symbol) *ctypes.Market {
 	if e == nil || e.engine == nil {
 		return nil
 	}
@@ -187,40 +139,54 @@ func (e *Entity) getMarketForOrderFanout(ctx context.Context, ex ctypes.Exchange
 	return mkt
 }
 
-// buildScaledOrdersForMultiBotFanout 按 Share 与 Market 精度/lot 生成各子逻辑订单；合约 base 数量按 lot 向下取整后余量归 share 最大子。
+func normalizeOrderForAccountRaw(o ctypes.Order) ctypes.Order {
+	o.OriginalQty = floorDecimalPlaces(o.OriginalQty, int32(consts.DefaultAssetPrecision))
+	o.ExecutedQty = floorDecimalPlaces(o.ExecutedQty, int32(consts.DefaultAssetPrecision))
+	o.OriginalQuoteQty = floorDecimalPlaces(o.OriginalQuoteQty, int32(consts.DefaultAssetPrecision))
+	o.ExecutedQuoteQty = floorDecimalPlaces(o.ExecutedQuoteQty, int32(consts.DefaultAssetPrecision))
+	if o.Fee != nil {
+		v := floorDecimalPlaces(*o.Fee, int32(consts.DefaultAssetPrecision))
+		o.Fee = &v
+	}
+	if o.RealizedPnl != nil {
+		v := floorDecimalPlaces(*o.RealizedPnl, int32(consts.DefaultAssetPrecision))
+		o.RealizedPnl = &v
+	}
+	return o
+}
+
+// buildScaledOrdersForMultiBotFanout 按 Share 与 Market 精度/lot 生成各子逻辑订单；各子独立向下取整，剩余量由父吸收。
 func (e *Entity) buildScaledOrdersForMultiBotFanout(ctx context.Context, ex ctypes.Exchange, parent *ctypes.Order, disp []SubRawDispatch) (map[string]ctypes.Order, error) {
 	if len(disp) == 0 || parent == nil {
 		return map[string]ctypes.Order{}, nil
 	}
-	mkt := e.getMarketForOrderFanout(ctx, ex, parent.Symbol)
 	isFut := parent.Symbol.Type == ctypes.MarketTypeFuture
 	shares := sortedSubSharesFromDispatches(disp)
-	maxSub := maxShareSubAccountID(disp)
 
-	origMap := allocateFieldAmongSubs(parent.OriginalQty, shares, maxSub, isFut, scaleFieldBaseQty, mkt)
-	execMap := allocateFieldAmongSubs(parent.ExecutedQty, shares, maxSub, isFut, scaleFieldBaseQty, mkt)
-	origQuoteMap := allocateFieldAmongSubs(parent.OriginalQuoteQty, shares, maxSub, isFut, scaleFieldQuoteQty, mkt)
-	execQuoteMap := allocateFieldAmongSubs(parent.ExecutedQuoteQty, shares, maxSub, isFut, scaleFieldQuoteQty, mkt)
+	origMap := allocateFieldAmongSubs(parent.OriginalQty, shares, isFut, scaleFieldBaseQty)
+	execMap := allocateFieldAmongSubs(parent.ExecutedQty, shares, isFut, scaleFieldBaseQty)
+	origQuoteMap := allocateFieldAmongSubs(parent.OriginalQuoteQty, shares, isFut, scaleFieldQuoteQty)
+	execQuoteMap := allocateFieldAmongSubs(parent.ExecutedQuoteQty, shares, isFut, scaleFieldQuoteQty)
 	if parent.AvgPrice.IsPositive() {
 		if parent.OriginalQty.IsPositive() {
-			origQuoteMap = deriveQuoteFromBaseMap(origMap, parent.AvgPrice, mkt)
+			origQuoteMap = deriveQuoteFromBaseMap(origMap, parent.AvgPrice)
 		}
 		if parent.ExecutedQty.IsPositive() {
-			execQuoteMap = deriveQuoteFromBaseMap(execMap, parent.AvgPrice, mkt)
+			execQuoteMap = deriveQuoteFromBaseMap(execMap, parent.AvgPrice)
 		}
 	}
 
 	var feeMap, pnlMap map[string]decimal.Decimal
 	if parent.Fee != nil {
-		feeMap = allocateFieldAmongSubs(*parent.Fee, shares, maxSub, false, scaleFieldMoney, mkt)
+		feeMap = allocateFieldAmongSubs(*parent.Fee, shares, false, scaleFieldMoney)
 	}
 	if parent.RealizedPnl != nil {
-		pnlMap = allocateFieldAmongSubs(*parent.RealizedPnl, shares, maxSub, false, scaleFieldMoney, mkt)
+		pnlMap = allocateFieldAmongSubs(*parent.RealizedPnl, shares, false, scaleFieldMoney)
 	}
 
 	out := make(map[string]ctypes.Order, len(disp))
 	for _, d := range disp {
-		o := d.Order
+		o := cloneOrderForSub(*parent, d.SubAccountID)
 		sid := d.SubAccountID
 		o.OriginalQty = origMap[sid]
 		o.ExecutedQty = execMap[sid]
@@ -239,7 +205,31 @@ func (e *Entity) buildScaledOrdersForMultiBotFanout(ctx context.Context, ex ctyp
 			o.RealizedPnl = nil
 		}
 		o.Locked = nil
+		o = normalizeOrderForAccountRaw(o)
+
+		if o.OriginalQty.LessThanOrEqual(decimal.Zero) {
+			continue
+		}
+
 		out[sid] = o
 	}
 	return out, nil
+}
+
+// BuildFanoutScaledOrdersForAudit 稽核用：按父单与 fanout 份额映射生成各子期望订单（OriginalQty / ExecutedQty / 等），与 buildScaledOrdersForMultiBotFanout 一致。
+// unitShares 为子账户 id -> 份额；engine 不可用时 mkt 为 nil，按默认精度做 floor，可能与线上略有差异。
+func (e *Entity) BuildFanoutScaledOrdersForAudit(ctx context.Context, ex ctypes.Exchange, parent *ctypes.Order, unitShares map[string]decimal.Decimal) (map[string]ctypes.Order, error) {
+	if parent == nil {
+		return nil, fmt.Errorf("parent order is nil")
+	}
+	if len(unitShares) == 0 {
+		return map[string]ctypes.Order{}, nil
+	}
+	disp := buildSubRawDispatchesFromUnitShares(*parent, unitShares)
+	return e.buildScaledOrdersForMultiBotFanout(ctx, ex, parent, disp)
+}
+
+// FanoutSubOrderSkippedBelowMinStep 与 applyMultiBotParentOrderStage 一致：缩放并 normalize 后若 original 低于最小步长，则不会向该子派发订单流。
+func (e *Entity) FanoutSubOrderSkippedBelowMinStep(ctx context.Context, ex ctypes.Exchange, scaled ctypes.Order) bool {
+	return scaled.OriginalQty.LessThanOrEqual(decimal.Zero)
 }

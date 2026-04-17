@@ -11,6 +11,7 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
@@ -181,6 +182,8 @@ func (e *Entity) sendFuturePositionEventByOrderIfNeeded(ctx context.Context, acc
 	if (!order.IsBuy && order.Side == ctypes.PositionSideLong) || (order.IsBuy && order.Side == ctypes.PositionSideShort) {
 		fillQtyDelta = fillQtyDelta.Neg()
 	}
+	fillQtyDelta = floorDecimalPlaces(fillQtyDelta, int32(consts.DefaultAssetPrecision))
+	fillAvgPrice = floorDecimalPlaces(fillAvgPrice, int32(consts.DefaultAssetPrecision))
 
 	pos := &ctypes.Position{
 		AccountID:  accountID,
@@ -223,16 +226,19 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 	if !fillQtyDelta.GreaterThan(decimal.Zero) {
 		return nil
 	}
+	fillQtyDelta = floorDecimalPlaces(fillQtyDelta, int32(consts.DefaultAssetPrecision))
 	currentFee := decimal.Zero
 	if order.Fee != nil {
 		currentFee = *order.Fee
 	}
 	feeDelta := currentFee.Sub(prevFee)
+	feeDelta = floorDecimalPlaces(feeDelta, int32(consts.DefaultAssetPrecision))
 	currentPnl := decimal.Zero
 	if order.RealizedPnl != nil {
 		currentPnl = *order.RealizedPnl
 	}
 	pnlDelta := currentPnl.Sub(prevPnl)
+	pnlDelta = floorDecimalPlaces(pnlDelta, int32(consts.DefaultAssetPrecision))
 	feeMag := feeDelta
 	if feeMag.IsNegative() {
 		feeMag = feeMag.Neg()
@@ -257,8 +263,10 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 		base := strings.ToUpper(order.Symbol.Base)
 		quote := strings.ToUpper(order.Symbol.Quote)
 		execQuoteDelta := order.ExecutedQuoteQty.Sub(prevExecQuote)
+		execQuoteDelta = floorDecimalPlaces(execQuoteDelta, int32(consts.DefaultAssetPrecision))
 		if execQuoteDelta.IsZero() && order.AvgPrice.GreaterThan(decimal.Zero) {
 			execQuoteDelta = fillQtyDelta.Mul(order.AvgPrice)
+			execQuoteDelta = floorDecimalPlaces(execQuoteDelta, int32(consts.DefaultAssetPrecision))
 		}
 		if order.IsBuy {
 			mergeVsFillAssetDelta(deltas, wt, quote, execQuoteDelta.Neg(), decimal.Zero)
@@ -289,6 +297,8 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 		}
 		balCopy := a.total
 		lockCopy := a.locked
+		balCopy = floorDecimalPlaces(balCopy, int32(consts.DefaultAssetPrecision))
+		lockCopy = floorDecimalPlaces(lockCopy, int32(consts.DefaultAssetPrecision))
 		assets = append(assets, &ctypes.AssetEvent{
 			WalletType: a.wt,
 			Code:       a.code,
@@ -324,6 +334,7 @@ func (e *Entity) applyVirtualSubOrderFillDerivedRawAccounts(ctx context.Context,
 		return nil
 	}
 	fillExecQuoteDelta := order.ExecutedQuoteQty.Sub(prevExecQuote)
+	fillExecQuoteDelta = floorDecimalPlaces(fillExecQuoteDelta, int32(consts.DefaultAssetPrecision))
 	fillAvgPrice := decimal.Zero
 	if fillQtyDelta.GreaterThan(decimal.Zero) && fillExecQuoteDelta.GreaterThan(decimal.Zero) {
 		fillAvgPrice = fillExecQuoteDelta.Div(fillQtyDelta)

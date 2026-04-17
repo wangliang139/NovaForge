@@ -56,7 +56,7 @@ func (e *Entity) ListenAccountEvent(consumerId string) {
 			}
 
 			ctx := context.Background()
-			ctx, span := tracer.Start(ctx, "account.consume")
+			ctx, span := tracer.Start(ctx, fmt.Sprintf("account.consume.%s", envelope.Stream.String()))
 
 			logger.Ctx(ctx).Info().Str("exchange", envelope.Exchange).Any("account", envelope.Account).Interface("message", envelope.Payload).Msg("Receive account message")
 			if envelope.Account == nil {
@@ -169,6 +169,7 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 		}
 
 		ledgerParams := ledgers.CreateLedgerEntryParams{
+			ID:          snowflake.Generate().Int64(),
 			AccountID:   accountID,
 			Exchange:    exchangeStr,
 			Asset:       asset.Code,
@@ -214,22 +215,23 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 			if row != nil {
 				prevTotal := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
 				prevFrozen := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
+				prevOrderOccupied := utils.Decimal.PgNumericToDecimal(row.PrevOrderOccupied)
+				prevLocked := prevFrozen.Add(prevOrderOccupied)
 				total := utils.Decimal.PgNumericToDecimal(row.Total)
 				frozen := utils.Decimal.PgNumericToDecimal(row.Frozen)
+				orderOccupied := utils.Decimal.PgNumericToDecimal(row.OrderOccupied)
+				locked := frozen.Add(orderOccupied)
 				totalDelta := total.Sub(prevTotal)
-				frozenDelta := frozen.Sub(prevFrozen)
+				lockedDelta := locked.Sub(prevLocked)
+				ledgerParams.Total = precision.DecimalToPgNumeric(total)
+				ledgerParams.Frozen = precision.DecimalToPgNumeric(locked)
 				ledgerParams.TotalDelta = precision.DecimalToPgNumeric(totalDelta)
-				ledgerParams.FrozenDelta = precision.DecimalToPgNumeric(frozenDelta)
+				ledgerParams.FrozenDelta = precision.DecimalToPgNumeric(lockedDelta)
 				ledgerParams.IsEffective = true
-				_totalDelta := totalDelta.String()
-				_frozenDelta := frozenDelta.String()
-				_ = _totalDelta
-				_ = _frozenDelta
-				if totalDelta.Abs().LessThan(MinDelta) && frozenDelta.Abs().LessThan(MinDelta) {
+				if totalDelta.Abs().LessThan(MinDelta) && lockedDelta.Abs().LessThan(MinDelta) {
 					continue
 				}
 
-				// 将快照语义转换为增量语义对外发布（避免下游把 snapshot 当 delta 使用）
 				outUpdate := &ctypes.BalanceUpdate{
 					Type:   ctypes.UpdateTypeIncrement,
 					Reason: update.Reason,
@@ -238,7 +240,7 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 							WalletType: walletType,
 							Code:       asset.Code,
 							Balance:    lo.ToPtr(totalDelta),
-							Locked:     lo.ToPtr(frozenDelta),
+							Locked:     lo.ToPtr(lockedDelta),
 							UpdatedTs:  ts,
 						},
 					},
@@ -300,45 +302,40 @@ func (e *Entity) HandleAssetUpdates(ctx context.Context, accountID string, excha
 				ledgerParams.FrozenDelta = precision.DecimalToPgNumeric(decimal.Zero)
 			}
 			if assetPo != nil {
-				ledgerParams.Total = assetPo.Total
-				ledgerParams.Frozen = assetPo.Frozen
+				total := utils.Decimal.PgNumericToDecimal(assetPo.Total)
+				frozen := utils.Decimal.PgNumericToDecimal(assetPo.Frozen)
+				orderOccupied := utils.Decimal.PgNumericToDecimal(assetPo.OrderOccupied)
+				locked := frozen.Add(orderOccupied)
+				ledgerParams.Total = precision.DecimalToPgNumeric(total)
+				ledgerParams.Frozen = precision.DecimalToPgNumeric(locked)
 				ledgerParams.IsEffective = true
-			}
-			// 增量语义直接对外发布（Balance/Locked 均为 delta）
-			td := decimal.Zero
-			fd := decimal.Zero
-			if totalDelta != nil {
-				td = *totalDelta
-			}
-			if frozenDelta != nil {
-				fd = *frozenDelta
-			}
-			outUpdate := &ctypes.BalanceUpdate{
-				Type:   ctypes.UpdateTypeIncrement,
-				Reason: update.Reason,
-				Assets: []*ctypes.AssetEvent{
-					{
-						WalletType: walletType,
-						Code:       asset.Code,
-						Balance:    lo.ToPtr(td),
-						Locked:     lo.ToPtr(fd),
-						UpdatedTs:  ts,
+
+				outUpdate := &ctypes.BalanceUpdate{
+					Type:   ctypes.UpdateTypeIncrement,
+					Reason: update.Reason,
+					Assets: []*ctypes.AssetEvent{
+						{
+							WalletType: walletType,
+							Code:       asset.Code,
+							Balance:    totalDelta,
+							Locked:     frozenDelta,
+							UpdatedTs:  ts,
+						},
 					},
-				},
-				Detail: update.Detail,
-			}
-			selector := ctypes.StreamSelector{
-				Stream:  ctypes.StreamTypeAccount,
-				Account: lo.ToPtr(accountID),
-			}
-			msg := ctypes.NewMessage(exchange, selector, outUpdate, ts)
-			if e.engine != nil {
-				if err := e.engine.Publish(ctx, msg); err != nil {
-					return err
+					Detail: update.Detail,
 				}
-			}
-			if assetPo != nil {
-				if err := e.fanoutMultiBotBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, td, ts); err != nil {
+				selector := ctypes.StreamSelector{
+					Stream:  ctypes.StreamTypeAccount,
+					Account: lo.ToPtr(accountID),
+				}
+				msg := ctypes.NewMessage(exchange, selector, outUpdate, ts)
+				if e.engine != nil {
+					if err := e.engine.Publish(ctx, msg); err != nil {
+						return err
+					}
+				}
+
+				if err := e.fanoutMultiBotBalanceUpdateIfNeeded(ctx, accountID, exchange, update, walletType, asset.Code, *totalDelta, ts); err != nil {
 					logger.Ctx(ctx).Err(err).
 						Str("account_id", accountID).
 						Str("asset", asset.Code).
@@ -369,6 +366,34 @@ func (e *Entity) handlePositionsSnapshot(ctx context.Context, accountID string, 
 	return e.ApplyAccountPositions(ctx, accountID, exchange, positions, closeOthers)
 }
 
+func (e *Entity) clampVirtualSubFutureReduceDustToZero(
+	ctx context.Context,
+	account *ctypes.Account,
+	exchange ctypes.Exchange,
+	delta *ctypes.Position,
+	nextQty decimal.Decimal,
+) decimal.Decimal {
+	if account == nil || account.AccountType != ctypes.AccountTypeVirtualSub {
+		return nextQty
+	}
+	if delta == nil || delta.Symbol.Type != ctypes.MarketTypeFuture {
+		return nextQty
+	}
+	// 仅合约减仓场景做 dust 归零，避免影响开仓路径。
+	if !delta.Amount.IsNegative() || nextQty.IsZero() {
+		return nextQty
+	}
+	mkt := e.getMarket(ctx, exchange, delta.Symbol)
+	step := marketLotStepBase(mkt)
+	if !step.IsPositive() {
+		return nextQty
+	}
+	if nextQty.Abs().LessThan(step) {
+		return decimal.Zero
+	}
+	return nextQty
+}
+
 // 增量仓位更新事件处理（对外发布增量快照事件）
 func (e *Entity) handlePositionsIncrement(ctx context.Context, accountID string, exchange ctypes.Exchange, update *ctypes.PositionsUpdate) error {
 	if update == nil || len(update.Positions) == 0 {
@@ -382,6 +407,10 @@ func (e *Entity) handlePositionsIncrement(ctx context.Context, accountID string,
 	})
 	if err != nil {
 		return fmt.Errorf("list positions for increment: %w", err)
+	}
+	acct, err := e.GetAccount(ctx, accountID)
+	if err != nil {
+		return fmt.Errorf("get account for position increment: %w", err)
 	}
 
 	type posKey struct {
@@ -425,6 +454,7 @@ func (e *Entity) handlePositionsIncrement(ctx context.Context, accountID string,
 		if nextQty.IsNegative() {
 			nextQty = decimal.Zero
 		}
+		nextQty = e.clampVirtualSubFutureReduceDustToZero(ctx, acct, exchange, delta, nextQty)
 
 		nextEntry := currentEntry
 		if nextQty.IsZero() {
@@ -469,14 +499,62 @@ func (e *Entity) handlePositionsIncrement(ctx context.Context, accountID string,
 			UpdatedTs:  row.UpdatedTs,
 		}
 
-		if !positionUpsertMeaningfulChange(row) {
-			continue
+		if positionUpsertMeaningfulChange(row) {
+			qty := utils.Decimal.PgNumericToDecimal(row.Qty)
+			entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
+			e.recordPositionSnapshotIfChanged(ctx, accountID, exchange, delta.Symbol.String(), positions.PositionSide(delta.Side), qty, entry, int32(row.Leverage))
+			outPositions = append(outPositions, snapshotPos)
+			if maxTs.IsZero() || ts.After(maxTs) {
+				maxTs = ts
+			}
 		}
 
-		e.recordPositionSnapshotFromUpsertRow(ctx, row)
-		outPositions = append(outPositions, snapshotPos)
-		if maxTs.IsZero() || ts.After(maxTs) {
-			maxTs = ts
+		if delta.Leverage == 0 {
+			conn, err := e.GetConnector(ctx, exchange, accountID)
+			if err != nil {
+				logger.Ctx(ctx).Err(err).Str("account_id", accountID).
+					Str("exchange", exchangeStr).
+					Str("symbol", delta.Symbol.String()).
+					Msg("failed to get connector")
+				return nil
+			}
+			symbolConfig, err := conn.SymbolConfig(ctx, delta.Symbol)
+			if err != nil {
+				logger.Ctx(ctx).Err(err).Str("account_id", accountID).
+					Str("exchange", exchangeStr).
+					Str("symbol", delta.Symbol.String()).
+					Msg("failed to get symbol config")
+				return nil
+			}
+			if symbolConfig == nil {
+				logger.Ctx(ctx).Error().Str("account_id", accountID).
+					Str("exchange", exchangeStr).
+					Str("symbol", delta.Symbol.String()).
+					Msg("symbol config not found")
+				return nil
+			}
+			delta.Leverage = symbolConfig.CrossLeverage[0]
+		}
+
+		if delta.Leverage != 0 && row.Leverage != int32(delta.Leverage) {
+			go func() {
+				ctx := context.WithoutCancel(ctx)
+				err := e.handleSymbolLeverageUpdate(ctx, accountID, exchange, &ctypes.SymbolLeverage{
+					Exchange:  exchange,
+					Symbol:    delta.Symbol,
+					Side:      delta.Side,
+					Leverage:  delta.Leverage,
+					UpdatedTs: delta.UpdatedTs,
+				})
+				if err != nil {
+					logger.Ctx(ctx).Err(err).Str("account_id", accountID).
+						Str("exchange", exchangeStr).
+						Str("symbol", delta.Symbol.String()).
+						Int("prev_leverage", int(*row.PrevLeverage)).
+						Int("new_leverage", delta.Leverage).
+						Msg("failed to publish symbol leverage update")
+				}
+			}()
 		}
 	}
 
@@ -533,7 +611,9 @@ func (e *Entity) handleSymbolLeverageUpdate(ctx context.Context, accountID strin
 		// 修改失败（无仓位或杠杆无变化），直接返回
 		return nil
 	}
-	e.recordPositionSnapshotFromPositionsRow(ctx, posRow, ts)
+	qty := utils.Decimal.PgNumericToDecimal(posRow.Qty)
+	entry := utils.Decimal.PgNumericToDecimal(posRow.EntryPrice)
+	e.recordPositionSnapshotIfChanged(ctx, accountID, exchange, symbol, positions.PositionSide(update.Side), qty, entry, int32(posRow.Leverage))
 
 	// 处理后发布到事件总线（供下游订阅）
 	selector := ctypes.StreamSelector{

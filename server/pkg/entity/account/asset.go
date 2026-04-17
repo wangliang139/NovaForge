@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -20,6 +21,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/errors"
 	"github.com/wangliang139/mow/logger"
+	"github.com/wangliang139/mow/snowflake"
 )
 
 var MinDelta = decimal.RequireFromString("0.00000001")
@@ -77,6 +79,40 @@ func (e *Entity) getAssetsByScope(ctx context.Context, accountID string, scope [
 	return result, nil
 }
 
+// 收集所有资产变更用于批量发布事件
+type assetDelta struct {
+	walletType  assets.WalletType
+	code        string
+	total       decimal.Decimal
+	frozen      decimal.Decimal
+	totalDelta  decimal.Decimal
+	frozenDelta decimal.Decimal
+	ts          time.Time
+}
+
+func buildAssetDelta(row *assets.UpsertAssetRow, ts time.Time) *assetDelta {
+	total := utils.Decimal.PgNumericToDecimal(row.Total)
+	frozen := utils.Decimal.PgNumericToDecimal(row.Frozen)
+	orderOccupied := utils.Decimal.PgNumericToDecimal(row.OrderOccupied)
+	locked := frozen.Add(orderOccupied)
+	prevTotal := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
+	prevFrozen := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
+	prevOrderOccupied := utils.Decimal.PgNumericToDecimal(row.PrevOrderOccupied)
+	prevLocked := prevFrozen.Add(prevOrderOccupied)
+	totalDelta := total.Sub(prevTotal)
+	lockedDelta := locked.Sub(prevLocked)
+
+	return &assetDelta{
+		walletType:  row.WalletType,
+		code:        row.Asset,
+		total:       total,
+		frozen:      locked,
+		totalDelta:  totalDelta,
+		frozenDelta: lockedDelta,
+		ts:          ts,
+	}
+}
+
 // ApplyAccountBalance 更新账户全量资产快照
 func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exchange ctypes.Exchange, scope []ctypes.WalletType, balance *ctypes.Balance) error {
 	keyFn := func(code string, walletType ctypes.WalletType) string {
@@ -100,17 +136,7 @@ func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exch
 
 	exchangeStr := exchange.String()
 
-	// 收集所有资产变更用于批量发布事件
-	type assetDelta struct {
-		walletType  ctypes.WalletType
-		code        string
-		total       decimal.Decimal
-		frozen      decimal.Decimal
-		totalDelta  decimal.Decimal
-		frozenDelta decimal.Decimal
-		ts          time.Time
-	}
-	var deltas []assetDelta
+	var snapshots []assetDelta
 
 	for _, asset := range balance.Assets {
 		if asset == nil {
@@ -136,30 +162,13 @@ func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exch
 
 		// 计算 delta
 		if row != nil {
-			prevTotal := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
-			prevFrozen := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
-			total := utils.Decimal.PgNumericToDecimal(row.Total)
-			frozen := utils.Decimal.PgNumericToDecimal(row.Frozen)
-			totalDelta := total.Sub(prevTotal)
-			frozenDelta := frozen.Sub(prevFrozen)
-			_totalDelta := totalDelta.String()
-			_frozenDelta := frozenDelta.String()
-			_ = _totalDelta
-			_ = _frozenDelta
+			delta := buildAssetDelta(row, asset.UpdatedTs)
 
 			// 只有当 delta 不为零时才记录
-			if totalDelta.Abs().LessThan(MinDelta) && frozenDelta.Abs().LessThan(MinDelta) {
+			if delta.totalDelta.Abs().LessThan(MinDelta) && delta.frozenDelta.Abs().LessThan(MinDelta) {
 				continue
 			}
-			deltas = append(deltas, assetDelta{
-				walletType:  walletType,
-				code:        asset.Code,
-				total:       total,
-				frozen:      frozen,
-				totalDelta:  totalDelta,
-				frozenDelta: frozenDelta,
-				ts:          asset.UpdatedTs,
-			})
+			snapshots = append(snapshots, *delta)
 		}
 	}
 
@@ -171,34 +180,27 @@ func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exch
 
 		// 清零资产也需要记录 delta
 		if row != nil {
-			prevTotal := utils.Decimal.PgNumericToDecimal(row.PrevTotal)
-			prevFrozen := utils.Decimal.PgNumericToDecimal(row.PrevFrozen)
-			if prevTotal.Abs().LessThan(MinDelta) && prevFrozen.Abs().LessThan(MinDelta) {
+			delta := buildAssetDelta(row, time.Now())
+
+			// 只有当 delta 不为零时才记录
+			if delta.totalDelta.Abs().LessThan(MinDelta) && delta.frozenDelta.Abs().LessThan(MinDelta) {
 				continue
 			}
-			deltas = append(deltas, assetDelta{
-				walletType:  asset.walletType,
-				code:        asset.code,
-				total:       decimal.Zero,
-				frozen:      decimal.Zero,
-				totalDelta:  prevTotal.Neg(),
-				frozenDelta: prevFrozen.Neg(),
-				ts:          time.Now(),
-			})
+			snapshots = append(snapshots, *delta)
 		}
 	}
 
-	// 批量发布资产变更事件（转换为增量语义）
-	if len(deltas) > 0 {
-		assetEvents := make([]*ctypes.AssetEvent, 0, len(deltas))
+	// 批量发布资产快照事件
+	if len(snapshots) > 0 {
+		assetEvents := make([]*ctypes.AssetEvent, 0, len(snapshots))
 		maxTs := time.Time{}
 
-		for _, d := range deltas {
+		for _, d := range snapshots {
 			assetEvents = append(assetEvents, &ctypes.AssetEvent{
-				WalletType: d.walletType,
+				WalletType: ctypes.WalletType(d.walletType),
 				Code:       d.code,
-				Balance:    lo.ToPtr(d.totalDelta),
-				Locked:     lo.ToPtr(d.frozenDelta),
+				Balance:    lo.ToPtr(d.total),
+				Locked:     lo.ToPtr(d.frozen),
 				UpdatedTs:  d.ts,
 			})
 			if d.ts.After(maxTs) {
@@ -211,7 +213,7 @@ func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exch
 		}
 
 		outUpdate := &ctypes.BalanceUpdate{
-			Type:   ctypes.UpdateTypeIncrement,
+			Type:   ctypes.UpdateTypeSnapshot,
 			Reason: ctypes.LedgerReasonSnapshot,
 			Assets: assetEvents,
 		}
@@ -225,15 +227,19 @@ func (e *Entity) ApplyAccountBalance(ctx context.Context, accountID string, exch
 		}
 
 		// 写入 ledger（异步）
+		ledgerId := snowflake.Generate().Int64()
 		go func() {
 			ctx := context.WithoutCancel(ctx)
-			for _, d := range deltas {
+			for _, d := range snapshots {
 				ledgerParams := ledgers.CreateLedgerEntryParams{
+					ID:          ledgerId,
 					AccountID:   accountID,
 					Exchange:    exchangeStr,
 					Asset:       d.code,
 					WalletType:  ledgers.WalletType(d.walletType),
 					Type:        string(ctypes.LedgerReasonSnapshot),
+					Total:       precision.DecimalToPgNumeric(d.total),
+					Frozen:      precision.DecimalToPgNumeric(d.frozen),
 					TotalDelta:  precision.DecimalToPgNumeric(d.totalDelta),
 					FrozenDelta: precision.DecimalToPgNumeric(d.frozenDelta),
 					Ts:          d.ts,
@@ -314,13 +320,17 @@ func (e *Entity) ApplyAssetSnapshot(ctx context.Context, accountID string, excha
 	}
 	row := result.(*assets.UpsertAssetRow)
 	if row != nil {
-		e.recordAssetSnapshotFromUpsertRow(ctx, row)
+		newT := utils.Decimal.PgNumericToDecimal(row.Total)
+		e.recordAssetSnapshotIfChanged(ctx, row.AccountID, row.Exchange, row.WalletType, row.Asset, newT)
 	}
 	return row, nil
 }
 
 // updateAssetAvgPriceOnIncrease 资产变多时按 WAC 更新 avg_price（内部方法，失败时仅记录日志）
 func (e *Entity) updateAssetAvgPriceOnIncrease(ctx context.Context, tx *wpgx.WTx, accountID string, exchange ctypes.Exchange, walletType ctypes.WalletType, asset string, totalDelta decimal.Decimal) error {
+	if strings.EqualFold(strings.TrimSpace(asset), "USDT") {
+		return nil
+	}
 	provider := e.engine.GetMarketProvider()
 	priceUsdt, err := provider.GetLastPrice(ctx, exchange, ctypes.NewSymbol(asset, "USDT", ctypes.MarketTypeSpot))
 	if err != nil || !priceUsdt.GreaterThan(decimal.Zero) {
@@ -343,6 +353,19 @@ func (e *Entity) updateAssetAvgPriceOnIncrease(ctx context.Context, tx *wpgx.WTx
 
 // fillMissingAvgPrice 对 total > 0 且 avg_price 缺失的资产，用当前 asset/USDT 价格补全
 func (e *Entity) fillMissingAvgPrice(ctx context.Context, tx *wpgx.WTx, accountID string, exchange ctypes.Exchange, asset string, walletType ctypes.WalletType) error {
+	if strings.EqualFold(strings.TrimSpace(asset), "USDT") {
+		querier := e.db.AssetsRepo
+		if tx != nil {
+			querier = e.db.AssetsRepo.WithTx(tx)
+		}
+		_, err := querier.SetAssetAvgPrice(ctx, assets.SetAssetAvgPriceParams{
+			AccountID:  accountID,
+			Asset:      asset,
+			WalletType: assets.WalletType(walletType),
+			AvgPrice:   precision.DecimalToPgNumeric(decimal.NewFromInt(1)),
+		})
+		return err
+	}
 	provider := e.engine.GetMarketProvider()
 	priceUsdt, err := provider.GetLastPrice(ctx, exchange, ctypes.NewSymbol(asset, "USDT", ctypes.MarketTypeSpot))
 	if err != nil {
@@ -472,15 +495,8 @@ func (e *Entity) ApplyAssetIncrement(ctx context.Context, accountID string, exch
 	}
 	pair := result.(assetIncrementTxResult)
 	if pair.newRow != nil {
-		prevT, prevF := decimal.Zero, decimal.Zero
-		if pair.prev != nil {
-			prevT = utils.Decimal.PgNumericToDecimal(pair.prev.Total)
-			prevF = utils.Decimal.PgNumericToDecimal(pair.prev.Frozen)
-		}
 		newT := utils.Decimal.PgNumericToDecimal(pair.newRow.Total)
-		newF := utils.Decimal.PgNumericToDecimal(pair.newRow.Frozen)
-		e.recordAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset,
-			prevT, prevF, newT, newF, pair.newRow.LastUpdatedTs)
+		e.recordAssetSnapshotIfChanged(ctx, accountID, exchange.String(), pair.newRow.WalletType, asset, newT)
 	}
 	return pair.newRow, nil
 }
@@ -567,6 +583,7 @@ func (e *Entity) ApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context, tx *wp
 	}
 
 	ledgerParams := ledgers.CreateLedgerEntryParams{
+		ID:          snowflake.Generate().Int64(),
 		AccountID:   accountID,
 		Exchange:    exchangeStr,
 		Asset:       asset.Code,
@@ -598,34 +615,36 @@ func (e *Entity) ApplyAssetOrderOccupiedUpdateWithTx(ctx context.Context, tx *wp
 	if assetPo != nil {
 		frozen := utils.Decimal.PgNumericToDecimal(assetPo.Frozen)
 		orderOccupied := utils.Decimal.PgNumericToDecimal(assetPo.OrderOccupied)
-		locked := frozen.Sub(orderOccupied)
+		// 总锁定 = 交易所冻结 + 订单占用
+		locked := frozen.Add(orderOccupied)
 
 		ledgerParams.Total = assetPo.Total
 		ledgerParams.Frozen = precision.DecimalToPgNumeric(locked)
 		ledgerParams.IsEffective = true
-	}
-	// 增量语义直接对外发布（Balance/Locked 均为 delta）
-	outUpdate := &ctypes.BalanceUpdate{
-		Type:   ctypes.UpdateTypeIncrement,
-		Reason: reason,
-		Assets: []*ctypes.AssetEvent{
-			{
-				WalletType: walletType,
-				Code:       asset.Code,
-				Locked:     asset.Locked,
-				UpdatedTs:  ts,
+
+		// 增量语义直接对外发布（Balance/Locked 均为 delta）
+		outUpdate := &ctypes.BalanceUpdate{
+			Type:   ctypes.UpdateTypeIncrement,
+			Reason: reason,
+			Assets: []*ctypes.AssetEvent{
+				{
+					WalletType: walletType,
+					Code:       asset.Code,
+					Locked:     asset.Locked,
+					UpdatedTs:  ts,
+				},
 			},
-		},
-		Detail: detailBytes,
-	}
-	selector := ctypes.StreamSelector{
-		Stream:  ctypes.StreamTypeAccount,
-		Account: lo.ToPtr(accountID),
-	}
-	msg := ctypes.NewMessage(exchange, selector, outUpdate, ts)
-	if e.engine != nil {
-		if err := e.engine.Publish(ctx, msg); err != nil {
-			return err
+			Detail: detailBytes,
+		}
+		selector := ctypes.StreamSelector{
+			Stream:  ctypes.StreamTypeAccount,
+			Account: lo.ToPtr(accountID),
+		}
+		msg := ctypes.NewMessage(exchange, selector, outUpdate, ts)
+		if e.engine != nil {
+			if err := e.engine.Publish(ctx, msg); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -651,6 +670,10 @@ func convertAssetRepo2Types(item assets.Asset) (*types.Asset, error) {
 	total := utils.Decimal.PgNumericToDecimal(item.Total)
 	frozen := utils.Decimal.PgNumericToDecimal(item.Frozen)
 	orderOccupied := utils.Decimal.PgNumericToDecimal(item.OrderOccupied)
+	avgPrice := decimal.Zero
+	if item.AvgPrice.Valid {
+		avgPrice = utils.Decimal.PgNumericToDecimal(item.AvgPrice)
+	}
 	return &types.Asset{
 		AccountID:     item.AccountID,
 		Code:          item.Asset,
@@ -658,6 +681,7 @@ func convertAssetRepo2Types(item assets.Asset) (*types.Asset, error) {
 		Balance:       total,
 		Frozened:      frozen,
 		OrderOccupied: orderOccupied,
+		AvgPrice:      avgPrice,
 		UpdatedTs:     item.LastUpdatedTs,
 	}, nil
 }

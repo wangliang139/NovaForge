@@ -2,6 +2,7 @@ package account
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -21,7 +22,6 @@ import (
 type SubRawDispatch struct {
 	SubAccountID string          `json:"sub_account_id"`
 	Share        decimal.Decimal `json:"share"`
-	Order        ctypes.Order    `json:"-"`
 }
 
 func cloneOrderForSub(ord ctypes.Order, subID string) ctypes.Order {
@@ -108,32 +108,6 @@ func (e *Entity) accountIsVirtualSubOfParent(ctx context.Context, parentID, acco
 	return true
 }
 
-// orderMatchedWeightsToSubFanoutShares 将子单 quantity 聚合权重按父单原始量 P 做比例拆分，与 SplitProportionalDelta 语义一致：
-// 子 i 份额为 w_i/(sum(w)+max(0,P-sum(w)))，未镜像到子单的量 max(0,P-T) 由父吸收（份额不进入子派发）。
-func orderMatchedWeightsToSubFanoutShares(weights map[string]decimal.Decimal, parentOriginalQty decimal.Decimal) (map[string]decimal.Decimal, error) {
-	if len(weights) == 0 {
-		return nil, nil
-	}
-	subs := make([]SubWeight, 0, len(weights))
-	var total decimal.Decimal
-	for sid, w := range weights {
-		if w.LessThanOrEqual(decimal.Zero) {
-			continue
-		}
-		subs = append(subs, SubWeight{SubAccountID: sid, W: w})
-		total = total.Add(w)
-	}
-	if len(subs) == 0 {
-		return nil, nil
-	}
-	wUnalloc := decimal.Zero
-	if parentOriginalQty.IsPositive() && total.LessThan(parentOriginalQty) {
-		wUnalloc = parentOriginalQty.Sub(total)
-	}
-	toSub, _, err := SplitProportionalDelta(decimal.NewFromInt(1), subs, wUnalloc)
-	return toSub, err
-}
-
 func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string]decimal.Decimal) []SubRawDispatch {
 	ids := make([]string, 0, len(unitShares))
 	for sid, sh := range unitShares {
@@ -149,7 +123,6 @@ func buildSubRawDispatchesFromUnitShares(ord ctypes.Order, unitShares map[string
 		out = append(out, SubRawDispatch{
 			SubAccountID: sid,
 			Share:        sh,
-			Order:        cloneOrderForSub(ord, sid),
 		})
 	}
 	return out
@@ -168,8 +141,7 @@ func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID s
 		asset := strings.ToUpper(ord.Symbol.Base)
 		return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, wt, subs, ts)
 	case ctypes.MarketTypeFuture:
-		if !(ord.Side == ctypes.PositionSideLong && ord.IsBuy) ||
-			!(ord.Side == ctypes.PositionSideShort && !ord.IsBuy) {
+		if isFutureOpenPositionOrder(ord) {
 			asset := strings.ToUpper(ord.Symbol.Quote)
 			fw := ctypes.GetWalletType(exchange, ctypes.MarketTypeFuture)
 			return e.computeSubWeightsAndUnalloc(ctx, parentID, exchange.String(), asset, fw, subs, ts)
@@ -178,6 +150,11 @@ func (e *Entity) computeOrderProportionalWeights(ctx context.Context, parentID s
 	default:
 		return nil, decimal.Zero, nil
 	}
+}
+
+func isFutureOpenPositionOrder(ord ctypes.Order) bool {
+	return (ord.Side == ctypes.PositionSideLong && ord.IsBuy) ||
+		(ord.Side == ctypes.PositionSideShort && !ord.IsBuy)
 }
 
 func (e *Entity) computeFutureClosePositionWeights(ctx context.Context, parentID string, exchange ctypes.Exchange, ord ctypes.Order, subs []accountrepo.Account, ts time.Time) ([]SubWeight, decimal.Decimal, error) {
@@ -372,6 +349,14 @@ func (e *Entity) calcOrderFanoutShares(ctx context.Context, parentID string, exc
 	return shares, nil
 }
 
+// RecomputeMultiBotFanoutSharesForAudit 稽核用：按与 calcOrderFanoutShares 相同规则重算子账户份额（不读取订单行已冻结 fanout、不写库）。
+func (e *Entity) RecomputeMultiBotFanoutSharesForAudit(ctx context.Context, parentID string, exchange ctypes.Exchange, ord *ctypes.Order) (map[string]decimal.Decimal, error) {
+	if ord == nil {
+		return nil, fmt.Errorf("order is nil")
+	}
+	return e.calcOrderFanoutShares(ctx, parentID, exchange, ord)
+}
+
 // AttributeOrdersFromParent 将父 connector 拉到的在途订单按 multi_bot 归因到本 virtual_sub（含份额缩放）。
 // 供 connector.VirtualSubAccountReader 实现，与 WS/Cron 侧 AttributeMultiBotOrderForFanout 语义一致。
 func (e *Entity) AttributeOrdersFromParent(ctx context.Context, parentID, subID string, exchange ctypes.Exchange, symbol *ctypes.Symbol, parentOrders []*ctypes.Order) ([]*ctypes.Order, error) {
@@ -389,16 +374,9 @@ func (e *Entity) AttributeOrdersFromParent(ctx context.Context, parentID, subID 
 		if err != nil {
 			return nil, err
 		}
-		for _, d := range disp {
-			if d.SubAccountID != subID {
-				continue
-			}
-			o, ok := scaled[d.SubAccountID]
-			if !ok {
-				o = d.Order
-			}
-			cp := o
-			out = append(out, &cp)
+
+		if d, ok := scaled[subID]; ok {
+			out = append(out, &d)
 		}
 	}
 	return out, nil
@@ -418,16 +396,8 @@ func (e *Entity) AttributeOrderFromParent(ctx context.Context, parentID, subID s
 	if err != nil {
 		return nil, err
 	}
-	for _, d := range disp {
-		if d.SubAccountID != subID {
-			continue
-		}
-		o, ok := scaled[d.SubAccountID]
-		if !ok {
-			o = d.Order
-		}
-		cp := o
-		return &cp, nil
+	if d, ok := scaled[subID]; ok {
+		return &d, nil
 	}
 	return nil, nil
 }
