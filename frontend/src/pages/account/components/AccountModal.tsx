@@ -40,10 +40,11 @@ const AccountModal: React.FC<AccountModalProps> = ({
   const [form] = Form.useForm();
   const [tags, setTags] = useState<string[]>([]);
   const [isOkx, setIsOkx] = useState(false);
+  const currentAccountType = Form.useWatch('accountType', form) as AccountType | undefined;
 
   const isReadonly = mode === 'readonly';
-  const isVirtualSub = value?.accountType === AccountType.VirtualSub;
-  const isReal = value?.accountType === AccountType.Real;
+  const isVirtualSub = currentAccountType === AccountType.VirtualSub;
+  const isReal = currentAccountType === AccountType.Real;
 
   useEffect(() => {
     if (!open) {
@@ -54,6 +55,15 @@ const AccountModal: React.FC<AccountModalProps> = ({
     setTags([...(nextValue.tags || [])]);
     setIsOkx(nextValue.exchange === Exchange.OKX || nextValue.exchange === Exchange.OKXTest);
   }, [open, value, mode, form]);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    if (currentAccountType !== AccountType.Real) {
+      form.setFieldValue('multiBotMode', false);
+    }
+  }, [open, currentAccountType, form]);
 
   const onTagsChange = (nextTags: string[]) => {
     setTags(nextTags);
@@ -142,9 +152,17 @@ const AccountModal: React.FC<AccountModalProps> = ({
           width="sm"
           readonly={isReadonly || mode !== 'new'}
           fieldProps={{
-            options: isVirtualSub
-              ? [{ label: '虚拟子账户', value: AccountType.VirtualSub }]
-              : [{ label: '真实账户', value: AccountType.Real }],
+            options:
+              mode === 'new'
+                ? [
+                    { label: '真实账户', value: AccountType.Real },
+                    { label: '模拟账户', value: AccountType.Virtual },
+                  ]
+                : isVirtualSub
+                  ? [{ label: '虚拟子账户', value: AccountType.VirtualSub }]
+                  : isReal
+                    ? [{ label: '真实账户', value: AccountType.Real }]
+                    : [{ label: '模拟账户', value: AccountType.Virtual }],
           }}
           rules={[
             {
@@ -156,11 +174,11 @@ const AccountModal: React.FC<AccountModalProps> = ({
         <ProFormSwitch
           name="multiBotMode"
           label="多 Bot 模式（子账户）"
-          readonly={isReadonly || isVirtualSub}
+          readonly={isReadonly || !isReal}
           tooltip="启用后，每个实盘 Bot 使用独立虚拟子账户与初始资金池，仍共用本账户的交易所 API"
         />
       </ProForm.Group>
-      {(isReal || mode === 'new') && (
+      {isReal && (
         <>
           <ProFormSelect
             allowClear={false}
@@ -184,7 +202,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
             disabled={isReadonly || isVirtualSub}
             rules={[
               {
-                required: true,
+                required: isReal,
                 message: 'ApiKey is required',
               },
             ]}
@@ -206,7 +224,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
             }}
             rules={[
               {
-                required: true,
+                required: isReal,
                 message: 'ApiSecret is required',
               },
             ]}
@@ -222,7 +240,7 @@ const AccountModal: React.FC<AccountModalProps> = ({
             }}
             rules={[
               {
-                required: isOkx,
+                required: isOkx && isReal,
                 message: 'Passphrase is required',
               },
             ]}

@@ -633,7 +633,11 @@ export async function queryAccountMultiBotDetails(accountId: string): Promise<Ac
 }
 
 export async function createAccount(params: Account) {
-  if (!params.passphrase) {
+  if (params.accountType === AccountType.Virtual) {
+    params.apiKey = params.apiKey || '';
+    params.apiSecret = params.apiSecret || '';
+    params.passphrase = params.passphrase || '';
+  } else if (!params.passphrase) {
     params.passphrase = '';
   }
   // MutationAccountInput 不含查询结果中的只读字段，避免 GraphQL unknown field

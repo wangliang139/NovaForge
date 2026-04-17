@@ -57,10 +57,12 @@ type ApiAccount struct {
 	Passphrase    string
 	AuthAlgorithm string
 
+	IsSimulate bool
+
 	DescryptFn func(raw string) (string, error)
 }
 
-func NewApiAccount(id string, exchange ctypes.Exchange, apiKey, apiSecret, passphrase, authAlgorithm string, descryptFn func(raw string) (string, error)) *ApiAccount {
+func NewApiAccount(id string, exchange ctypes.Exchange, apiKey, apiSecret, passphrase, authAlgorithm string, isSimulate bool, descryptFn func(raw string) (string, error)) *ApiAccount {
 	return &ApiAccount{
 		ID:            id,
 		Exchange:      exchange,
@@ -68,14 +70,19 @@ func NewApiAccount(id string, exchange ctypes.Exchange, apiKey, apiSecret, passp
 		ApiSecret:     apiSecret,
 		Passphrase:    passphrase,
 		AuthAlgorithm: authAlgorithm,
+		IsSimulate:    isSimulate,
 		DescryptFn:    descryptFn,
 	}
 }
 
 func NewSecretApiAccount(id string, exchange ctypes.Exchange, apiKey, apiSecret, passphrase, authAlgorithm string) *ApiAccount {
-	return NewApiAccount(id, exchange, apiKey, apiSecret, passphrase, authAlgorithm, encrypt.DecryptBase64)
+	return NewApiAccount(id, exchange, apiKey, apiSecret, passphrase, authAlgorithm, false, encrypt.DecryptBase64)
 }
 
 func NewPlainApiAccount(id string, exchange ctypes.Exchange, apiKey, apiSecret, passphrase, authAlgorithm string) *ApiAccount {
-	return NewApiAccount(id, exchange, apiKey, apiSecret, passphrase, authAlgorithm, nil)
+	return NewApiAccount(id, exchange, apiKey, apiSecret, passphrase, authAlgorithm, false, nil)
+}
+
+func NewSimulateApiAccount(id string, exchange ctypes.Exchange) *ApiAccount {
+	return NewApiAccount(id, exchange, "", "", "", "", true, nil)
 }

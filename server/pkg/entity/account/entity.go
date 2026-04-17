@@ -108,7 +108,8 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 		return nil, errors.New(errors.InvalidArgument, fmt.Sprintf("account exchange mismatch: account=%s request=%s", acct.Exchange, exchange))
 	}
 	if acct.AccountType == types.AccountTypeVirtual {
-		conn, err := connector.GetConnector(exchange, nil)
+		apiAccount := mdtypes.NewSimulateApiAccount(acct.ID, acct.Exchange)
+		conn, err := connector.GetConnector(exchange, apiAccount)
 		if err != nil {
 			return nil, err
 		}
