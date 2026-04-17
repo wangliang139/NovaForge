@@ -106,7 +106,7 @@ func (s *Entity) placeOrderUnlocked(ctx context.Context, acct *types.Account, or
 		isBuy     = order.IsBuy
 		source    = order.Source
 
-		rawPrice    = order.Price
+		price       = order.Price
 		rawQty      = order.OriginalQty
 		rawQuoteQty = order.OriginalQuoteQty
 
@@ -142,14 +142,10 @@ func (s *Entity) placeOrderUnlocked(ctx context.Context, acct *types.Account, or
 	}
 
 	// 2) 价格：限价使用传入；市价使用 ticker 估算（用于数量换算/过滤器/冻结估算）
-	price := decimal.Zero
-	switch orderType {
-	case ctypes.OrderTypeLimit:
-		if rawPrice.LessThanOrEqual(decimal.Zero) {
+	if price.Equal(decimal.Zero) {
+		if orderType == ctypes.OrderTypeLimit {
 			return nil, errors.New(errors.InvalidArgument, "price is required for limit order")
 		}
-		price = rawPrice
-	default:
 		tk, err := conn.Ticker(ctx, symbol)
 		if err != nil {
 			return nil, err
@@ -195,6 +191,10 @@ func (s *Entity) placeOrderUnlocked(ctx context.Context, acct *types.Account, or
 	if err := ValidateMarketFilters(symbolCfg.Market, orderType, price, qty, 0); err != nil {
 		return nil, err
 	}
+
+	order.Price = price
+	order.OriginalQty = qty
+	order.OriginalQuoteQty = decimal.Zero // 以 OriginalQty 为准
 
 	// 5) 账户级风控校验
 	if err := s.riskChecker.CheckOrderRisk(ctx, acct, order); err != nil {

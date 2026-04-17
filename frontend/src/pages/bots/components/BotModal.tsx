@@ -84,9 +84,14 @@ const EMPTY_BOT_INITIAL_ASSET_ROW: BotInitialAssetRow = {
 };
 
 /** 实盘多 Bot 父账户下默认首行（与原先 OKX 类预设一致，可按需再按 exchange 区分） */
-const defaultLiveMultiInitialAssetRows = (): BotInitialAssetRow[] => [
-  { asset: 'USDT', walletType: WalletType.Trade, total: '', frozen: '0' },
-];
+const defaultLiveMultiInitialAssetRows = (exchange?: string): BotInitialAssetRow[] => {
+  if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
+    return [
+      { asset: 'USDT', walletType: WalletType.Spot, total: '', frozen: '0' },
+    ];
+  }
+  return [{ asset: 'USDT', walletType: WalletType.Trade, total: '', frozen: '0' }];
+}
 
 /** 读表单或历史 JSON 时，把后端/旧数据别名收敛到 BotInitialAssetRow */
 function coerceInitialAssetRow(raw: unknown): BotInitialAssetRow {
@@ -461,13 +466,13 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   }, [needsLiveSubAllocation, accountIdWatch]);
 
   useEffect(() => {
-    if (!open || isEdit || !needsLiveSubAllocation || !accountIdWatch) {
+    if (!open || isEdit || !needsLiveSubAllocation || !accountIdWatch || !accounts.length) {
       return;
     }
     form.setFieldsValue({
-      initialAssets: defaultLiveMultiInitialAssetRows(),
+      initialAssets: defaultLiveMultiInitialAssetRows(accounts.find((a) => String(a.id) === String(accountIdWatch ?? ''))?.exchange),
     });
-  }, [accountIdWatch, needsLiveSubAllocation, open, isEdit, form]);
+  }, [accountIdWatch, accounts, needsLiveSubAllocation, open, isEdit, form]);
 
   const paperAccountOptions = accounts
     .filter(
@@ -1222,7 +1227,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
                         needsLiveSubAllocation &&
                         !loadingUnallocated &&
                         String(form.getFieldValue('accountId') ?? '') ===
-                          String(accountIdWatch ?? '')
+                        String(accountIdWatch ?? '')
                       ) {
                         const unallocErr = checkInitialAssetsAgainstUnallocatedRows(
                           unallocatedRows,
@@ -1388,19 +1393,19 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
                                                 {scope === SignalScope.Symbol
                                                   ? 'Symbol'
                                                   : scope === SignalScope.Target
-                                                  ? 'Target'
-                                                  : scope === SignalScope.Exchange
-                                                  ? 'Exchange'
-                                                  : 'Strategy'}
+                                                    ? 'Target'
+                                                    : scope === SignalScope.Exchange
+                                                      ? 'Exchange'
+                                                      : 'Strategy'}
                                                 <Tooltip
                                                   title={
                                                     scope === SignalScope.Symbol
                                                       ? '该信号针对每个交易对生效'
                                                       : scope === SignalScope.Target
-                                                      ? '该信号针对指定交易对生效'
-                                                      : scope === SignalScope.Exchange
-                                                      ? '该信号针对每个交易所生效'
-                                                      : '该信号在整个策略范围内生效'
+                                                        ? '该信号针对指定交易对生效'
+                                                        : scope === SignalScope.Exchange
+                                                          ? '该信号针对每个交易所生效'
+                                                          : '该信号在整个策略范围内生效'
                                                   }
                                                 >
                                                   <InfoCircleOutlined />
