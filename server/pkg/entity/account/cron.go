@@ -297,9 +297,16 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 				return fmt.Errorf("refresh orders failed: %v", err)
 			}
 			// 2+3. 定时从子表 DB 发布资金快照与合约仓位快照（现货成交触发的订单路径不发仓位快照，见 order_derived_sub）
-			return e.publishVsAcctSnapshotsFromDB(ctx, acct.ID, acct.Exchange)
+			if err := e.publishVsAcctSnapshotsFromDB(ctx, acct.ID, acct.Exchange); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("account type not supported")
+		}
+
+		// 4. 每次刷新后强制追加一条资金/仓位历史快照（即使值未变化）
+		if err := e.appendSnapshotRecordsAfterRefresh(ctx, acct.ID, acct.Exchange); err != nil {
+			return fmt.Errorf("append snapshot records after refresh failed: %w", err)
 		}
 
 		return nil
@@ -470,16 +477,8 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 						Msg("scale multi_bot order for virtual_sub failed")
 					continue
 				}
-				for _, d := range dispatches {
-					if d.SubAccountID != accountID {
-						continue
-					}
-					o, ok := scaled[d.SubAccountID]
-					if !ok {
-						o = d.Order
-					}
-					cp := o
-					ordersList = append(ordersList, &cp)
+				if d, ok := scaled[accountID]; ok {
+					ordersList = append(ordersList, &d)
 				}
 			}
 		}

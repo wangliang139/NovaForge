@@ -1114,7 +1114,9 @@ func (e *Entity) ApplyAccountPositions(ctx context.Context, accountID string, ex
 		changed := positionUpsertMeaningfulChange(row)
 		if changed {
 			positionsChanged = true
-			e.recordPositionSnapshotFromUpsertRow(ctx, row)
+			qty := utils.Decimal.PgNumericToDecimal(row.Qty)
+			entry := utils.Decimal.PgNumericToDecimal(row.EntryPrice)
+			e.recordPositionSnapshotIfChanged(ctx, accountID, exchange, pos.Symbol.String(), positions.PositionSide(pos.Side), qty, entry, int32(row.Leverage))
 		}
 		if !row.UpdatedTs.IsZero() && (maxTs.IsZero() || row.UpdatedTs.After(maxTs)) {
 			maxTs = row.UpdatedTs
@@ -1276,6 +1278,9 @@ func (e *Entity) applyPositionSnapshotRow(ctx context.Context, accountID string,
 
 // AppendLedger 写入资金变更流水
 func (e *Entity) AppendLedger(ctx context.Context, params ledgers.CreateLedgerEntryParams) error {
+	if params.ID == 0 {
+		return errors.New(errors.InvalidArgument, "id is required")
+	}
 	if params.AccountID == "" || params.Exchange == "" || params.Asset == "" || params.WalletType == "" {
 		return errors.New(errors.InvalidArgument, "accountID, exchange, asset and walletType are required")
 	}
@@ -1324,6 +1329,7 @@ func (e *Entity) GetSnapshot(ctx context.Context, accountID string) (*types.Acco
 			Code:       asset.Code,
 			Balance:    asset.Balance,
 			Locked:     asset.Locked(),
+			AvgPrice:   asset.AvgPrice,
 			UpdatedTs:  asset.UpdatedTs,
 		})
 	}

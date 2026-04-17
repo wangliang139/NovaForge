@@ -2,11 +2,13 @@ package account
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/consts"
 	"github.com/wangliang139/NovaForge/server/pkg/internal/push"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -35,10 +37,7 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 	totalDelta decimal.Decimal,
 	ts time.Time,
 ) error {
-	if update == nil || !ledgerReasonSplitToVirtualSubs(update.Reason) {
-		return nil
-	}
-	if update.Reason != ctypes.LedgerReasonFundingFee && totalDelta.IsZero() {
+	if update == nil || !ledgerReasonSplitToVirtualSubs(update.Reason) || totalDelta.IsZero() {
 		return nil
 	}
 
@@ -59,7 +58,7 @@ func (e *Entity) fanoutMultiBotBalanceUpdateIfNeeded(
 	}
 
 	if update.Reason == ctypes.LedgerReasonFundingFee {
-		return e.fanoutFundingFeeBySubTheory(ctx, exchange, parentID, update, subs, ts)
+		return e.fanoutFundingFeeBySubTheory(ctx, exchange, parentID, assetCode, walletType, update.Detail, subs, ts)
 	}
 	var (
 		weights  []SubWeight
@@ -125,12 +124,14 @@ func (e *Entity) fanoutFundingFeeBySubTheory(
 	ctx context.Context,
 	exchange ctypes.Exchange,
 	parentID string,
-	update *ctypes.BalanceUpdate,
+	assetCode string,
+	walletType ctypes.WalletType,
+	detail json.RawMessage,
 	subs []accountrepo.Account,
 	ts time.Time,
 ) error {
 	for _, sub := range subs {
-		feeByAsset, err := e.fundingFeeByAssetAtOrBefore(ctx, sub.ID, exchange, ts)
+		fee, err := e.fundingFeeByAssetAtOrBefore(ctx, sub.ID, exchange, assetCode, ts)
 		if err != nil {
 			logger.Ctx(ctx).Err(err).
 				Str("parent_id", parentID).
@@ -141,29 +142,22 @@ func (e *Entity) fanoutFundingFeeBySubTheory(
 			e.notifyFundingFeeFanoutError(ctx, parentID, sub.ID, exchange, ts, err)
 			continue
 		}
-		assets := make([]*ctypes.AssetEvent, 0, len(feeByAsset))
-		for asset, fee := range feeByAsset {
-			amt := roundFundingFeeAmount(fee)
-			if amt.IsZero() {
-				continue
-			}
-			cp := amt
-			assets = append(assets, &ctypes.AssetEvent{
-				WalletType: ctypes.WalletTypeFuture,
-				Code:       asset,
-				Balance:    &cp,
-				Locked:     nil,
-				UpdatedTs:  ts,
-			})
-		}
-		if len(assets) == 0 {
+		amt := fee.RoundDown(int32(consts.DefaultAssetPrecision))
+		if amt.IsZero() {
 			continue
+		}
+		asset := &ctypes.AssetEvent{
+			WalletType: walletType,
+			Code:       assetCode,
+			Balance:    &amt,
+			Locked:     nil,
+			UpdatedTs:  ts,
 		}
 		childUpdate := &ctypes.BalanceUpdate{
 			Type:   ctypes.UpdateTypeIncrement,
 			Reason: ctypes.LedgerReasonFundingFee,
-			Assets: assets,
-			Detail: update.Detail,
+			Assets: []*ctypes.AssetEvent{asset},
+			Detail: detail,
 		}
 		selector := ctypes.StreamSelector{
 			Stream:  ctypes.StreamTypeAccountRaw,
