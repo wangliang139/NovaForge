@@ -386,31 +386,22 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 	}
 
 	req := placeOrderRequestFromInput(c, input, market)
-	before := c.rt.Engine.AccountSnapshot(c.accountID, Symbol(input.Symbol.String()))
-	res, err := c.rt.Engine.PlaceOrder(ctx, req)
-	if err != nil {
-		return nil, err
+	if req.OrderID == "" {
+		req.OrderID = GenerateCompactID(c.accountID)
 	}
-	after := c.rt.Engine.AccountSnapshot(c.accountID, Symbol(input.Symbol.String()))
-	msgs := c.buildTakerFillMessages(input.Symbol, before, after, res)
-	for _, m := range msgs {
-		c.publishAccountMessage(m)
+	job := placeOrderJob{c: c, symbol: input.Symbol, req: req}
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case c.rt.placeOrderCh <- job:
+		return &mdtypes.PlaceOrderResult{
+			OrderID:       ctypes.OrderId(req.OrderID),
+			ClientOrderID: ctypes.OrderId(req.ClientOrderID),
+			Status:        ctypes.OrderStatusNew,
+		}, nil
+	default:
+		return nil, fmt.Errorf("simulate: place order queue is full")
 	}
-
-	st := ctypes.OrderStatusPending
-	switch res.Order.Status {
-	case OrderStatusFilled:
-		st = ctypes.OrderStatusDone
-	case OrderStatusRejected:
-		st = ctypes.OrderStatusRejected
-	case OrderStatusNew:
-		st = ctypes.OrderStatusNew
-	}
-	return &mdtypes.PlaceOrderResult{
-		OrderID:       ctypes.OrderId(res.Order.ID),
-		ClientOrderID: ctypes.OrderId(res.Order.ClientOrderID),
-		Status:        st,
-	}, nil
 }
 
 func (c *Connector) CancelOrder(ctx context.Context, symbol ctypes.Symbol, orderId string) error {

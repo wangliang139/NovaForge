@@ -1,6 +1,7 @@
 package simulate
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -9,6 +10,15 @@ import (
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
+
+// placeOrderQueueCap bounds async user orders per venue; when full, PlaceOrder returns an error.
+const placeOrderQueueCap = 1024
+
+type placeOrderJob struct {
+	c      *Connector
+	symbol ctypes.Symbol
+	req    PlaceOrderRequest
+}
 
 // VenueRuntime holds exchange-wide paper state: engine, public feed, stream hubs, liquidation.
 type VenueRuntime struct {
@@ -30,6 +40,8 @@ type VenueRuntime struct {
 	// resting orders and mark-price does not run liquidation.
 	simReadyMu     sync.RWMutex
 	symbolSimReady map[string]struct{}
+
+	placeOrderCh chan placeOrderJob
 }
 
 var (
@@ -74,9 +86,27 @@ func getOrCreateVenue(ex ctypes.Exchange) (*VenueRuntime, error) {
 		streamHubs:     make(map[string]*publicStreamHub),
 		conns:          make(map[*Connector]struct{}),
 		symbolSimReady: make(map[string]struct{}),
+		placeOrderCh:   make(chan placeOrderJob, placeOrderQueueCap),
 	}
 	venues[ex] = rt
+	go rt.runPlaceOrderLoop()
 	return rt, nil
+}
+
+func (rt *VenueRuntime) runPlaceOrderLoop() {
+	ctx := context.Background()
+	for job := range rt.placeOrderCh {
+		paperSym := job.req.Symbol
+		before := rt.Engine.AccountSnapshot(job.c.accountID, paperSym)
+		res, err := rt.Engine.PlaceOrder(ctx, job.req)
+		if err != nil {
+			continue
+		}
+		after := rt.Engine.AccountSnapshot(job.c.accountID, paperSym)
+		for _, m := range job.c.buildTakerFillMessages(job.symbol, before, after, res) {
+			job.c.publishAccountMessage(m)
+		}
+	}
 }
 
 func (rt *VenueRuntime) registerConn(c *Connector) {
