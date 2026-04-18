@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -29,14 +30,13 @@ func (l *fanoutListener) shutdown() {
 	})
 }
 
-// publicStreamHub multiplexes exactly one publicConn Subscribe per StreamSelector.Key (exchange-wide).
+// publicStreamHub multiplexes one public Subscribe per StreamSelector.Key.
 type publicStreamHub struct {
-	st *exchangeState
+	rt *VenueRuntime
 
 	stream ctypes.StreamType
 	key    string
 
-	// Stable selector snapshot (owned pointers for Symbol/Interval).
 	symOwned      ctypes.Symbol
 	symPtr        *ctypes.Symbol
 	intervalOwned ctypes.Interval
@@ -51,9 +51,14 @@ type publicStreamHub struct {
 	listeners map[int64]*fanoutListener
 }
 
-func newPublicStreamHub(st *exchangeState, sel ctypes.StreamSelector, key string) *publicStreamHub {
+const (
+	streamHubInitialBackoff = time.Second
+	streamHubMaxBackoff     = 30 * time.Second
+)
+
+func newPublicStreamHub(rt *VenueRuntime, sel ctypes.StreamSelector, key string) *publicStreamHub {
 	h := &publicStreamHub{
-		st:        st,
+		rt:        rt,
 		stream:    sel.Stream,
 		key:       key,
 		listeners: make(map[int64]*fanoutListener),
@@ -94,36 +99,6 @@ func validateSimulatePublicSelector(sel ctypes.StreamSelector) error {
 	}
 }
 
-func (st *exchangeState) getOrCreateStreamHub(sel ctypes.StreamSelector) *publicStreamHub {
-	key := sel.Key()
-	st.streamHubMu.Lock()
-	defer st.streamHubMu.Unlock()
-	if st.streamHubs == nil {
-		st.streamHubs = make(map[string]*publicStreamHub)
-	}
-	if h, ok := st.streamHubs[key]; ok {
-		return h
-	}
-	h := newPublicStreamHub(st, sel, key)
-	st.streamHubs[key] = h
-	return h
-}
-
-func (st *exchangeState) removeStreamHub(key string) {
-	st.streamHubMu.Lock()
-	defer st.streamHubMu.Unlock()
-	delete(st.streamHubs, key)
-}
-
-// removeStreamHubIfMatches deletes the hub entry only if it still points at h (avoids races with recreation).
-func (st *exchangeState) removeStreamHubIfMatches(key string, h *publicStreamHub) {
-	st.streamHubMu.Lock()
-	defer st.streamHubMu.Unlock()
-	if existing, ok := st.streamHubs[key]; ok && existing == h {
-		delete(st.streamHubs, key)
-	}
-}
-
 func (h *publicStreamHub) setPinned() {
 	h.mu.Lock()
 	h.pinned = true
@@ -137,31 +112,74 @@ func (h *publicStreamHub) ensureRunning() {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	sel := h.selector()
-	pub, err := h.st.publicConn.Subscribe(ctx, sel)
-	if err != nil {
-		cancel()
-		h.mu.Unlock()
-		log.Printf("simulate: publicConn.Subscribe failed stream=%s key=%s: %v", h.stream, h.key, err)
-		h.closeAllListeners()
-		h.st.removeStreamHubIfMatches(h.key, h)
-		return
-	}
 	h.running = true
 	h.cancel = cancel
-	go h.run(ctx, pub)
 	h.mu.Unlock()
+	go h.supervisor(ctx)
 }
 
-// run pumps one public subscription; when the connection ends, pinned hubs close all listener
-// channels — clients must Subscribe again (or rely on ensureDepthStreamStarted / Warm to restart ingest).
-func (h *publicStreamHub) run(ctx context.Context, pub *mdtypes.StreamHandle) {
-	defer pub.Stop()
-	defer h.onRunFinished()
+func (h *publicStreamHub) supervisor(hubCtx context.Context) {
+	defer h.onSupervisorFinished()
+
+	sel := h.selector()
+	backoff := streamHubInitialBackoff
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-hubCtx.Done():
+			return
+		default:
+		}
+
+		pub, err := h.rt.Public.Subscribe(hubCtx, sel)
+		if err != nil {
+			log.Printf("simulate: publicConn.Subscribe failed stream=%s key=%s: %v", h.stream, h.key, err)
+			h.broadcastErr(err)
+			if !sleepOrDonePaper(hubCtx, backoff) {
+				return
+			}
+			backoff = growBackoffPaper(backoff)
+			continue
+		}
+		backoff = streamHubInitialBackoff
+
+		h.pumpSession(hubCtx, pub)
+
+		pub.Stop()
+
+		select {
+		case <-hubCtx.Done():
+			return
+		default:
+		}
+		if !sleepOrDonePaper(hubCtx, backoff) {
+			return
+		}
+		backoff = growBackoffPaper(backoff)
+	}
+}
+
+func sleepOrDonePaper(ctx context.Context, d time.Duration) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(d):
+		return true
+	}
+}
+
+func growBackoffPaper(cur time.Duration) time.Duration {
+	next := cur * 2
+	if next > streamHubMaxBackoff {
+		return streamHubMaxBackoff
+	}
+	return next
+}
+
+func (h *publicStreamHub) pumpSession(hubCtx context.Context, pub *mdtypes.StreamHandle) {
+	for {
+		select {
+		case <-hubCtx.Done():
 			return
 		case err, ok := <-pub.ErrCh:
 			if !ok {
@@ -185,19 +203,18 @@ func (h *publicStreamHub) run(ctx context.Context, pub *mdtypes.StreamHandle) {
 func (h *publicStreamHub) ingestOnce(msg *ctypes.Message) {
 	switch h.stream {
 	case ctypes.StreamTypeDepth:
-		h.st.dispatchDepthIngest(msg)
+		h.rt.dispatchDepthIngest(msg)
 	case ctypes.StreamTypeTicker:
-		h.st.dispatchTickerIngest(msg)
+		h.rt.dispatchTickerIngest(msg)
 	case ctypes.StreamTypeMarkPrice:
 		if msg.MarkPrice != nil {
-			h.st.dispatchMarkPricePayload(msg.MarkPrice)
+			h.rt.dispatchMarkPricePayload(msg.MarkPrice)
 		}
 	default:
-		// Trade/Kline/Social : fan-out only for simulate UI / strategies.
 	}
 }
 
-func (h *publicStreamHub) onRunFinished() {
+func (h *publicStreamHub) onSupervisorFinished() {
 	h.mu.Lock()
 	h.running = false
 	cancel := h.cancel
@@ -212,7 +229,7 @@ func (h *publicStreamHub) onRunFinished() {
 	h.closeAllListeners()
 
 	if !pinned {
-		h.st.removeStreamHub(h.key)
+		h.rt.removeStreamHub(h.key)
 	}
 }
 
@@ -223,7 +240,6 @@ func (h *publicStreamHub) stopPublicLocked() {
 	}
 }
 
-// broadcastMsg is best-effort: slow consumers may drop updates when out channel blocks (see select default).
 func (h *publicStreamHub) broadcastMsg(msg *ctypes.Message) {
 	h.mu.Lock()
 	ls := make([]*fanoutListener, 0, len(h.listeners))
@@ -243,7 +259,6 @@ func (h *publicStreamHub) broadcastMsg(msg *ctypes.Message) {
 	}
 }
 
-// broadcastErr is best-effort like broadcastMsg.
 func (h *publicStreamHub) broadcastErr(err error) {
 	h.mu.Lock()
 	ls := make([]*fanoutListener, 0, len(h.listeners))
@@ -324,85 +339,73 @@ func (h *publicStreamHub) attachListener(ctx context.Context) (*mdtypes.StreamHa
 	return mdtypes.BuildHandle(ctx, out, errCh, stopC, doneC), nil
 }
 
-// --- dispatch: shared simulate state + per-connector account notifications ---
-
-func (st *exchangeState) dispatchDepthIngest(msg *ctypes.Message) {
+func (rt *VenueRuntime) dispatchDepthIngest(msg *ctypes.Message) {
 	if msg == nil || msg.Depth == nil || !msg.Depth.Symbol.IsValid() {
 		return
 	}
 	sym := msg.Depth.Symbol
 
-	st.connsMu.RLock()
-	conns := make([]*Connector, 0, len(st.conns))
-	for c := range st.conns {
+	rt.connsMu.RLock()
+	conns := make([]*Connector, 0, len(rt.conns))
+	for c := range rt.conns {
 		conns = append(conns, c)
 	}
-	st.connsMu.RUnlock()
+	rt.connsMu.RUnlock()
 
-	type snap struct {
-		bal map[BalanceKey]decimal.Decimal
-		pos Position
-	}
-	before := make([]snap, len(conns))
+	before := make([]AccountSnapshot, len(conns))
 	for i, c := range conns {
-		before[i].bal, before[i].pos = c.snapshotAccountState(sym)
+		before[i] = rt.Engine.AccountSnapshot(c.accountID, Symbol(sym.String()))
 	}
 
-	st.mu.Lock()
-	events := st.applyDepthBookLocked(msg.Depth, true)
-	st.mu.Unlock()
+	events, err := rt.Engine.ApplyDepthBook(msg.Depth, true)
+	if err != nil {
+		return
+	}
 
 	for i, c := range conns {
-		afterBal, afterPos := c.snapshotAccountState(sym)
-		for _, em := range c.buildMakerMatchMessages(sym, events, before[i].bal, afterBal, before[i].pos, afterPos) {
-			c.publishAccountMessage(em)
+		after := rt.Engine.AccountSnapshot(c.accountID, Symbol(sym.String()))
+		msgs := c.buildDiffAndMakerMessages(sym, events, before[i], after)
+		for _, m := range msgs {
+			c.publishAccountMessage(m)
 		}
 	}
 }
 
-// dispatchTickerIngest maps ticker last to both Last and Mark in TickerStore (simplified paper model;
-// mark-index streams still override Mark via dispatchMarkPricePayload).
-func (st *exchangeState) dispatchTickerIngest(msg *ctypes.Message) {
+func (rt *VenueRuntime) dispatchTickerIngest(msg *ctypes.Message) {
 	if msg == nil || msg.Ticker == nil || !msg.Ticker.Symbol.IsValid() {
 		return
 	}
-	st.mu.Lock()
-	st.ticker.Update(Ticker{
-		Symbol: toSimSymbol(msg.Ticker.Symbol),
+	rt.Quotes.Update(QuoteTick{
+		Symbol: Symbol(msg.Ticker.Symbol.String()),
 		Last:   msg.Ticker.LastPrice,
 		Mark:   msg.Ticker.LastPrice,
 		Ts:     msg.Ticker.Ts,
 	})
-	st.mu.Unlock()
 }
 
-// dispatchMarkPricePayload updates shared ticker mark once, then runs liquidation per Connector.
-// tryLiquidateAfterMark does not hold exchangeState.mu; ordering vs PlaceOrder relies on SimExchange.mu.
-func (st *exchangeState) dispatchMarkPricePayload(mp *ctypes.MarkPrice) {
+func (rt *VenueRuntime) dispatchMarkPricePayload(mp *ctypes.MarkPrice) {
 	if mp == nil || !mp.Symbol.IsValid() || !mp.MarkPrice.GreaterThan(decimal.Zero) {
 		return
 	}
-	st.mu.Lock()
-	sym := toSimSymbol(mp.Symbol)
-	prev, _ := st.ticker.Get(sym)
+	sym := Symbol(mp.Symbol.String())
+	prev, _ := rt.Quotes.Get(sym)
 	last := prev.Last
 	if !last.GreaterThan(decimal.Zero) {
 		last = mp.MarkPrice
 	}
-	st.ticker.Update(Ticker{
+	rt.Quotes.Update(QuoteTick{
 		Symbol: sym,
 		Last:   last,
 		Mark:   mp.MarkPrice,
 		Ts:     mp.Ts,
 	})
-	st.mu.Unlock()
 
-	st.connsMu.RLock()
-	conns := make([]*Connector, 0, len(st.conns))
-	for c := range st.conns {
+	rt.connsMu.RLock()
+	conns := make([]*Connector, 0, len(rt.conns))
+	for c := range rt.conns {
 		conns = append(conns, c)
 	}
-	st.connsMu.RUnlock()
+	rt.connsMu.RUnlock()
 	for _, c := range conns {
 		c.tryLiquidateAfterMark(mp.Symbol, mp.MarkPrice)
 	}

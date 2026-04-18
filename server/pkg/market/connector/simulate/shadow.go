@@ -10,7 +10,7 @@ type Fill struct {
 	Size  decimal.Decimal
 }
 
-// SimulateMarketBuy walks the ask side without mutating d (uses a clone for isolation).
+// SimulateMarketBuy walks the ask side without mutating d (uses a clone).
 func SimulateMarketBuy(d *MarketDepth, qty decimal.Decimal) (fills []Fill, leftover decimal.Decimal, notional decimal.Decimal) {
 	if qty.Sign() <= 0 {
 		return nil, qty, decimal.Zero

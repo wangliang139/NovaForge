@@ -10,159 +10,54 @@ import (
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
-	"github.com/wangliang139/NovaForge/server/pkg/market/connector/binance"
-	"github.com/wangliang139/NovaForge/server/pkg/market/connector/okx"
+
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
-// Connector is the paper-trading gateway: one instance per virtual account, sharing a process-wide
-// SimExchange and public market connector per (exchange). Call Close or RemoveAccountState when the
-// account is taken offline or the connector is discarded, so this instance is removed from
-// exchangeState.conns (multi-account depth/mark dispatch and liquidation fan-out).
+// Connector implements mdtypes.Connector for paper trading (see VenueRuntime).
 type Connector struct {
 	exchange  ctypes.Exchange
 	accountID string
-
-	state *exchangeState
+	rt        *VenueRuntime
 
 	subMu       sync.Mutex
 	accountSubs map[chan *ctypes.Message]struct{}
 }
 
-type exchangeState struct {
-	mu sync.RWMutex
-
-	ex         *SimExchange
-	adapter    *TradingAdapter
-	ticker     *TickerStore
-	publicConn mdtypes.Connector
-	// depths mirrors SimExchange.depths for the same Symbol: the *MarketDepth pointer stored here
-	// MUST always be the same instance passed to SimExchange.BindDepth (see applyDepthBookLocked).
-	depths     map[Symbol]*MarketDepth
-	leverages  map[leverageKey]int
-	bootstraps map[string]bool
-
-	// conns lists every simulate Connector sharing this exchange-wide SimExchange (multi-account notifications).
-	connsMu sync.RWMutex
-	conns   map[*Connector]struct{}
-
-	// streamHubs multiplex publicConn subscriptions keyed by StreamSelector.Key (Depth/Ticker/MarkPrice/Trade/Kline…).
-	streamHubMu sync.Mutex
-	streamHubs  map[string]*publicStreamHub
-}
-
-type leverageKey struct {
-	accountID string
-	symbol    Symbol
-}
-
-var (
-	statesMu sync.Mutex
-	states   = make(map[ctypes.Exchange]*exchangeState)
-)
-
 var _ mdtypes.Connector = (*Connector)(nil)
 
-// New constructs a simulate Connector and registers it for exchange-wide notifications.
-// The caller MUST eventually call Close or RemoveAccountState when the virtual account is removed
-// or the connector is no longer used, otherwise conns leaks a dangling *Connector.
+// New constructs a connector and registers it on the venue runtime.
 func New(exchange ctypes.Exchange, account *mdtypes.ApiAccount) (*Connector, error) {
 	if !exchange.IsValid() {
-		return nil, fmt.Errorf("invalid exchange: %s", exchange)
+		return nil, fmt.Errorf("simulate: invalid exchange: %s", exchange)
 	}
 	if account == nil || account.ID == "" {
-		return nil, fmt.Errorf("simulate connector requires account id")
+		return nil, fmt.Errorf("simulate: requires account id")
 	}
-
-	state, err := getOrCreateState(exchange)
+	rt, err := getOrCreateVenue(exchange)
 	if err != nil {
 		return nil, err
 	}
-
-	conn := &Connector{
+	c := &Connector{
 		exchange:    exchange,
 		accountID:   account.ID,
-		state:       state,
+		rt:          rt,
 		accountSubs: make(map[chan *ctypes.Message]struct{}),
 	}
-	conn.state.registerConn(conn)
-	return conn, nil
+	rt.registerConn(c)
+	return c, nil
 }
 
-func (st *exchangeState) registerConn(c *Connector) {
-	st.connsMu.Lock()
-	defer st.connsMu.Unlock()
-	if st.conns == nil {
-		st.conns = make(map[*Connector]struct{})
-	}
-	st.conns[c] = struct{}{}
-}
+func (c *Connector) Exchange() ctypes.Exchange { return c.exchange }
 
-func (st *exchangeState) unregisterConn(c *Connector) {
-	st.connsMu.Lock()
-	defer st.connsMu.Unlock()
-	delete(st.conns, c)
-}
-
-func getOrCreateState(exchange ctypes.Exchange) (*exchangeState, error) {
-	statesMu.Lock()
-	defer statesMu.Unlock()
-
-	if st, ok := states[exchange]; ok {
-		return st, nil
-	}
-
-	publicConn, err := newPublicConnector(exchange)
-	if err != nil {
-		return nil, err
-	}
-
-	ex := NewSimExchange()
-	st := &exchangeState{
-		ex:         ex,
-		adapter:    NewTradingAdapter(ex),
-		ticker:     NewTickerStore(),
-		publicConn: publicConn,
-		depths:     make(map[Symbol]*MarketDepth),
-		leverages:  make(map[leverageKey]int),
-		bootstraps: make(map[string]bool),
-	}
-	states[exchange] = st
-	return st, nil
-}
-
-func newPublicConnector(exchange ctypes.Exchange) (mdtypes.Connector, error) {
-	switch exchange {
-	case ctypes.ExchangeBinance:
-		return binance.New(binance.Config{}, nil)
-	case ctypes.ExchangeBinanceTest:
-		return binance.New(binance.Config{UseDemo: true}, nil)
-	case ctypes.ExchangeOkx:
-		return okx.New(okx.Config{}, nil)
-	case ctypes.ExchangeOkxTest:
-		return okx.New(okx.Config{UseTestnet: true}, nil)
-	default:
-		return nil, fmt.Errorf("unsupported exchange: %s", exchange)
-	}
-}
-
-func (c *Connector) Exchange() ctypes.Exchange {
-	return c.exchange
-}
-
-func (c *Connector) IsPrivate() bool {
-	return true
-}
+func (c *Connector) IsPrivate() bool { return true }
 
 func (c *Connector) Supports(selector ctypes.StreamSelector) bool {
 	switch selector.Stream {
-	case ctypes.StreamTypeTicker,
-		ctypes.StreamTypeTrade,
-		ctypes.StreamTypeDepth,
-		ctypes.StreamTypeKline,
-		ctypes.StreamTypeMarkPrice:
-		return c.state.publicConn.Supports(selector)
+	case ctypes.StreamTypeTicker, ctypes.StreamTypeTrade, ctypes.StreamTypeDepth,
+		ctypes.StreamTypeKline, ctypes.StreamTypeMarkPrice:
+		return c.rt.Public.Supports(selector)
 	case ctypes.StreamTypeAccountRaw, ctypes.StreamTypeAccount:
 		return true
 	default:
@@ -172,18 +67,15 @@ func (c *Connector) Supports(selector ctypes.StreamSelector) bool {
 
 func (c *Connector) Subscribe(ctx context.Context, selector ctypes.StreamSelector) (*mdtypes.StreamHandle, error) {
 	switch selector.Stream {
-	case ctypes.StreamTypeDepth,
-		ctypes.StreamTypeTicker,
-		ctypes.StreamTypeMarkPrice,
-		ctypes.StreamTypeTrade,
-		ctypes.StreamTypeKline:
+	case ctypes.StreamTypeDepth, ctypes.StreamTypeTicker, ctypes.StreamTypeMarkPrice,
+		ctypes.StreamTypeTrade, ctypes.StreamTypeKline:
 		if err := validateSimulatePublicSelector(selector); err != nil {
 			return nil, err
 		}
-		if !c.state.publicConn.Supports(selector) {
+		if !c.rt.Public.Supports(selector) {
 			return nil, fmt.Errorf("simulate: public connector does not support stream %s", selector.Stream)
 		}
-		hub := c.state.getOrCreateStreamHub(selector)
+		hub := c.rt.getOrCreateStreamHub(selector)
 		return hub.attachListener(ctx)
 	case ctypes.StreamTypeAccountRaw, ctypes.StreamTypeAccount:
 		if selector.Account != nil && *selector.Account != "" && *selector.Account != c.accountID {
@@ -209,128 +101,104 @@ func (c *Connector) Subscribe(ctx context.Context, selector ctypes.StreamSelecto
 		}()
 		return mdtypes.BuildHandle(ctx, out, errCh, stopC, doneC), nil
 	default:
-		return nil, fmt.Errorf("unsupported selector: %s", selector.Stream)
+		return nil, fmt.Errorf("simulate: unsupported selector: %s", selector.Stream)
 	}
 }
 
-// ingestMessage applies public wire messages for tests and direct replay; production paths use
-// publicStreamHub.ingestOnce for Depth/Ticker/MarkPrice (same dispatch helpers).
-func (c *Connector) ingestMessage(msg *ctypes.Message) {
-	if msg.Depth != nil && msg.Depth.Symbol.IsValid() {
-		c.state.dispatchDepthIngest(msg)
-	}
-	if msg.Ticker != nil && msg.Ticker.Symbol.IsValid() {
-		c.state.dispatchTickerIngest(msg)
-	}
-	if msg.MarkPrice != nil && msg.MarkPrice.Symbol.IsValid() {
-		c.state.dispatchMarkPricePayload(msg.MarkPrice)
-	}
+// Close unregisters this connector from the venue.
+func (c *Connector) Close() {
+	c.rt.unregisterConn(c)
+}
+
+// SetPositionMode switches default perp mode for this account (requires flat book per symbol; use Engine.Ledger().SetPerpMode).
+func (c *Connector) SetPositionMode(mode PositionMode) {
+	c.rt.Engine.SetAccountPositionMode(c.accountID, mode)
 }
 
 func (c *Connector) GetMarkets(ctx context.Context, tps []ctypes.MarketType) ([]*ctypes.Market, error) {
-	return c.state.publicConn.GetMarkets(ctx, tps)
+	return c.rt.Public.GetMarkets(ctx, tps)
 }
 
 func (c *Connector) GetMarket(ctx context.Context, symbol ctypes.Symbol) (*ctypes.Market, error) {
-	market, err := c.state.publicConn.GetMarket(ctx, symbol)
-	if err != nil {
-		return nil, err
-	}
-	return market, nil
+	return c.rt.Public.GetMarket(ctx, symbol)
 }
 
 func (c *Connector) Prices(ctx context.Context, marketType *ctypes.MarketType) ([]*ctypes.Price, error) {
-	return c.state.publicConn.Prices(ctx, marketType)
+	return c.rt.Public.Prices(ctx, marketType)
 }
 
 func (c *Connector) Price(ctx context.Context, symbol ctypes.Symbol) (*ctypes.Price, error) {
-	price, err := c.state.publicConn.Price(ctx, symbol)
-	if err != nil {
-		return nil, err
-	}
-	if price != nil {
-		c.state.mu.Lock()
-		c.state.ticker.Update(Ticker{
-			Symbol: toSimSymbol(symbol),
-			Last:   price.Price,
-			Mark:   price.Price,
-			Ts:     price.Ts,
-		})
-		c.state.mu.Unlock()
-	}
-	return price, nil
+	return c.rt.Public.Price(ctx, symbol)
 }
 
 func (c *Connector) BookPrices(ctx context.Context, marketType *ctypes.MarketType) ([]*ctypes.BookPrice, error) {
-	return c.state.publicConn.BookPrices(ctx, marketType)
+	return c.rt.Public.BookPrices(ctx, marketType)
 }
 
 func (c *Connector) BookPrice(ctx context.Context, symbol ctypes.Symbol) (*ctypes.BookPrice, error) {
-	return c.state.publicConn.BookPrice(ctx, symbol)
+	return c.rt.Public.BookPrice(ctx, symbol)
 }
 
 func (c *Connector) MarkPrices(ctx context.Context) ([]*ctypes.MarkPrice, error) {
-	return c.state.publicConn.MarkPrices(ctx)
+	return c.rt.Public.MarkPrices(ctx)
 }
 
 func (c *Connector) MarkPrice(ctx context.Context, symbol ctypes.Symbol) (*ctypes.MarkPrice, error) {
-	return c.state.publicConn.MarkPrice(ctx, symbol)
+	return c.rt.Public.MarkPrice(ctx, symbol)
 }
 
 func (c *Connector) IndexPrice(ctx context.Context, symbol ctypes.Symbol) (*ctypes.IndexPrice, error) {
-	return c.state.publicConn.IndexPrice(ctx, symbol)
+	return c.rt.Public.IndexPrice(ctx, symbol)
 }
 
 func (c *Connector) IndexComponent(ctx context.Context, symbol ctypes.Symbol) (*ctypes.IndexComponent, error) {
-	return c.state.publicConn.IndexComponent(ctx, symbol)
+	return c.rt.Public.IndexComponent(ctx, symbol)
 }
 
 func (c *Connector) Ticker(ctx context.Context, symbol ctypes.Symbol) (*ctypes.Ticker, error) {
-	return c.state.publicConn.Ticker(ctx, symbol)
+	return c.rt.Public.Ticker(ctx, symbol)
 }
 
 func (c *Connector) Trades(ctx context.Context, symbol ctypes.Symbol, limit int) ([]*ctypes.Trade, error) {
-	return c.state.publicConn.Trades(ctx, symbol, limit)
+	return c.rt.Public.Trades(ctx, symbol, limit)
 }
 
 func (c *Connector) Depth(ctx context.Context, symbol ctypes.Symbol, limit int) (*ctypes.OrderBook, error) {
-	return c.state.publicConn.Depth(ctx, symbol, limit)
+	return c.rt.Public.Depth(ctx, symbol, limit)
 }
 
 func (c *Connector) Klines(ctx context.Context, symbol ctypes.Symbol, interval ctypes.Interval, limit int) ([]*ctypes.Kline, error) {
-	return c.state.publicConn.Klines(ctx, symbol, interval, limit)
+	return c.rt.Public.Klines(ctx, symbol, interval, limit)
 }
 
-func (c *Connector) HisKlines(ctx context.Context, symbol ctypes.Symbol, interval ctypes.Interval, startTs *time.Time, endTs *time.Time, limit *int) ([]*ctypes.Kline, error) {
-	return c.state.publicConn.HisKlines(ctx, symbol, interval, startTs, endTs, limit)
+func (c *Connector) HisKlines(ctx context.Context, symbol ctypes.Symbol, interval ctypes.Interval, startTs, endTs *time.Time, limit *int) ([]*ctypes.Kline, error) {
+	return c.rt.Public.HisKlines(ctx, symbol, interval, startTs, endTs, limit)
 }
 
 func (c *Connector) FundingRate(ctx context.Context, symbol ctypes.Symbol) (*ctypes.FundingRate, error) {
-	return c.state.publicConn.FundingRate(ctx, symbol)
+	return c.rt.Public.FundingRate(ctx, symbol)
 }
 
-func (c *Connector) HisFundingRates(ctx context.Context, symbol ctypes.Symbol, startTs *time.Time, endTs *time.Time, limit *int) ([]*ctypes.FundingRate, error) {
-	return c.state.publicConn.HisFundingRates(ctx, symbol, startTs, endTs, limit)
+func (c *Connector) HisFundingRates(ctx context.Context, symbol ctypes.Symbol, startTs, endTs *time.Time, limit *int) ([]*ctypes.FundingRate, error) {
+	return c.rt.Public.HisFundingRates(ctx, symbol, startTs, endTs, limit)
 }
 
 func (c *Connector) OpenInterest(ctx context.Context, symbol ctypes.Symbol) (decimal.Decimal, error) {
-	return c.state.publicConn.OpenInterest(ctx, symbol)
+	return c.rt.Public.OpenInterest(ctx, symbol)
 }
 
 func (c *Connector) Account(ctx context.Context) (*ctypes.AccountBo, error) {
 	return &ctypes.AccountBo{
-		Exchange:        c.exchange,
 		Uid:             c.accountID,
+		Exchange:        c.exchange,
 		IsSpotEnabled:   true,
 		IsFutureEnabled: true,
 	}, nil
 }
 
 func (c *Connector) Balance(ctx context.Context) (*ctypes.Balance, error) {
-	c.state.mu.RLock()
-	balMap := c.state.adapter.Balance(ctx, c.accountID)
-	c.state.mu.RUnlock()
-
+	_ = ctx
+	balMap := c.rt.Engine.Balances(c.accountID)
 	assets := make([]*ctypes.AssetBo, 0, len(balMap))
 	for key, amount := range balMap {
 		assets = append(assets, &ctypes.AssetBo{
@@ -344,19 +212,43 @@ func (c *Connector) Balance(ctx context.Context) (*ctypes.Balance, error) {
 	return &ctypes.Balance{Assets: assets}, nil
 }
 
+func (c *Connector) resolveMarkPrice(symbol ctypes.Symbol) decimal.Decimal {
+	tk, ok := c.rt.Quotes.Get(Symbol(symbol.String()))
+	if ok {
+		if tk.Mark.GreaterThan(decimal.Zero) {
+			return tk.Mark
+		}
+		if tk.Last.GreaterThan(decimal.Zero) {
+			return tk.Last
+		}
+	}
+	return decimal.Zero
+}
+
 func (c *Connector) Positions(ctx context.Context, mt *ctypes.MarketType) ([]*ctypes.Position, error) {
+	_ = ctx
 	if mt != nil && *mt == ctypes.MarketTypeSpot {
 		return []*ctypes.Position{}, nil
 	}
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
 	out := make([]*ctypes.Position, 0)
-	for sym := range c.state.depths {
+	for _, sym := range c.rt.Engine.AllSymbols() {
 		typedSym := toTypesSymbol(sym)
 		if !typedSym.IsValid() || typedSym.Type != ctypes.MarketTypeFuture {
 			continue
 		}
-		pos, ok := c.state.adapter.Position(ctx, c.accountID, sym)
+		mode := c.rt.Engine.AccountPositionMode(c.accountID)
+		snap, _ := c.rt.Engine.Ledger().GetPerpSlot(c.accountID, sym)
+		if mode == PositionModeHedge {
+			mark := c.resolveMarkPrice(typedSym)
+			if snap.Long.Qty.Sign() > 0 {
+				out = append(out, c.ctypePositionLeg(typedSym, ctypes.PositionSideLong, snap.Long, mark))
+			}
+			if snap.Short.Qty.Sign() > 0 {
+				out = append(out, c.ctypePositionLeg(typedSym, ctypes.PositionSideShort, snap.Short, mark))
+			}
+			continue
+		}
+		pos, ok := c.rt.Engine.NetPosition(c.accountID, sym)
 		if !ok || pos.Qty.IsZero() {
 			continue
 		}
@@ -366,11 +258,11 @@ func (c *Connector) Positions(ctx context.Context, mt *ctypes.MarketType) ([]*ct
 			side = ctypes.PositionSideShort
 			amount = pos.Qty.Abs()
 		}
-		mark := c.resolveMarkPriceLocked(typedSym)
+		mark := c.resolveMarkPrice(typedSym)
 		notional := amount.Mul(mark)
 		lev := int(pos.Leverage)
 		if lev <= 0 {
-			lev = c.leverageLocked(sym)
+			lev = c.rt.Engine.Leverage(c.accountID, sym)
 		}
 		if lev <= 0 {
 			lev = 1
@@ -394,6 +286,31 @@ func (c *Connector) Positions(ctx context.Context, mt *ctypes.MarketType) ([]*ct
 	return out, nil
 }
 
+func (c *Connector) ctypePositionLeg(typedSym ctypes.Symbol, side ctypes.PositionSide, leg PerpLeg, mark decimal.Decimal) *ctypes.Position {
+	lev := int(leg.Leverage)
+	if lev <= 0 {
+		lev = c.rt.Engine.Leverage(c.accountID, Symbol(typedSym.String()))
+	}
+	if lev <= 0 {
+		lev = 1
+	}
+	return &ctypes.Position{
+		AccountID:     c.accountID,
+		Exchange:      c.exchange,
+		Symbol:        typedSym,
+		Side:          side,
+		Isolated:      true,
+		Amount:        leg.Qty,
+		EntryPrice:    leg.EntryPrice,
+		MarkPrice:     mark,
+		Notional:      leg.Qty.Mul(mark),
+		Leverage:      lev,
+		InitialMargin: leg.UsedMargin,
+		MaintMargin:   decimal.Zero,
+		UpdatedTs:     time.Now().UTC(),
+	}
+}
+
 func (c *Connector) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ctypes.SymbolConfig, error) {
 	market, err := c.GetMarket(ctx, symbol)
 	if err != nil {
@@ -410,7 +327,7 @@ func (c *Connector) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ct
 		MakerCommission: maker,
 		TakerCommission: taker,
 	}
-	c.normalizeMarketPrecision(&cfg.Market)
+	normalizeMarketPrecision(&cfg.Market)
 	return cfg, nil
 }
 
@@ -418,24 +335,21 @@ func (c *Connector) GetOrders(ctx context.Context, symbol *ctypes.Symbol) ([]*ct
 	if symbol == nil {
 		return []*ctypes.Order{}, nil
 	}
-	c.state.mu.RLock()
-	orders := c.state.adapter.GetOrders(ctx, c.accountID, toSimSymbol(*symbol))
-	c.state.mu.RUnlock()
+	orders := c.rt.Engine.ListOpenOrders(c.accountID, Symbol(symbol.String()))
 	out := make([]*ctypes.Order, 0, len(orders))
-	for _, od := range orders {
-		out = append(out, toTypesOrder(c.exchange, od))
+	for i := range orders {
+		out = append(out, toTypesOrder(c.exchange, &orders[i]))
 	}
 	return out, nil
 }
 
 func (c *Connector) GetOrder(ctx context.Context, symbol ctypes.Symbol, orderId string) (*ctypes.Order, error) {
-	c.state.mu.RLock()
-	order, ok := c.state.adapter.GetOrder(ctx, c.accountID, toSimSymbol(symbol), orderId)
-	c.state.mu.RUnlock()
+	_ = ctx
+	order, ok := c.rt.Engine.GetOrder(c.accountID, Symbol(symbol.String()), orderId)
 	if !ok {
 		return nil, nil
 	}
-	return toTypesOrder(c.exchange, order), nil
+	return toTypesOrder(c.exchange, &order), nil
 }
 
 func (c *Connector) CalcOrderFee(ctx context.Context, order ctypes.Order) (*decimal.Decimal, *string, error) {
@@ -443,530 +357,70 @@ func (c *Connector) CalcOrderFee(ctx context.Context, order ctypes.Order) (*deci
 }
 
 func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInput) (*mdtypes.PlaceOrderResult, error) {
-	if err := c.validatePlaceOrderInputBasic(input); err != nil {
+	if err := validatePlaceOrderInputBasic(input); err != nil {
 		return nil, err
 	}
-
 	market, err := c.GetMarket(ctx, input.Symbol)
 	if err != nil {
 		return nil, err
 	}
 	if market == nil {
-		return nil, fmt.Errorf("market not found: %s", input.Symbol)
+		return nil, fmt.Errorf("simulate: unknown market")
 	}
-	if err := c.validatePlaceOrderByMarketRules(ctx, input, market); err != nil {
+	if err := validatePlaceOrderByMarketRules(ctx, c, input, market); err != nil {
 		return nil, err
 	}
-	c.ensureInstrument(market)
-	if err := c.syncMarketDepth(ctx, input.Symbol, true); err != nil {
+	if err := c.ensureSymbolInitialized(ctx, input.Symbol); err != nil {
 		return nil, err
 	}
-	c.ensureDepthStreamStarted(input.Symbol)
 
-	req := PlaceOrderRequest{
-		AccountID:     c.accountID,
-		Symbol:        toSimSymbol(input.Symbol),
-		OrderType:     toSimOrderType(input.OrderType),
-		Side:          toSimSide(input.IsBuy),
-		Intent:        toSimIntent(input),
-		ReduceOnly:    lo.FromPtr(input.ReduceOnly),
-		Leverage:      int32(c.currentLeverage(toSimSymbol(input.Symbol))),
-		Price:         lo.FromPtr(input.Price),
-		Qty:           lo.FromPtr(input.Quantity),
-		ClientOrderID: lo.FromPtr(input.ClientOrderID).String(),
-	}
-	beforeBal, beforePos := c.snapshotAccountState(input.Symbol)
-	c.state.mu.Lock()
-	res, err := c.state.adapter.PlaceOrder(ctx, req)
-	c.state.mu.Unlock()
+	req := placeOrderRequestFromInput(c, input, market)
+	before := c.rt.Engine.AccountSnapshot(c.accountID, Symbol(input.Symbol.String()))
+	res, err := c.rt.Engine.PlaceOrder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	afterBal, afterPos := c.snapshotAccountState(input.Symbol)
-	for _, em := range c.buildOrderAndSnapshotMessages(input.Symbol, beforeBal, afterBal, beforePos, afterPos, res) {
-		c.publishAccountMessage(em)
+	after := c.rt.Engine.AccountSnapshot(c.accountID, Symbol(input.Symbol.String()))
+	msgs := c.buildTakerFillMessages(input.Symbol, before, after, res)
+	for _, m := range msgs {
+		c.publishAccountMessage(m)
+	}
+
+	st := ctypes.OrderStatusPending
+	if res.Order.Status == OrderStatusFilled {
+		st = ctypes.OrderStatusDone
+	} else if res.Order.Status == OrderStatusRejected {
+		st = ctypes.OrderStatusRejected
+	} else if res.Order.Status == OrderStatusNew {
+		st = ctypes.OrderStatusNew
 	}
 	return &mdtypes.PlaceOrderResult{
 		OrderID:       ctypes.OrderId(res.Order.ID),
 		ClientOrderID: ctypes.OrderId(res.Order.ClientOrderID),
-		Status:        toTypesOrderStatus(res.Order.Status),
+		Status:        st,
 	}, nil
 }
 
-// SeedAccountBalances initializes simulate balances once from external account assets.
-func (c *Connector) SeedAccountBalances(bals map[ctypes.WalletType]map[Asset]decimal.Decimal) error {
-	if len(bals) == 0 {
-		return nil
-	}
-	c.state.mu.Lock()
-	if c.state.bootstraps[c.accountID] {
-		c.state.mu.Unlock()
-		return nil
-	}
-	c.state.bootstraps[c.accountID] = true
-	c.state.mu.Unlock()
-	return c.state.ex.InitBalances(c.accountID, bals)
-}
-
-func (c *Connector) SeedAccountPositions(positions map[ctypes.Symbol]ctypes.Position) error {
-	for sym, p := range positions {
-		if !sym.IsValid() {
-			continue
-		}
-		sqty := p.Amount
-		if p.Side == ctypes.PositionSideShort {
-			sqty = sqty.Neg()
-		}
-		err := c.state.ex.InitPosition(c.accountID, toSimSymbol(sym), Position{
-			Qty:        sqty,
-			EntryPrice: p.EntryPrice,
-			UsedMargin: p.InitialMargin,
-			Leverage:   int32(maxInt(p.Leverage, 1)),
-		})
-		if err != nil {
-			return err
-		}
-		if p.Leverage > 0 {
-			c.state.mu.Lock()
-			c.state.leverages[leverageKey{accountID: c.accountID, symbol: toSimSymbol(sym)}] = p.Leverage
-			c.state.mu.Unlock()
-		}
-	}
-	return nil
-}
-
-func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
-	for _, od := range orders {
-		if od == nil || !od.Symbol.IsValid() {
-			continue
-		}
-		rem := od.OriginalQty.Sub(od.ExecutedQty)
-		if rem.Sign() <= 0 {
-			continue
-		}
-		st := OrderStatusNew
-		if od.Status == ctypes.OrderStatusPartialDone {
-			st = OrderStatusPartiallyFilled
-		}
-		err := c.state.ex.SeedOpenOrder(SimOrder{
-			ID:            od.OrderID.String(),
-			AccountID:     c.accountID,
-			ClientOrderID: od.ClientOrderID.String(),
-			Symbol:        toSimSymbol(od.Symbol),
-			OrderType:     toSimOrderType(od.OrderType),
-			Side:          toSimSide(od.IsBuy),
-			Price:         od.Price,
-			QtyOriginal:   od.OriginalQty,
-			QtyFilled:     od.ExecutedQty,
-			QtyRemaining:  rem,
-			AvgFillPrice:  od.AvgPrice,
-			Status:        st,
-			CreatedAt:     od.CreatedTs,
-			LastUpdatedAt: od.UpdatedTs,
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Connector) RemoveAccountState() {
-	c.state.unregisterConn(c)
-	c.state.mu.Lock()
-	delete(c.state.bootstraps, c.accountID)
-	for key := range c.state.leverages {
-		if key.accountID == c.accountID {
-			delete(c.state.leverages, key)
-		}
-	}
-	c.state.mu.Unlock()
-	c.state.ex.RemoveAccount(c.accountID)
-}
-
-// Close releases simulate resources for this account and unregisters from exchange-wide dispatch.
-// It is equivalent to RemoveAccountState and should be used when discarding the connector (e.g. virtual account offline).
-func (c *Connector) Close() {
-	c.RemoveAccountState()
-}
-
-func (c *Connector) WarmSymbols(ctx context.Context, symbols []ctypes.Symbol) {
-	uniq := make(map[string]ctypes.Symbol)
-	for _, sym := range symbols {
-		if sym.IsValid() {
-			uniq[sym.String()] = sym
-		}
-	}
-	for _, sym := range uniq {
-		_ = c.ensureSymbolInitialized(ctx, sym)
-	}
-}
-
-func (c *Connector) ensureSymbolInitialized(ctx context.Context, symbol ctypes.Symbol) error {
-	market, err := c.GetMarket(ctx, symbol)
-	if err != nil {
-		return err
-	}
-	if market != nil {
-		c.ensureInstrument(market)
-	}
-	if err := c.syncMarketDepth(ctx, symbol, false); err != nil {
-		return err
-	}
-	c.ensureDepthStreamStarted(symbol)
-	if symbol.Type == ctypes.MarketTypeFuture {
-		if mp, err := c.state.publicConn.MarkPrice(ctx, symbol); err == nil && mp != nil && mp.MarkPrice.GreaterThan(decimal.Zero) {
-			c.ingestMarkPrice(mp)
-		}
-		c.ensureMarkPriceStreamStarted(symbol)
-	}
-	return nil
-}
-
-// syncMarketDepth loads public L2 into the shared MarketDepth without triggering maker matching.
-// It reads exchangeState.depths[sym], which must stay pointer-equal to SimExchange.depths[sym] (BindDepth).
-//
-// emptyFallback: when true (PlaceOrder), install an empty snapshot if the feed never produced a seq id;
-// when false (WarmSymbols), no empty book — mirroring the previous ensureDepthInitialized / ensureSymbolInitialized split.
-func (c *Connector) syncMarketDepth(ctx context.Context, symbol ctypes.Symbol, emptyFallback bool) error {
-	sym := toSimSymbol(symbol)
-	c.state.mu.RLock()
-	d, ok := c.state.depths[sym]
-	depthReady := ok && d != nil && d.LastSeqID() > 0
-	c.state.mu.RUnlock()
-	if depthReady {
-		return nil
-	}
-	snapshot, err := c.Depth(ctx, symbol, 500)
-	if err != nil {
-		return err
-	}
-	c.state.mu.Lock()
-	if snapshot != nil && snapshot.Symbol.IsValid() {
-		_ = c.applyDepthBookLocked(snapshot, false)
-	}
-	d, ok = c.state.depths[sym]
-	depthReady = ok && d != nil && d.LastSeqID() > 0
-	if !depthReady && emptyFallback {
-		// Fallback for private-order flows where public depth is unavailable:
-		// bootstrap an empty snapshot so order lifecycle can proceed.
-		_ = c.applyDepthBookLocked(&ctypes.OrderBook{
-			Symbol: symbol,
-			SeqId:  1,
-			Ts:     time.Now().UTC(),
-		}, false)
-	}
-	c.state.mu.Unlock()
-	return nil
-}
-
-// applyDepthBookLocked installs a depth snapshot/delta into the shared MarketDepth. Caller must hold state.mu when mutating shared books.
-// Invariant: st.depths[sym] and st.ex.depths[sym] refer to the same *MarketDepth after BindDepth.
-// When matchResting is true (incremental public updates), resting orders are matched via SimExchange.OnDepthUpdated.
-func (st *exchangeState) applyDepthBookLocked(book *ctypes.OrderBook, matchResting bool) []MatchEvent {
-	if book == nil || !book.Symbol.IsValid() {
-		return nil
-	}
-	sym := toSimSymbol(book.Symbol)
-	d, ok := st.depths[sym]
-	if !ok {
-		d = NewMarketDepth()
-		st.depths[sym] = d
-		_ = st.ex.BindDepth(sym, d)
-	}
-	depth := toSimOrderBook(book)
-	if depth.PrevSeqId > 0 && d.LastSeqID() > 0 {
-		if err := d.ApplyDelta(lo.ToPtr(depth)); err != nil {
-			_ = d.ApplySnapshot(lo.ToPtr(depth))
-		}
-	} else {
-		_ = d.ApplySnapshot(lo.ToPtr(depth))
-	}
-	if !matchResting {
-		return nil
-	}
-	events, _ := st.ex.OnDepthUpdated(sym)
-	return events
-}
-
-func (c *Connector) applyDepthBookLocked(book *ctypes.OrderBook, matchResting bool) []MatchEvent {
-	return c.state.applyDepthBookLocked(book, matchResting)
-}
-
-func (c *Connector) ingestMarkPrice(mp *ctypes.MarkPrice) {
-	c.state.dispatchMarkPricePayload(mp)
-}
-
-// ensureDepthStreamStarted pins the shared stream hub so one publicConn subscription serves ingest + fan-out consumers.
-func (c *Connector) ensureDepthStreamStarted(symbol ctypes.Symbol) {
-	if !symbol.IsValid() {
-		return
-	}
-	sym := symbol
-	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeDepth, Symbol: &sym}
-	if !c.state.publicConn.Supports(sel) {
-		return
-	}
-	hub := c.state.getOrCreateStreamHub(sel)
-	hub.setPinned()
-	hub.ensureRunning()
-}
-
-func (c *Connector) ensureMarkPriceStreamStarted(symbol ctypes.Symbol) {
-	if symbol.Type != ctypes.MarketTypeFuture || !symbol.IsValid() {
-		return
-	}
-	sym := symbol
-	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeMarkPrice, Symbol: &sym}
-	if !c.state.publicConn.Supports(sel) {
-		return
-	}
-	hub := c.state.getOrCreateStreamHub(sel)
-	hub.setPinned()
-	hub.ensureRunning()
-}
-
-// liquidationLossRatio triggers forced close when unrealized PnL <= -ratio * usedInitialMargin (minimal model).
-var liquidationLossRatio = decimal.RequireFromString("0.9")
-
-// tryLiquidateAfterMark runs outside exchangeState.mu; correctness relies on SimExchange mutex
-// serializing this path with PlaceOrder/Cancel and portfolio updates.
-func (c *Connector) tryLiquidateAfterMark(symbol ctypes.Symbol, mark decimal.Decimal) {
-	if symbol.Type != ctypes.MarketTypeFuture || !mark.GreaterThan(decimal.Zero) {
-		return
-	}
-	sym := toSimSymbol(symbol)
-	pos, ok := c.state.adapter.Position(context.Background(), c.accountID, sym)
-	if !ok || pos.Qty.IsZero() {
-		return
-	}
-	ins, ok := c.state.ex.InstrumentBySymbol(sym)
-	if !ok || ins.Kind != KindPerp {
-		return
-	}
-
-	var upnl decimal.Decimal
-	if pos.Qty.Sign() > 0 {
-		upnl = mark.Sub(pos.EntryPrice).Mul(pos.Qty)
-	} else {
-		upnl = pos.EntryPrice.Sub(mark).Mul(pos.Qty.Abs())
-	}
-	trigger := pos.UsedMargin.Mul(liquidationLossRatio).Neg()
-	if upnl.GreaterThan(trigger) {
-		return
-	}
-
-	beforeBal, beforePos := c.snapshotAccountState(symbol)
-	if err := c.state.ex.ForceClosePerpAtMark(c.accountID, sym, mark); err != nil {
-		return
-	}
-	afterBal, afterPos := c.snapshotAccountState(symbol)
-	for _, em := range c.buildSnapshotDiffMessages(symbol, beforeBal, afterBal, beforePos, afterPos) {
-		c.publishAccountMessage(em)
-	}
-}
-
-func (c *Connector) validatePlaceOrderInputBasic(input mdtypes.PlaceOrderInput) error {
-	if !input.Symbol.IsValid() {
-		return fmt.Errorf("invalid symbol: %s", input.Symbol)
-	}
-	if !input.OrderType.Valid() {
-		return fmt.Errorf("invalid order type: %s", input.OrderType)
-	}
-	switch input.OrderType {
-	case ctypes.OrderTypeLimit:
-		if input.Price == nil || !input.Price.GreaterThan(decimal.Zero) {
-			return fmt.Errorf("price must be > 0 for limit order")
-		}
-		if input.Quantity == nil || !input.Quantity.GreaterThan(decimal.Zero) {
-			return fmt.Errorf("quantity must be > 0 for limit order")
-		}
-	case ctypes.OrderTypeMarket:
-		if input.Quantity != nil && !input.Quantity.GreaterThan(decimal.Zero) {
-			return fmt.Errorf("quantity must be > 0")
-		}
-		if input.QuoteQty != nil && !input.QuoteQty.GreaterThan(decimal.Zero) {
-			return fmt.Errorf("quote_qty must be > 0")
-		}
-		// Spot MVP keeps behavior deterministic with quantity path only.
-		if input.Quantity == nil {
-			return fmt.Errorf("quantity is required for market order in simulate spot mvp")
-		}
-	default:
-		return fmt.Errorf("unsupported order type: %s", input.OrderType)
-	}
-	return nil
-}
-
-func (c *Connector) validatePlaceOrderByMarketRules(ctx context.Context, input mdtypes.PlaceOrderInput, market *ctypes.Market) error {
-	if market == nil {
-		return nil
-	}
-	if market.Status != "" && market.Status != ctypes.MarketStatusTrading {
-		return fmt.Errorf("market is not tradable: %s", market.Status)
-	}
-	rules := market.Rules
-	qty := lo.FromPtr(input.Quantity)
-	price := lo.FromPtr(input.Price)
-
-	if input.OrderType == ctypes.OrderTypeLimit {
-		if err := validatePriceRules(price, rules); err != nil {
-			return err
-		}
-	} else {
-		refPrice, err := c.resolveMarketOrderReferencePrice(ctx, input.Symbol)
-		if err != nil {
-			return err
-		}
-		price = refPrice
-	}
-	if err := validateQuantityRules(qty, rules); err != nil {
-		return err
-	}
-	return validateNotionalRules(price, qty, rules)
-}
-
-func (c *Connector) resolveMarketOrderReferencePrice(ctx context.Context, symbol ctypes.Symbol) (decimal.Decimal, error) {
-	c.state.mu.RLock()
-	tk, ok := c.state.ticker.Get(toSimSymbol(symbol))
-	c.state.mu.RUnlock()
-	if ok && tk.Last.GreaterThan(decimal.Zero) {
-		return tk.Last, nil
-	}
-	price, err := c.state.publicConn.Price(ctx, symbol)
-	if err != nil {
-		return decimal.Zero, err
-	}
-	if price == nil || !price.Price.GreaterThan(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("price unavailable for market order: %s", symbol)
-	}
-	return price.Price, nil
-}
-
-func validatePriceRules(price decimal.Decimal, rules ctypes.MarketRules) error {
-	if rules.MinPrice.GreaterThan(decimal.Zero) && price.LessThan(rules.MinPrice) {
-		return fmt.Errorf("price must be >= %s", rules.MinPrice)
-	}
-	if rules.MaxPrice.GreaterThan(decimal.Zero) && price.GreaterThan(rules.MaxPrice) {
-		return fmt.Errorf("price must be <= %s", rules.MaxPrice)
-	}
-	if rules.TickSize.GreaterThan(decimal.Zero) && !isStepAligned(price, rules.TickSize) {
-		return fmt.Errorf("price must align with tick size %s", rules.TickSize)
-	}
-	return nil
-}
-
-func validateQuantityRules(qty decimal.Decimal, rules ctypes.MarketRules) error {
-	if rules.MinQuantity.GreaterThan(decimal.Zero) && qty.LessThan(rules.MinQuantity) {
-		return fmt.Errorf("quantity must be >= %s", rules.MinQuantity)
-	}
-	if rules.MaxQuantity.GreaterThan(decimal.Zero) && qty.GreaterThan(rules.MaxQuantity) {
-		return fmt.Errorf("quantity must be <= %s", rules.MaxQuantity)
-	}
-	if rules.LotSize.GreaterThan(decimal.Zero) && !isStepAligned(qty, rules.LotSize) {
-		return fmt.Errorf("quantity must align with lot size %s", rules.LotSize)
-	}
-	return nil
-}
-
-func validateNotionalRules(price decimal.Decimal, qty decimal.Decimal, rules ctypes.MarketRules) error {
-	notional := price.Mul(qty)
-	if rules.MinNotional.GreaterThan(decimal.Zero) && notional.LessThan(rules.MinNotional) {
-		return fmt.Errorf("notional must be >= %s", rules.MinNotional)
-	}
-	if rules.MaxNotional.GreaterThan(decimal.Zero) && notional.GreaterThan(rules.MaxNotional) {
-		return fmt.Errorf("notional must be <= %s", rules.MaxNotional)
-	}
-	return nil
-}
-
-func isStepAligned(v decimal.Decimal, step decimal.Decimal) bool {
-	if !step.GreaterThan(decimal.Zero) {
-		return true
-	}
-	q := v.Div(step)
-	return q.Equal(q.Truncate(0))
-}
-
-func defaultFeesByMarketType(mt ctypes.MarketType) (decimal.Decimal, decimal.Decimal) {
-	switch mt {
-	case ctypes.MarketTypeFuture:
-		return decimal.RequireFromString("0.0002"), decimal.RequireFromString("0.0005")
-	default:
-		return decimal.RequireFromString("0.001"), decimal.RequireFromString("0.001")
-	}
-}
-
-func (c *Connector) normalizeMarketPrecision(market *ctypes.Market) {
-	if market == nil {
-		return
-	}
-	if market.PricePrecision <= 0 {
-		market.PricePrecision = precisionFromStep(market.Rules.TickSize)
-	}
-	if market.BaseAssetPrecision <= 0 {
-		market.BaseAssetPrecision = precisionFromStep(market.Rules.LotSize)
-	}
-	if market.QuoteAssetPrecision <= 0 {
-		// Quote precision falls back to tick-size precision for spot pairs.
-		market.QuoteAssetPrecision = precisionFromStep(market.Rules.TickSize)
-	}
-}
-
-func precisionFromStep(step decimal.Decimal) int {
-	if !step.GreaterThan(decimal.Zero) {
-		return 8
-	}
-	s := strings.TrimRight(strings.TrimRight(step.String(), "0"), ".")
-	i := strings.IndexByte(s, '.')
-	if i < 0 {
-		return 0
-	}
-	return len(s) - i - 1
-}
-
 func (c *Connector) CancelOrder(ctx context.Context, symbol ctypes.Symbol, orderId string) error {
-	beforeBal, beforePos := c.snapshotAccountState(symbol)
-	c.state.mu.Lock()
-	err := c.state.adapter.CancelOrder(ctx, c.accountID, toSimSymbol(symbol), orderId)
-	c.state.mu.Unlock()
-	if err != nil {
-		return err
-	}
-	afterBal, afterPos := c.snapshotAccountState(symbol)
-	msg := c.newOrderLifecycleMessage(&ctypes.Order{
-		AccountID: c.accountID,
-		Exchange:  c.exchange,
-		Symbol:    symbol,
-		OrderID:   ctypes.OrderId(orderId),
-		Status:    ctypes.OrderStatusCanceled,
-		UpdatedTs: time.Now().UTC(),
-	})
-	c.publishAccountMessage(msg)
-	for _, em := range c.buildSnapshotDiffMessages(symbol, beforeBal, afterBal, beforePos, afterPos) {
-		c.publishAccountMessage(em)
-	}
-	return nil
+	return c.rt.Engine.CancelOrder(ctx, c.accountID, Symbol(symbol.String()), orderId)
 }
 
 func (c *Connector) SetLeverage(ctx context.Context, symbol ctypes.Symbol, leverage int) (int, error) {
-	if !symbol.IsValid() {
-		return 0, fmt.Errorf("invalid symbol: %s", symbol)
+	_ = ctx
+	if leverage < 1 {
+		return 0, fmt.Errorf("simulate: invalid leverage")
 	}
-	if leverage <= 0 {
-		return 0, fmt.Errorf("leverage must be > 0")
-	}
-	c.state.mu.Lock()
-	defer c.state.mu.Unlock()
-	c.state.leverages[leverageKey{accountID: c.accountID, symbol: toSimSymbol(symbol)}] = leverage
+	c.rt.Engine.SetLeverage(c.accountID, Symbol(symbol.String()), leverage)
 	return leverage, nil
 }
 
 func (c *Connector) GetLeverageBracket(ctx context.Context, symbol ctypes.Symbol, markPrice decimal.Decimal) (*ctypes.LeverageBracket, error) {
+	_ = ctx
+	_ = markPrice
 	if !symbol.IsValid() {
-		return nil, fmt.Errorf("invalid symbol: %s", symbol)
+		return nil, fmt.Errorf("simulate: invalid symbol")
 	}
-	maxLev := float32(c.currentLeverage(toSimSymbol(symbol)))
+	maxLev := float32(c.rt.Engine.Leverage(c.accountID, Symbol(symbol.String())))
 	if maxLev <= 0 {
 		maxLev = 1
 	}
@@ -985,44 +439,70 @@ func (c *Connector) GetLeverageBracket(ctx context.Context, symbol ctypes.Symbol
 	}, nil
 }
 
-func (c *Connector) ensureInstrument(market *ctypes.Market) {
-	if market == nil {
+func (c *Connector) publishAccountMessage(msg *ctypes.Message) {
+	if msg == nil {
 		return
 	}
-	ins := Instrument{
-		Symbol:             toSimSymbol(market.Symbol),
-		Kind:               marketTypeToInstrumentKind(market.Symbol.Type),
-		Exchange:           c.exchange,
-		Market:             market.Symbol.Type,
-		Base:               Asset(market.Symbol.Base),
-		Quote:              Asset(market.Symbol.Quote),
-		PriceTick:          market.Rules.TickSize,
-		QtyStep:            market.Rules.LotSize,
-		MinQty:             market.Rules.MinQuantity,
-		MinNotional:        market.Rules.MinNotional,
-		ContractMultiplier: decimal.NewFromInt(1),
-		MakerFeeBps:        10,
-		TakerFeeBps:        10,
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+	for ch := range c.accountSubs {
+		select {
+		case ch <- msg:
+		default:
+		}
 	}
-	_ = c.state.ex.RegisterInstrument(&ins)
 }
 
-func toSimOrderBook(book *ctypes.OrderBook) OrderBook {
-	out := OrderBook{
-		Symbol: toSimSymbol(book.Symbol),
-		Ts:     book.Ts,
-		SeqId:  book.SeqId,
-	}
-	for _, bid := range book.Bids {
-		out.Bids = append(out.Bids, OrderBookLevel{Price: bid.Price, Size: bid.Size})
-	}
-	for _, ask := range book.Asks {
-		out.Asks = append(out.Asks, OrderBookLevel{Price: ask.Price, Size: ask.Size})
-	}
-	return out
+func (c *Connector) nextEventID() string {
+	return GenerateCompactID(c.accountID)
 }
 
-func toTypesOrder(exchange ctypes.Exchange, od SimOrder) *ctypes.Order {
+func (c *Connector) mustEventMetaJSON(ts time.Time) string {
+	payload, _ := json.Marshal(map[string]any{
+		"eventId": c.nextEventID(),
+		"ts":      ts.UnixMilli(),
+		"source":  "simulate",
+	})
+	return string(payload)
+}
+
+func toTypesSymbol(symbol Symbol) ctypes.Symbol {
+	s, _ := ctypes.ParseSymbol(string(symbol))
+	return s
+}
+
+func toPaperSymbol(symbol ctypes.Symbol) Symbol {
+	return Symbol(symbol.String())
+}
+
+func toTypesOrderType(tp OrderType) ctypes.OrderType {
+	if tp == OrderTypeLimit {
+		return ctypes.OrderTypeLimit
+	}
+	return ctypes.OrderTypeMarket
+}
+
+func toTypesOrderStatus(st OrderStatus) ctypes.OrderStatus {
+	switch st {
+	case OrderStatusNew:
+		return ctypes.OrderStatusNew
+	case OrderStatusPartiallyFilled:
+		return ctypes.OrderStatusPartialDone
+	case OrderStatusFilled:
+		return ctypes.OrderStatusDone
+	case OrderStatusCanceled:
+		return ctypes.OrderStatusCanceled
+	case OrderStatusRejected:
+		return ctypes.OrderStatusRejected
+	default:
+		return ctypes.OrderStatusPending
+	}
+}
+
+func toTypesOrder(exchange ctypes.Exchange, od *Order) *ctypes.Order {
+	if od == nil {
+		return nil
+	}
 	return &ctypes.Order{
 		AccountID:        od.AccountID,
 		Exchange:         exchange,
@@ -1040,27 +520,115 @@ func toTypesOrder(exchange ctypes.Exchange, od SimOrder) *ctypes.Order {
 		UpdatedTs:        od.LastUpdatedAt,
 		RejectReason:     od.RejectReason,
 		ExecutedQuoteQty: od.QtyFilled.Mul(od.AvgFillPrice),
+		Side:             od.PosSide,
 	}
 }
 
-func toSimSymbol(symbol ctypes.Symbol) Symbol { return Symbol(symbol.String()) }
-func toTypesSymbol(symbol Symbol) ctypes.Symbol {
-	s, _ := ctypes.ParseSymbol(string(symbol))
-	return s
+func defaultFeesByMarketType(mt ctypes.MarketType) (decimal.Decimal, decimal.Decimal) {
+	switch mt {
+	case ctypes.MarketTypeFuture:
+		return decimal.NewFromFloat(0.0002), decimal.NewFromFloat(0.0004)
+	default:
+		return decimal.NewFromFloat(0.001), decimal.NewFromFloat(0.001)
+	}
 }
 
-func toSimOrderType(tp ctypes.OrderType) OrderType {
-	if tp == ctypes.OrderTypeLimit {
-		return OrderTypeLimit
+func normalizeMarketPrecision(market *ctypes.Market) {
+	if market == nil {
+		return
 	}
-	return OrderTypeMarket
+	if market.PricePrecision <= 0 {
+		market.PricePrecision = precisionFromStep(market.Rules.TickSize)
+	}
+	if market.BaseAssetPrecision <= 0 {
+		market.BaseAssetPrecision = precisionFromStep(market.Rules.LotSize)
+	}
+	if market.QuoteAssetPrecision <= 0 {
+		market.QuoteAssetPrecision = precisionFromStep(market.Rules.TickSize)
+	}
 }
 
-func toTypesOrderType(tp OrderType) ctypes.OrderType {
-	if tp == OrderTypeLimit {
-		return ctypes.OrderTypeLimit
+func precisionFromStep(step decimal.Decimal) int {
+	if !step.GreaterThan(decimal.Zero) {
+		return 8
 	}
-	return ctypes.OrderTypeMarket
+	s := strings.TrimRight(strings.TrimRight(step.String(), "0"), ".")
+	i := strings.IndexByte(s, '.')
+	if i < 0 {
+		return 0
+	}
+	return len(s) - i - 1
+}
+
+func validatePlaceOrderInputBasic(input mdtypes.PlaceOrderInput) error {
+	if !input.Symbol.IsValid() {
+		return fmt.Errorf("simulate: invalid symbol")
+	}
+	if input.Quantity == nil || input.Quantity.Sign() <= 0 {
+		return fmt.Errorf("simulate: invalid quantity")
+	}
+	if input.OrderType == ctypes.OrderTypeLimit && (input.Price == nil || input.Price.Sign() <= 0) {
+		return fmt.Errorf("simulate: limit requires price")
+	}
+	return nil
+}
+
+func validatePlaceOrderByMarketRules(ctx context.Context, c *Connector, input mdtypes.PlaceOrderInput, market *ctypes.Market) error {
+	_ = ctx
+	rules := market.Rules
+	if input.OrderType == ctypes.OrderTypeLimit {
+		if err := validatePriceRules(*input.Price, rules); err != nil {
+			return err
+		}
+	}
+	if err := validateQuantityRules(*input.Quantity, rules); err != nil {
+		return err
+	}
+	if input.OrderType == ctypes.OrderTypeLimit {
+		if err := validateNotionalRules(*input.Price, *input.Quantity, rules); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePriceRules(price decimal.Decimal, rules ctypes.MarketRules) error {
+	if rules.TickSize.Sign() > 0 && !isStepAligned(price, rules.TickSize) {
+		return ErrInvalidPrice
+	}
+	return nil
+}
+
+func validateQuantityRules(qty decimal.Decimal, rules ctypes.MarketRules) error {
+	if qty.LessThan(rules.MinQuantity) {
+		return ErrBelowMinQty
+	}
+	if rules.LotSize.Sign() > 0 && !isStepAligned(qty, rules.LotSize) {
+		return ErrInvalidQty
+	}
+	return nil
+}
+
+func validateNotionalRules(price, qty decimal.Decimal, rules ctypes.MarketRules) error {
+	if price.Mul(qty).LessThan(rules.MinNotional) {
+		return ErrBelowMinNotional
+	}
+	return nil
+}
+
+func isStepAligned(v, step decimal.Decimal) bool {
+	if step.IsZero() {
+		return true
+	}
+	q := v.Div(step)
+	return q.Equal(q.Truncate(0))
+}
+
+func marketTypeToInstrumentKind(mt ctypes.MarketType) InstrumentKind {
+	if mt == ctypes.MarketTypeFuture {
+		return KindPerp
+	}
+	return KindSpot
 }
 
 func toSimSide(isBuy bool) Side {
@@ -1077,297 +645,141 @@ func toSimIntent(input mdtypes.PlaceOrderInput) ContractIntent {
 	return IntentOpen
 }
 
-func marketTypeToInstrumentKind(mt ctypes.MarketType) InstrumentKind {
-	if mt == ctypes.MarketTypeFuture {
-		return KindPerp
+func placeOrderRequestFromInput(c *Connector, input mdtypes.PlaceOrderInput, market *ctypes.Market) PlaceOrderRequest {
+	sym := toPaperSymbol(input.Symbol)
+	mode := c.rt.Engine.AccountPositionMode(c.accountID)
+	lev := int32(c.rt.Engine.Leverage(c.accountID, sym))
+	req := PlaceOrderRequest{
+		AccountID:     c.accountID,
+		Symbol:        sym,
+		OrderType:     OrderTypeMarket,
+		Side:          toSimSide(input.IsBuy),
+		Intent:        toSimIntent(input),
+		ReduceOnly:    lo.FromPtr(input.ReduceOnly),
+		Leverage:      lev,
+		Price:         decimal.Zero,
+		Qty:           *input.Quantity,
+		ClientOrderID: string(lo.FromPtr(input.ClientOrderID)),
 	}
-	return KindSpot
+	if input.OrderType == ctypes.OrderTypeLimit {
+		req.OrderType = OrderTypeLimit
+		if input.Price != nil {
+			req.Price = *input.Price
+		}
+	}
+	if market.Symbol.Type == ctypes.MarketTypeFuture && mode == PositionModeHedge {
+		req.PosSide = input.Side
+	}
+	return req
 }
 
-func (c *Connector) leverageLocked(sym Symbol) int {
-	if v, ok := c.state.leverages[leverageKey{accountID: c.accountID, symbol: sym}]; ok && v > 0 {
-		return v
+func (c *Connector) ensureInstrument(market *ctypes.Market) {
+	ins := &Instrument{
+		Symbol:             toPaperSymbol(market.Symbol),
+		Kind:               marketTypeToInstrumentKind(market.Symbol.Type),
+		Exchange:           c.exchange,
+		Market:             market.Symbol.Type,
+		Base:               Asset(market.Symbol.Base),
+		Quote:              Asset(market.Symbol.Quote),
+		PriceTick:          market.Rules.TickSize,
+		QtyStep:            market.Rules.LotSize,
+		MinQty:             market.Rules.MinQuantity,
+		MinNotional:        market.Rules.MinNotional,
+		ContractMultiplier: decimal.NewFromInt(1),
+		MakerFeeBps:        10,
+		TakerFeeBps:        10,
 	}
-	return 1
+	_ = c.rt.Engine.RegisterInstrument(ins)
 }
 
-func (c *Connector) currentLeverage(sym Symbol) int {
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
-	return c.leverageLocked(sym)
-}
-
-func (c *Connector) markFromTicker(symbol ctypes.Symbol) (*ctypes.MarkPrice, bool) {
-	c.state.mu.RLock()
-	tk, ok := c.state.ticker.Get(toSimSymbol(symbol))
-	c.state.mu.RUnlock()
-	if !ok {
-		return nil, false
-	}
-	m := tk.Mark
-	if !m.GreaterThan(decimal.Zero) {
-		m = tk.Last
-	}
-	if !m.GreaterThan(decimal.Zero) {
-		return nil, false
-	}
-	return &ctypes.MarkPrice{
-		Exchange:  c.exchange,
-		Symbol:    symbol,
-		MarkPrice: m,
-		Ts:        tk.Ts,
-	}, true
-}
-
-func (c *Connector) publicMarkPriceFallback(ctx context.Context, symbol ctypes.Symbol) (*ctypes.MarkPrice, error) {
-	price, err := c.state.publicConn.Price(ctx, symbol)
+func (c *Connector) ensureSymbolInitialized(ctx context.Context, symbol ctypes.Symbol) error {
+	market, err := c.GetMarket(ctx, symbol)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if price == nil {
-		return nil, nil
+	if market != nil {
+		c.ensureInstrument(market)
 	}
-	return &ctypes.MarkPrice{
-		Exchange:  c.exchange,
-		Symbol:    symbol,
-		MarkPrice: price.Price,
-		Ts:        price.Ts,
-	}, nil
+	return c.syncMarketDepth(ctx, symbol, true)
 }
 
-func (c *Connector) fetchMarkPrices(ctx context.Context) ([]*ctypes.MarkPrice, error) {
-	c.state.mu.RLock()
-	symbols := make([]Symbol, 0, len(c.state.depths))
-	for sym := range c.state.depths {
-		symbols = append(symbols, sym)
+func (c *Connector) syncMarketDepth(ctx context.Context, symbol ctypes.Symbol, emptyFallback bool) error {
+	sym := toPaperSymbol(symbol)
+	d, ok := c.rt.Engine.Depth(sym)
+	depthReady := ok && d != nil && d.LastSeqID() > 0
+	if depthReady {
+		return nil
 	}
-	c.state.mu.RUnlock()
-	out := make([]*ctypes.MarkPrice, 0, len(symbols))
-	for _, sym := range symbols {
-		typed := toTypesSymbol(sym)
-		if !typed.IsValid() {
-			continue
+	snapshot, err := c.rt.Public.Depth(ctx, symbol, 500)
+	if err != nil {
+		return err
+	}
+	if snapshot != nil && snapshot.Symbol.IsValid() {
+		_, _ = c.rt.Engine.ApplyDepthBook(snapshot, false)
+	}
+	d, ok = c.rt.Engine.Depth(sym)
+	depthReady = ok && d != nil && d.LastSeqID() > 0
+	if !depthReady && emptyFallback {
+		_, _ = c.rt.Engine.ApplyDepthBook(&ctypes.OrderBook{
+			Symbol: symbol,
+			SeqId:  1,
+			Ts:     time.Now().UTC(),
+		}, false)
+	}
+	c.ensureDepthStreamStarted(symbol)
+	if symbol.Type == ctypes.MarketTypeFuture {
+		if mp, err := c.rt.Public.MarkPrice(ctx, symbol); err == nil && mp != nil && mp.MarkPrice.GreaterThan(decimal.Zero) {
+			c.ingestMarkPrice(mp)
 		}
-		if mp, ok := c.markFromTicker(typed); ok {
-			out = append(out, mp)
-		}
+		c.ensureMarkPriceStreamStarted(symbol)
 	}
-	if len(out) > 0 {
-		return out, nil
-	}
-	return []*ctypes.MarkPrice{}, nil
+	return nil
 }
 
-func (c *Connector) computeOpenInterest(symbol ctypes.Symbol) decimal.Decimal {
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
-	pos, ok := c.state.adapter.Position(context.Background(), c.accountID, toSimSymbol(symbol))
-	if !ok {
-		return decimal.Zero
-	}
-	return pos.Qty.Abs()
-}
-
-func (c *Connector) resolveMarkPriceLocked(symbol ctypes.Symbol) decimal.Decimal {
-	tk, ok := c.state.ticker.Get(toSimSymbol(symbol))
-	if !ok {
-		return decimal.Zero
-	}
-	if tk.Mark.GreaterThan(decimal.Zero) {
-		return tk.Mark
-	}
-	return tk.Last
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func (c *Connector) nextEventID() string {
-	return GenerateCompactID(c.accountID)
-}
-
-func (c *Connector) publishAccountMessage(msg *ctypes.Message) {
-	if msg == nil {
+func (c *Connector) ensureDepthStreamStarted(symbol ctypes.Symbol) {
+	if !symbol.IsValid() {
 		return
 	}
-	c.subMu.Lock()
-	defer c.subMu.Unlock()
-	for ch := range c.accountSubs {
-		select {
-		case ch <- msg:
-		default:
-		}
+	sym := symbol
+	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeDepth, Symbol: &sym}
+	if !c.rt.Public.Supports(sel) {
+		return
 	}
+	hub := c.rt.getOrCreateStreamHub(sel)
+	hub.setPinned()
+	hub.ensureRunning()
 }
 
-func (c *Connector) snapshotAccountState(symbol ctypes.Symbol) (map[BalanceKey]decimal.Decimal, Position) {
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
-	bal := c.state.adapter.Balance(context.Background(), c.accountID)
-	pos, _ := c.state.adapter.Position(context.Background(), c.accountID, toSimSymbol(symbol))
-	return bal, pos
+func (c *Connector) ensureMarkPriceStreamStarted(symbol ctypes.Symbol) {
+	if symbol.Type != ctypes.MarketTypeFuture || !symbol.IsValid() {
+		return
+	}
+	sym := symbol
+	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeMarkPrice, Symbol: &sym}
+	if !c.rt.Public.Supports(sel) {
+		return
+	}
+	hub := c.rt.getOrCreateStreamHub(sel)
+	hub.setPinned()
+	hub.ensureRunning()
 }
 
-func (c *Connector) buildOrderAndSnapshotMessages(symbol ctypes.Symbol, beforeBal, afterBal map[BalanceKey]decimal.Decimal, beforePos, afterPos Position, res *PlaceOrderResult) []*ctypes.Message {
-	out := make([]*ctypes.Message, 0)
-	if res != nil {
-		if len(res.Fills) == 0 {
-			out = append(out, c.newOrderLifecycleMessage(toTypesOrder(c.exchange, res.Order)))
-		} else {
-			for _, f := range res.Fills {
-				out = append(out, c.newOrderFillMessage(symbol, res.Order, f))
-			}
-		}
+func (c *Connector) ingestMarkPrice(mp *ctypes.MarkPrice) {
+	if mp == nil {
+		return
 	}
-	out = append(out, c.buildSnapshotDiffMessages(symbol, beforeBal, afterBal, beforePos, afterPos)...)
-	return out
+	c.rt.dispatchMarkPricePayload(mp)
 }
 
-func (c *Connector) buildSnapshotDiffMessages(symbol ctypes.Symbol, beforeBal, afterBal map[BalanceKey]decimal.Decimal, beforePos, afterPos Position) []*ctypes.Message {
-	now := time.Now().UTC()
-	out := make([]*ctypes.Message, 0)
-	changedAssets := make([]*ctypes.AssetEvent, 0)
-	assetSeen := map[BalanceKey]struct{}{}
-	for k, v := range beforeBal {
-		assetSeen[k] = struct{}{}
-		if !afterBal[k].Equal(v) {
-			b := afterBal[k]
-			changedAssets = append(changedAssets, &ctypes.AssetEvent{
-				WalletType: k.Wallet,
-				Code:       string(k.Asset),
-				Balance:    &b,
-				Locked:     lo.ToPtr(decimal.Zero),
-				UpdatedTs:  now,
-			})
-		}
+func (c *Connector) tryLiquidateAfterMark(symbol ctypes.Symbol, mark decimal.Decimal) {
+	if symbol.Type != ctypes.MarketTypeFuture || !mark.GreaterThan(decimal.Zero) {
+		return
 	}
-	for k, v := range afterBal {
-		if _, ok := assetSeen[k]; ok {
-			continue
-		}
-		if !v.IsZero() {
-			b := v
-			changedAssets = append(changedAssets, &ctypes.AssetEvent{
-				WalletType: k.Wallet,
-				Code:       string(k.Asset),
-				Balance:    &b,
-				Locked:     lo.ToPtr(decimal.Zero),
-				UpdatedTs:  now,
-			})
-		}
-	}
-	if len(changedAssets) > 0 {
-		out = append(out, ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, ctypes.BalanceUpdate{
-			EventID: c.nextEventID(),
-			Type:    ctypes.UpdateTypeSnapshot,
-			Reason:  ctypes.LedgerReasonFill,
-			Assets:  changedAssets,
-		}, now))
-	}
-	posChanged := !beforePos.Qty.Equal(afterPos.Qty) || !beforePos.EntryPrice.Equal(afterPos.EntryPrice) || beforePos.Leverage != afterPos.Leverage
-	if posChanged {
-		side := ctypes.PositionSideLong
-		amount := afterPos.Qty
-		if afterPos.Qty.Sign() < 0 {
-			side = ctypes.PositionSideShort
-			amount = amount.Abs()
-		}
-		out = append(out, ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, ctypes.PositionsUpdate{
-			EventID: c.nextEventID(),
-			Type:    ctypes.UpdateTypeSnapshot,
-			Positions: []*ctypes.Position{
-				{
-					AccountID:     c.accountID,
-					Exchange:      c.exchange,
-					Symbol:        symbol,
-					Side:          side,
-					Amount:        amount,
-					EntryPrice:    afterPos.EntryPrice,
-					InitialMargin: afterPos.UsedMargin,
-					Leverage:      int(afterPos.Leverage),
-					UpdatedTs:     now,
-				},
-			},
-		}, now))
-	}
-	return out
-}
-
-func (c *Connector) newOrderLifecycleMessage(order *ctypes.Order) *ctypes.Message {
-	if order == nil {
-		return nil
-	}
-	if order.UpdatedTs.IsZero() {
-		order.UpdatedTs = time.Now().UTC()
-	}
-	order.Raw = c.mustEventMetaJSON(order.UpdatedTs)
-	return ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, order, order.UpdatedTs)
-}
-
-func (c *Connector) newOrderFillMessage(symbol ctypes.Symbol, od SimOrder, fill Fill) *ctypes.Message {
-	ts := time.Now().UTC()
-	order := toTypesOrder(c.exchange, od)
-	order.Symbol = symbol
-	order.ExecutedQty = fill.Size
-	order.ExecutedQuoteQty = fill.Price.Mul(fill.Size)
-	order.AvgPrice = fill.Price
-	order.Price = fill.Price
-	order.Status = ctypes.OrderStatusPartialDone
-	if od.QtyRemaining.IsZero() {
-		order.Status = ctypes.OrderStatusDone
-	}
-	order.UpdatedTs = ts
-	order.Raw = c.mustEventMetaJSON(ts)
-	return ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, order, ts)
-}
-
-func (c *Connector) buildMakerMatchMessages(symbol ctypes.Symbol, events []MatchEvent, beforeBal, afterBal map[BalanceKey]decimal.Decimal, beforePos, afterPos Position) []*ctypes.Message {
-	if len(events) == 0 {
-		return nil
-	}
-	out := make([]*ctypes.Message, 0)
-	matched := false
-	for _, ev := range events {
-		if ev.Order == nil || ev.Order.AccountID != c.accountID {
-			continue
-		}
-		matched = true
-		for _, f := range ev.Fills {
-			out = append(out, c.newOrderFillMessage(symbol, *ev.Order, f))
-		}
-	}
-	if matched {
-		out = append(out, c.buildSnapshotDiffMessages(symbol, beforeBal, afterBal, beforePos, afterPos)...)
-	}
-	return out
-}
-
-func (c *Connector) mustEventMetaJSON(ts time.Time) string {
-	payload, _ := json.Marshal(map[string]any{
-		"eventId": c.nextEventID(),
-		"ts":      ts.UnixMilli(),
-		"source":  "simulate",
-	})
-	return string(payload)
-}
-
-func toTypesOrderStatus(st OrderStatus) ctypes.OrderStatus {
-	switch st {
-	case OrderStatusNew:
-		return ctypes.OrderStatusNew
-	case OrderStatusPartiallyFilled:
-		return ctypes.OrderStatusPartialDone
-	case OrderStatusFilled:
-		return ctypes.OrderStatusDone
-	case OrderStatusCanceled:
-		return ctypes.OrderStatusCanceled
-	case OrderStatusRejected:
-		return ctypes.OrderStatusRejected
-	default:
-		return ctypes.OrderStatusPending
+	sym := toPaperSymbol(symbol)
+	before := c.rt.Engine.AccountSnapshot(c.accountID, sym)
+	c.rt.Liq.OnMark(c.accountID, sym, mark, nil)
+	after := c.rt.Engine.AccountSnapshot(c.accountID, sym)
+	for _, m := range c.buildSnapshotDiffMessages(symbol, before, after) {
+		c.publishAccountMessage(m)
 	}
 }

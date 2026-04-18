@@ -2,7 +2,6 @@ package simulate
 
 import (
 	"github.com/shopspring/decimal"
-
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
@@ -17,17 +16,14 @@ const (
 // Asset identifies a collateral or coin (e.g. "USDT", "BTC").
 type Asset string
 
-// Instrument defines trading constraints for a symbol (precision, fees, kind).
+// Instrument defines trading constraints for a symbol.
 type Instrument struct {
 	Symbol Symbol
-
-	Kind InstrumentKind
+	Kind   InstrumentKind
 
 	Base  Asset
 	Quote Asset
 
-	// Exchange + Market determine the wallet bucket via ctypes.GetWalletType(exchange, marketType).
-	// Examples: Binance spot vs futures use different buckets; OKX uses a single trade bucket for both.
 	Exchange ctypes.Exchange
 	Market   ctypes.MarketType
 
@@ -37,19 +33,15 @@ type Instrument struct {
 	MinQty      decimal.Decimal
 	MinNotional decimal.Decimal
 
-	// ContractMultiplier converts contract size to base units; 1 for coin-margined per coin.
 	ContractMultiplier decimal.Decimal
 
-	// MakerFeeBps / TakerFeeBps are fee rates in basis points (1 bps = 0.01%).
 	MakerFeeBps int64
 	TakerFeeBps int64
 
-	// LeverageMax caps leverage on perp opens (e.g. 125). Ignored for spot.
 	LeverageMax int32
 }
 
-// WalletType resolves the wallet bucket for this instrument's balances. It does not mean
-// “one bucket per spot/future” globally — see GetWalletType (e.g. OKX: trade for both markets).
+// WalletType resolves the wallet bucket for this instrument's balances.
 func (ins *Instrument) WalletType() ctypes.WalletType {
 	if ins == nil {
 		return ctypes.WalletTypeTrade
@@ -91,17 +83,6 @@ func FloorToStep(qty, step decimal.Decimal) decimal.Decimal {
 	return q.Mul(step)
 }
 
-// NormalizePriceQty applies instrument rounding (floor to tick/step).
-func (ins *Instrument) NormalizePriceQty(price, qty decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
-	return FloorToTick(price, ins.PriceTick), FloorToStep(qty, ins.QtyStep)
-}
-
-// BaseQtyFromContracts returns base quantity for a contract count.
-func (ins *Instrument) BaseQtyFromContracts(contracts decimal.Decimal) decimal.Decimal {
-	m := DefaultContractMultiplier(ins.ContractMultiplier)
-	return FloorToStep(contracts.Mul(m), ins.QtyStep)
-}
-
 // ValidateOrderParams checks positive qty and min qty / notional where applicable.
 func (ins *Instrument) ValidateOrderParams(price, qty decimal.Decimal, isLimit bool) error {
 	if qty.Sign() <= 0 {
@@ -122,7 +103,7 @@ func (ins *Instrument) ValidateOrderParams(price, qty decimal.Decimal, isLimit b
 	return nil
 }
 
-// ValidateMarketQty checks quantity and estimated notional against reference price (e.g. mid).
+// ValidateMarketQty checks quantity and estimated notional against reference price.
 func (ins *Instrument) ValidateMarketQty(qty, refPrice decimal.Decimal) error {
 	if qty.Sign() <= 0 {
 		return ErrInvalidQty

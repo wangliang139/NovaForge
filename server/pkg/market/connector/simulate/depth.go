@@ -16,8 +16,7 @@ func newPriceTree() *rbtx.RedBlackTreeExtended {
 	return &rbtx.RedBlackTreeExtended{Tree: rbt.NewWith(priceComparator)}
 }
 
-// MarketDepth is an aggregated L2 view (price -> size). It is safe for concurrent reads;
-// writes are serialized by an internal mutex.
+// MarketDepth is an aggregated L2 view (price -> size).
 type MarketDepth struct {
 	mu sync.RWMutex
 
@@ -46,22 +45,7 @@ func (d *MarketDepth) LastSeqID() int64 {
 	return d.lastSeqId
 }
 
-// Exchange returns the venue from the last snapshot (if set).
-func (d *MarketDepth) Exchange() Exchange {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.exchange
-}
-
-// Symbol returns the market from the last snapshot (if set).
-func (d *MarketDepth) Symbol() Symbol {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.symbol
-}
-
 // ApplySnapshot fully replaces both sides of the book and sets lastSeqId to ob.SeqId.
-// JSON nil slice for bids/asks clears that side (no levels). Non-nil replaces that side.
 func (d *MarketDepth) ApplySnapshot(ob *OrderBook) error {
 	if ob == nil {
 		return nil
@@ -95,9 +79,7 @@ func (d *MarketDepth) ApplySnapshot(ob *OrderBook) error {
 	return nil
 }
 
-// ApplyDelta patches only sides present in JSON: in Go, a missing field unmarshals to nil slice,
-// meaning "no changes" for that side. An empty non-nil slice applies zero patches.
-// Size == 0 removes the price level.
+// ApplyDelta patches sides present in the DTO.
 func (d *MarketDepth) ApplyDelta(ob *OrderBook) error {
 	if ob == nil {
 		return nil
@@ -248,8 +230,7 @@ func (d *MarketDepth) WalkAsks(fn func(price decimal.Decimal, size decimal.Decim
 	}
 }
 
-// Clone returns a shallow copy of the top-of-book trees for use without holding the lock
-// across simulations. Snapshot is consistent at one instant.
+// Clone returns a point-in-time copy for shadow execution.
 func (d *MarketDepth) Clone() *MarketDepth {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -285,8 +266,7 @@ func (d *MarketDepth) Clone() *MarketDepth {
 	}
 }
 
-// ConsumeAskFills subtracts executed base size from ask levels (mutates d). Intended for
-// working copies used when sequencing multiple shadow matches.
+// ConsumeAskFills subtracts executed base size from ask levels (mutates d).
 func (d *MarketDepth) ConsumeAskFills(fills []Fill) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

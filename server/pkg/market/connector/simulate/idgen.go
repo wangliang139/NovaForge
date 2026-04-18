@@ -8,11 +8,6 @@ import (
 	"time"
 )
 
-// CompactID generator:
-// id = (timestamp << 22) | (accountId << 12) | sequence
-// - timestamp: unix ms
-// - accountId: 10 bits
-// - sequence: 12 bits (per-ms counter)
 type compactIDGen struct {
 	mu     sync.Mutex
 	lastMs uint64
@@ -21,6 +16,7 @@ type compactIDGen struct {
 
 var globalCompactIDGen = &compactIDGen{}
 
+// GenerateCompactID returns a compact numeric order id string.
 func GenerateCompactID(accountID string) string {
 	ms := uint64(time.Now().UnixMilli())
 	acc := accountBits(accountID)
