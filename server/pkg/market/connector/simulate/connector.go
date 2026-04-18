@@ -343,10 +343,16 @@ func (c *Connector) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ct
 }
 
 func (c *Connector) GetOrders(ctx context.Context, symbol *ctypes.Symbol) ([]*ctypes.Order, error) {
+	_ = ctx
+	var orders []Order
 	if symbol == nil {
-		return []*ctypes.Order{}, nil
+		orders = c.rt.Engine.ListAllOpenOrders(c.accountID)
+	} else {
+		if !symbol.IsValid() {
+			return []*ctypes.Order{}, nil
+		}
+		orders = c.rt.Engine.ListOpenOrders(c.accountID, Symbol(symbol.String()))
 	}
-	orders := c.rt.Engine.ListOpenOrders(c.accountID, Symbol(symbol.String()))
 	out := make([]*ctypes.Order, 0, len(orders))
 	for i := range orders {
 		out = append(out, toTypesOrder(c.exchange, &orders[i]))

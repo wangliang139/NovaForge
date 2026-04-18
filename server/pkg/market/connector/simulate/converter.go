@@ -165,6 +165,8 @@ func toTypesOrder(exchange ctypes.Exchange, od *Order) *ctypes.Order {
 		OrderID:          ctypes.OrderId(od.ID),
 		ClientOrderID:    ctypes.OrderId(od.ClientOrderID),
 		OrderType:        toTypesOrderType(od.OrderType),
+		AlgoType:         ctypes.AlgoTypeNone,
+		TimeInForce:      ctypes.TimeInForceGTC,
 		IsBuy:            od.Side == SideBuy,
 		Price:            od.Price,
 		OriginalQty:      od.QtyOriginal,

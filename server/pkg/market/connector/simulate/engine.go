@@ -842,6 +842,20 @@ func (e *Engine) ListOpenOrders(accountID string, sym Symbol) []Order {
 	return b.ListOpenOrders()
 }
 
+// ListAllOpenOrders lists open orders for account across all symbols that have a resting book.
+func (e *Engine) ListAllOpenOrders(accountID string) []Order {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	var out []Order
+	for key, book := range e.books {
+		if key.AccountID != accountID {
+			continue
+		}
+		out = append(out, book.ListOpenOrders()...)
+	}
+	return out
+}
+
 // InstrumentBySymbol returns instrument metadata.
 func (e *Engine) InstrumentBySymbol(sym Symbol) (Instrument, bool) {
 	e.mu.Lock()
