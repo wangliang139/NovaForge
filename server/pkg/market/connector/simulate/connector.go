@@ -604,10 +604,15 @@ func (c *Connector) tryLiquidateAfterMark(symbol ctypes.Symbol, mark decimal.Dec
 	}
 	sym := toPaperSymbol(symbol)
 	before := c.rt.Engine.AccountSnapshot(c.accountID, sym)
-	c.rt.Liq.OnMark(c.accountID, sym, mark, nil)
-	after := c.rt.Engine.AccountSnapshot(c.accountID, sym)
-	for _, m := range c.buildSnapshotDiffMessages(symbol, before, after) {
-		c.publishAccountMessage(m)
+	results := c.rt.Liq.OnMark(c.accountID, sym, mark, nil)
+	snap := before
+	for _, res := range results {
+		if res == nil {
+			continue
+		}
+		after := c.rt.Engine.AccountSnapshot(c.accountID, sym)
+		c.publishPlaceOrderOutcome(symbol, snap, after, res)
+		snap = after
 	}
 }
 
@@ -673,8 +678,7 @@ func (c *Connector) SeedAccountPositions(positions []*ctypes.Position) error {
 	return nil
 }
 
-// SeedOpenOrders hydrates resting limit orders from DB open orders and replays unfinished market orders
-// (remaining qty) via PlaceOrder after ensureSymbolInitialized.
+// SeedOpenOrders hydrates open orders from DB: limit via resting book, market via immediate match (SeedOpenOrder).
 func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 	ctx := context.Background()
 	for _, od := range orders {
@@ -703,28 +707,20 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 			return fmt.Errorf("simulate: seed order unknown market %s", od.Symbol)
 		}
 		if err := c.ensureSymbolInitialized(ctx, od.Symbol); err != nil {
-			return fmt.Errorf("simulate: seed market order %s: %w", od.Symbol, err)
+			return fmt.Errorf("simulate: seed order %s: %w", od.Symbol, err)
 		}
 
-		switch od.OrderType {
-		case ctypes.OrderTypeMarket:
-			req := placeOrderRequestFromPersistedOrder(c, od, market, rem)
-			var res *PlaceOrderResult
-			c.rt.Engine.PlaceOrder(ctx, req,
-				func(o Order) { c.publishOrderAcceptedNew(od.Symbol, o) },
-				func(before, after AccountSnapshot, r *PlaceOrderResult) {
-					res = r
-					c.publishPlaceOrderOutcome(od.Symbol, before, after, r)
-				},
-			)
-			if res != nil && res.Order.Status == OrderStatusRejected {
-				return fmt.Errorf("simulate: seed market order rejected: %s", res.Order.RejectReason)
+		po := orderFromTypes(c, od, rem)
+		var onNew PlaceOrderNewFunc
+		var onComplete PlaceOrderCompleteFunc
+		if od.OrderType == ctypes.OrderTypeMarket {
+			onNew = func(o Order) { c.publishOrderAcceptedNew(od.Symbol, o) }
+			onComplete = func(before, after AccountSnapshot, r *PlaceOrderResult) {
+				c.publishPlaceOrderOutcome(od.Symbol, before, after, r)
 			}
-		case ctypes.OrderTypeLimit:
-			po := orderFromTypes(c, od, rem)
-			if err := c.rt.Engine.SeedOpenOrder(c.accountID, po); err != nil {
-				return err
-			}
+		}
+		if err := c.rt.Engine.SeedOpenOrder(c.accountID, po, onNew, onComplete); err != nil {
+			return err
 		}
 	}
 	return nil

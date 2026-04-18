@@ -52,6 +52,9 @@ type PlaceOrderRequest struct {
 
 	ClientOrderID string
 	OrderID       string // optional pre-assigned id
+
+	// Source identifies order origin for outbound events (empty => USER in toTypesOrder).
+	Source ctypes.OrderSource
 }
 
 // OrderStatus for resting / completed orders.
@@ -86,6 +89,8 @@ type Order struct {
 	CreatedAt     time.Time
 	LastUpdatedAt time.Time
 	RejectReason  string
+
+	Source ctypes.OrderSource
 }
 
 // PlaceOrderResult is the outcome of a simulated place; delivered via PlaceOrderCompleteFunc.

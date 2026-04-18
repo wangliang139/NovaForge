@@ -135,16 +135,21 @@ func (e *Engine) SeedLedgerHedgeLeg(accountID string, sym Symbol, side ctypes.Po
 	e.ledger.MergeSeedHedgeLeg(accountID, sym, side, leg)
 }
 
-// SeedOpenOrder inserts a resting limit order (bootstrap / DB sync). Does not match against depth.
-func (e *Engine) SeedOpenOrder(accountID string, po Order) error {
+// SeedOpenOrder bootstraps open orders from persistence. Limit orders are added as resting (no immediate match).
+// Market orders execute remaining qty against public depth like PlaceOrder; depth must exist (e.g. after ensureSymbolInitialized).
+// onNew/onComplete are optional; for market orders they match PlaceOrder semantics (onComplete runs after e.mu is released).
+func (e *Engine) SeedOpenOrder(accountID string, po Order, onNew PlaceOrderNewFunc, onComplete PlaceOrderCompleteFunc) error {
+	if po.OrderType == OrderTypeMarket {
+		return e.seedOpenMarketOrder(accountID, po, onNew, onComplete)
+	}
+	if po.OrderType != OrderTypeLimit {
+		return fmt.Errorf("simulate: seed open order unsupported type")
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	ins, ok := e.ins[po.Symbol]
 	if !ok {
 		return ErrUnknownSymbol
-	}
-	if po.OrderType != OrderTypeLimit {
-		return fmt.Errorf("simulate: seed open order requires limit type")
 	}
 	book := e.getBook(accountID, po.Symbol)
 	if po.ID != "" {
@@ -188,6 +193,57 @@ func (e *Engine) SeedOpenOrder(accountID string, po Order) error {
 	}
 	cp.LastUpdatedAt = now
 	book.AddResting(&cp)
+	return nil
+}
+
+func (e *Engine) seedOpenMarketOrder(accountID string, po Order, onNew PlaceOrderNewFunc, onComplete PlaceOrderCompleteFunc) error {
+	e.mu.Lock()
+	ins, ok := e.ins[po.Symbol]
+	if !ok {
+		e.mu.Unlock()
+		return ErrUnknownSymbol
+	}
+	book := e.getBook(accountID, po.Symbol)
+	if po.ID != "" {
+		if ex, ok2 := book.GetOrder(po.ID); ok2 && ex.Status == OrderStatusFilled {
+			e.mu.Unlock()
+			return nil
+		}
+	}
+	rem := FloorToStep(po.QtyRemaining, ins.QtyStep)
+	if rem.Sign() <= 0 {
+		e.mu.Unlock()
+		return fmt.Errorf("simulate: seed market requires positive remaining qty")
+	}
+	if e.depths[po.Symbol] == nil {
+		e.mu.Unlock()
+		return ErrNotInitialized
+	}
+	req := PlaceOrderRequest{
+		AccountID:     accountID,
+		Symbol:        po.Symbol,
+		OrderType:     OrderTypeMarket,
+		Side:          po.Side,
+		Intent:        po.Intent,
+		ReduceOnly:    po.ReduceOnly,
+		Leverage:      po.Leverage,
+		PosSide:       po.PosSide,
+		Price:         decimal.Zero,
+		Qty:           rem,
+		ClientOrderID: po.ClientOrderID,
+		OrderID:       po.ID,
+		Source:        po.Source,
+	}
+	before := e.accountSnapshotLocked(accountID, po.Symbol)
+	res := e.placeOrderMuLocked(req, e.now(), onNew)
+	after := e.accountSnapshotLocked(accountID, po.Symbol)
+	e.mu.Unlock()
+	if onComplete != nil {
+		onComplete(before, after, res)
+	}
+	if res.Order.Status == OrderStatusRejected {
+		return fmt.Errorf("simulate: seed market order rejected: %s", res.Order.RejectReason)
+	}
 	return nil
 }
 
@@ -314,6 +370,7 @@ func (e *Engine) rejectOrder(accountID string, req *PlaceOrderRequest, orderID, 
 		RejectReason:  reason,
 		CreatedAt:     now,
 		LastUpdatedAt: now,
+		Source:        req.Source,
 	}
 	book.PutOrderRecord(&o)
 	return &PlaceOrderResult{Order: o, Fills: nil, FeePaid: decimal.Zero}
@@ -346,6 +403,9 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest, onNew Plac
 func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew PlaceOrderNewFunc) *PlaceOrderResult {
 	accountID := req.AccountID
 	orderID := req.OrderID
+	if orderID == "" {
+		orderID = e.genOrderID(accountID)
+	}
 
 	now := ts.UTC()
 	order := &Order{
@@ -365,6 +425,7 @@ func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew P
 		Status:        OrderStatusNew,
 		CreatedAt:     now,
 		LastUpdatedAt: now,
+		Source:        req.Source,
 	}
 
 	if onNew != nil {
@@ -800,8 +861,16 @@ func (e *Engine) Depth(sym Symbol) (*MarketDepth, bool) {
 	return d, ok
 }
 
-// ForceClosePerpAtMark closes one-way net position at mark.
-func (e *Engine) ForceClosePerpAtMark(accountID string, sym Symbol, mark decimal.Decimal) error {
+// PlaceLiquidationMarket runs a reduce-only market order against public depth (e.g. forced liquidation).
+// Caller must set req.Source to OrderSourceLiquidation. e.mu is acquired internally.
+func (e *Engine) PlaceLiquidationMarket(req PlaceOrderRequest) *PlaceOrderResult {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.placeOrderMuLocked(req, e.now(), nil)
+}
+
+// forceCloseOneWayAtMarkSynthetic closes one-way net at mark without the order book (insurance-style fallback).
+func (e *Engine) forceCloseOneWayAtMarkSynthetic(accountID string, sym Symbol, mark decimal.Decimal) *PlaceOrderResult {
 	if !mark.GreaterThan(decimal.Zero) {
 		return nil
 	}
@@ -809,7 +878,7 @@ func (e *Engine) ForceClosePerpAtMark(accountID string, sym Symbol, mark decimal
 	defer e.mu.Unlock()
 	ins, ok := e.ins[sym]
 	if !ok || ins == nil || ins.Kind != KindPerp {
-		return ErrUnknownSymbol
+		return nil
 	}
 	mode := e.modeForUnlock(accountID)
 	slot := e.ledger.EnsurePerpSlot(accountID, sym, mode)
@@ -823,16 +892,50 @@ func (e *Engine) ForceClosePerpAtMark(accountID string, sym Symbol, mark decimal
 	qtyAbs := pos.Qty.Abs()
 	notional := mark.Mul(qtyAbs)
 	fee := FeeNotional(notional, ins.TakerFeeBps)
+	var fills []Fill
 	if pos.Qty.Sign() > 0 {
-		fills := []Fill{{Price: mark, Size: qtyAbs}}
-		return e.ledger.ApplyPerpCloseLong(accountID, sym, ins, fills, fee, slot)
+		fills = []Fill{{Price: mark, Size: qtyAbs}}
+		if err := e.ledger.ApplyPerpCloseLong(accountID, sym, ins, fills, fee, slot); err != nil {
+			return nil
+		}
+	} else {
+		fills = []Fill{{Price: mark, Size: qtyAbs}}
+		if err := e.ledger.ApplyPerpCloseShort(accountID, sym, ins, fills, fee, slot); err != nil {
+			return nil
+		}
 	}
-	fills := []Fill{{Price: mark, Size: qtyAbs}}
-	return e.ledger.ApplyPerpCloseShort(accountID, sym, ins, fills, fee, slot)
+	now := e.now().UTC()
+	side := SideSell
+	if pos.Qty.Sign() < 0 {
+		side = SideBuy
+	}
+	lev := pos.Leverage
+	if lev <= 0 {
+		lev = 1
+	}
+	o := Order{
+		ID:            e.genOrderID(accountID),
+		AccountID:     accountID,
+		Symbol:        sym,
+		OrderType:     OrderTypeMarket,
+		Side:          side,
+		Intent:        IntentClose,
+		ReduceOnly:    true,
+		Leverage:      lev,
+		QtyOriginal:   qtyAbs,
+		QtyRemaining:  decimal.Zero,
+		QtyFilled:     qtyAbs,
+		AvgFillPrice:  mark,
+		Status:        OrderStatusFilled,
+		CreatedAt:     now,
+		LastUpdatedAt: now,
+		Source:        ctypes.OrderSourceLiquidation,
+	}
+	return &PlaceOrderResult{Order: o, Fills: fills, FeePaid: fee}
 }
 
-// ForceCloseHedgeLegAtMark closes one hedge leg at mark.
-func (e *Engine) ForceCloseHedgeLegAtMark(accountID string, sym Symbol, side ctypes.PositionSide, mark decimal.Decimal) error {
+// forceCloseHedgeLegAtMarkSynthetic closes one hedge leg at mark without the order book (fallback).
+func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol, side ctypes.PositionSide, mark decimal.Decimal) *PlaceOrderResult {
 	if !mark.GreaterThan(decimal.Zero) {
 		return nil
 	}
@@ -840,13 +943,17 @@ func (e *Engine) ForceCloseHedgeLegAtMark(accountID string, sym Symbol, side cty
 	defer e.mu.Unlock()
 	ins, ok := e.ins[sym]
 	if !ok || ins == nil || ins.Kind != KindPerp {
-		return ErrUnknownSymbol
+		return nil
 	}
 	mode := e.modeForUnlock(accountID)
 	slot := e.ledger.EnsurePerpSlot(accountID, sym, mode)
 	if slot.Mode != PositionModeHedge {
 		return nil
 	}
+	now := e.now().UTC()
+	var fills []Fill
+	var fee decimal.Decimal
+	var o Order
 	switch side {
 	case ctypes.PositionSideLong:
 		if slot.Long.Qty.IsZero() {
@@ -854,21 +961,72 @@ func (e *Engine) ForceCloseHedgeLegAtMark(accountID string, sym Symbol, side cty
 		}
 		q := slot.Long.Qty
 		notional := mark.Mul(q)
-		fee := FeeNotional(notional, ins.TakerFeeBps)
-		fills := []Fill{{Price: mark, Size: q}}
-		return e.ledger.ApplyHedgeCloseLong(accountID, ins, fills, fee, slot)
+		fee = FeeNotional(notional, ins.TakerFeeBps)
+		fills = []Fill{{Price: mark, Size: q}}
+		if err := e.ledger.ApplyHedgeCloseLong(accountID, ins, fills, fee, slot); err != nil {
+			return nil
+		}
+		lev := slot.Long.Leverage
+		if lev <= 0 {
+			lev = 1
+		}
+		o = Order{
+			ID:            e.genOrderID(accountID),
+			AccountID:     accountID,
+			Symbol:        sym,
+			OrderType:     OrderTypeMarket,
+			Side:          SideSell,
+			Intent:        IntentClose,
+			ReduceOnly:    true,
+			Leverage:      lev,
+			PosSide:       ctypes.PositionSideLong,
+			QtyOriginal:   q,
+			QtyRemaining:  decimal.Zero,
+			QtyFilled:     q,
+			AvgFillPrice:  mark,
+			Status:        OrderStatusFilled,
+			CreatedAt:     now,
+			LastUpdatedAt: now,
+			Source:        ctypes.OrderSourceLiquidation,
+		}
 	case ctypes.PositionSideShort:
 		if slot.Short.Qty.IsZero() {
 			return nil
 		}
 		q := slot.Short.Qty
 		notional := mark.Mul(q)
-		fee := FeeNotional(notional, ins.TakerFeeBps)
-		fills := []Fill{{Price: mark, Size: q}}
-		return e.ledger.ApplyHedgeCloseShort(accountID, ins, fills, fee, slot)
+		fee = FeeNotional(notional, ins.TakerFeeBps)
+		fills = []Fill{{Price: mark, Size: q}}
+		if err := e.ledger.ApplyHedgeCloseShort(accountID, ins, fills, fee, slot); err != nil {
+			return nil
+		}
+		lev := slot.Short.Leverage
+		if lev <= 0 {
+			lev = 1
+		}
+		o = Order{
+			ID:            e.genOrderID(accountID),
+			AccountID:     accountID,
+			Symbol:        sym,
+			OrderType:     OrderTypeMarket,
+			Side:          SideBuy,
+			Intent:        IntentClose,
+			ReduceOnly:    true,
+			Leverage:      lev,
+			PosSide:       ctypes.PositionSideShort,
+			QtyOriginal:   q,
+			QtyRemaining:  decimal.Zero,
+			QtyFilled:     q,
+			AvgFillPrice:  mark,
+			Status:        OrderStatusFilled,
+			CreatedAt:     now,
+			LastUpdatedAt: now,
+			Source:        ctypes.OrderSourceLiquidation,
+		}
 	default:
-		return ErrInvalidIntent
+		return nil
 	}
+	return &PlaceOrderResult{Order: o, Fills: fills, FeePaid: fee}
 }
 
 // NetPosition returns one-way position snapshot for compatibility.

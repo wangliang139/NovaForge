@@ -33,10 +33,10 @@ func (e *Entity) Start() error {
 	e.startAccountMessageWorkers()
 	uuid := snowflake.Generate().String()
 	go e.ListenAccountEvent(uuid)
-	go e.syncAllSimulateAccounts(context.Background())
 	if e.cfg.MarketEngineEnabled {
 		go e.autoSubscribeAccountStreams(context.Background())
 	}
+	go e.syncAllSimulateAccounts(context.Background())
 	return nil
 }
 
