@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -13,6 +14,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/wangliang139/NovaForge/server/pkg/internal/rstream"
 	"github.com/wangliang139/NovaForge/server/pkg/precision"
+	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -29,15 +31,65 @@ var tracer = otel.Tracer(TracerName)
 
 func (e *Entity) Start() error {
 	e.startAccountMessageWorkers()
-	go e.syncAllSimulateAccounts(context.Background())
 	uuid := snowflake.Generate().String()
 	go e.ListenAccountEvent(uuid)
+	go e.syncAllSimulateAccounts(context.Background())
+	if e.cfg.MarketEngineEnabled {
+		go e.autoSubscribeAccountStreams(context.Background())
+	}
 	return nil
 }
 
 func (e *Entity) Stop() error {
 	e.cancelFunc()
 	return nil
+}
+
+// autoSubscribeAccountStreams 按 DB 中 online 账户补订阅 account stream。
+func (e *Entity) autoSubscribeAccountStreams(ctx context.Context) {
+	accountList, err := e.db.AccountRepo.ListAccounts(ctx, accountrepo.AccountStatusOnline)
+	if err != nil {
+		logger.Ctx(ctx).Err(err).Msg("failed to query online accounts for auto subscription")
+		return
+	}
+	if len(accountList) == 0 {
+		logger.Ctx(ctx).Info().Msg("no online accounts found for auto subscription")
+		return
+	}
+	logger.Ctx(ctx).Info().Int("count", len(accountList)).Msg("starting auto subscription for online accounts")
+	wg := sync.WaitGroup{}
+	for _, acc := range accountList {
+		if acc.AccountType != accountrepo.AccountTypeReal {
+			continue
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			accountID := acc.ID
+			selector := ctypes.StreamSelector{
+				Stream:  ctypes.StreamTypeAccountRaw,
+				Account: &accountID,
+			}
+			exchange, err := ctypes.ParseExchange(string(acc.Exchange))
+			if err != nil {
+				panic(err)
+			}
+			for i := 0; i < 3; i++ {
+				_, err = e.engine.EnsureSubscription(ctx, exchange, selector)
+				if err == nil {
+					break
+				}
+				logger.Ctx(ctx).Err(err).Str("account_id", acc.ID).Str("exchange", exchange.String()).Str("account_name", acc.Name).Msg("failed to subscribe account stream")
+				time.Sleep(time.Duration(time.Second) * time.Duration(i*3))
+			}
+			if err != nil {
+				panic(err)
+			}
+			logger.Ctx(ctx).Info().Str("account_id", acc.ID).Str("exchange", exchange.String()).Str("account_name", acc.Name).Msg("successfully subscribed account stream")
+		}()
+	}
+	wg.Wait()
+	logger.Ctx(ctx).Info().Int("count", len(accountList)).Msg("completed subscription for online accounts")
 }
 
 func (e *Entity) ListenAccountEvent(consumerId string) {

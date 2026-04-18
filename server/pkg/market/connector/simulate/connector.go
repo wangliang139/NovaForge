@@ -8,12 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
+
+const DefaultPrecision int = 8
 
 // Connector implements mdtypes.Connector for paper trading (see VenueRuntime).
 type Connector struct {
@@ -327,7 +328,17 @@ func (c *Connector) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ct
 		MakerCommission: maker,
 		TakerCommission: taker,
 	}
-	normalizeMarketPrecision(&cfg.Market)
+
+	if cfg.Market.PricePrecision <= 0 {
+		cfg.Market.PricePrecision = precisionFromStep(cfg.Market.Rules.TickSize)
+	}
+	if cfg.Market.BaseAssetPrecision <= 0 {
+		cfg.Market.BaseAssetPrecision = precisionFromStep(cfg.Market.Rules.LotSize)
+	}
+	if cfg.Market.QuoteAssetPrecision <= 0 {
+		cfg.Market.QuoteAssetPrecision = precisionFromStep(cfg.Market.Rules.TickSize)
+	}
+
 	return cfg, nil
 }
 
@@ -357,7 +368,7 @@ func (c *Connector) CalcOrderFee(ctx context.Context, order ctypes.Order) (*deci
 }
 
 func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInput) (*mdtypes.PlaceOrderResult, error) {
-	if err := validatePlaceOrderInputBasic(input); err != nil {
+	if err := ValidatePlaceOrderInputBasic(input); err != nil {
 		return nil, err
 	}
 	market, err := c.GetMarket(ctx, input.Symbol)
@@ -367,7 +378,7 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 	if market == nil {
 		return nil, fmt.Errorf("simulate: unknown market")
 	}
-	if err := validatePlaceOrderByMarketRules(ctx, c, input, market); err != nil {
+	if err := ValidatePlaceOrderByMarketRules(ctx, input, market); err != nil {
 		return nil, err
 	}
 	if err := c.ensureSymbolInitialized(ctx, input.Symbol); err != nil {
@@ -387,11 +398,12 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 	}
 
 	st := ctypes.OrderStatusPending
-	if res.Order.Status == OrderStatusFilled {
+	switch res.Order.Status {
+	case OrderStatusFilled:
 		st = ctypes.OrderStatusDone
-	} else if res.Order.Status == OrderStatusRejected {
+	case OrderStatusRejected:
 		st = ctypes.OrderStatusRejected
-	} else if res.Order.Status == OrderStatusNew {
+	case OrderStatusNew:
 		st = ctypes.OrderStatusNew
 	}
 	return &mdtypes.PlaceOrderResult{
@@ -466,64 +478,6 @@ func (c *Connector) mustEventMetaJSON(ts time.Time) string {
 	return string(payload)
 }
 
-func toTypesSymbol(symbol Symbol) ctypes.Symbol {
-	s, _ := ctypes.ParseSymbol(string(symbol))
-	return s
-}
-
-func toPaperSymbol(symbol ctypes.Symbol) Symbol {
-	return Symbol(symbol.String())
-}
-
-func toTypesOrderType(tp OrderType) ctypes.OrderType {
-	if tp == OrderTypeLimit {
-		return ctypes.OrderTypeLimit
-	}
-	return ctypes.OrderTypeMarket
-}
-
-func toTypesOrderStatus(st OrderStatus) ctypes.OrderStatus {
-	switch st {
-	case OrderStatusNew:
-		return ctypes.OrderStatusNew
-	case OrderStatusPartiallyFilled:
-		return ctypes.OrderStatusPartialDone
-	case OrderStatusFilled:
-		return ctypes.OrderStatusDone
-	case OrderStatusCanceled:
-		return ctypes.OrderStatusCanceled
-	case OrderStatusRejected:
-		return ctypes.OrderStatusRejected
-	default:
-		return ctypes.OrderStatusPending
-	}
-}
-
-func toTypesOrder(exchange ctypes.Exchange, od *Order) *ctypes.Order {
-	if od == nil {
-		return nil
-	}
-	return &ctypes.Order{
-		AccountID:        od.AccountID,
-		Exchange:         exchange,
-		Symbol:           toTypesSymbol(od.Symbol),
-		OrderID:          ctypes.OrderId(od.ID),
-		ClientOrderID:    ctypes.OrderId(od.ClientOrderID),
-		OrderType:        toTypesOrderType(od.OrderType),
-		IsBuy:            od.Side == SideBuy,
-		Price:            od.Price,
-		OriginalQty:      od.QtyOriginal,
-		ExecutedQty:      od.QtyFilled,
-		AvgPrice:         od.AvgFillPrice,
-		Status:           toTypesOrderStatus(od.Status),
-		CreatedTs:        od.CreatedAt,
-		UpdatedTs:        od.LastUpdatedAt,
-		RejectReason:     od.RejectReason,
-		ExecutedQuoteQty: od.QtyFilled.Mul(od.AvgFillPrice),
-		Side:             od.PosSide,
-	}
-}
-
 func defaultFeesByMarketType(mt ctypes.MarketType) (decimal.Decimal, decimal.Decimal) {
 	switch mt {
 	case ctypes.MarketTypeFuture:
@@ -533,24 +487,9 @@ func defaultFeesByMarketType(mt ctypes.MarketType) (decimal.Decimal, decimal.Dec
 	}
 }
 
-func normalizeMarketPrecision(market *ctypes.Market) {
-	if market == nil {
-		return
-	}
-	if market.PricePrecision <= 0 {
-		market.PricePrecision = precisionFromStep(market.Rules.TickSize)
-	}
-	if market.BaseAssetPrecision <= 0 {
-		market.BaseAssetPrecision = precisionFromStep(market.Rules.LotSize)
-	}
-	if market.QuoteAssetPrecision <= 0 {
-		market.QuoteAssetPrecision = precisionFromStep(market.Rules.TickSize)
-	}
-}
-
 func precisionFromStep(step decimal.Decimal) int {
 	if !step.GreaterThan(decimal.Zero) {
-		return 8
+		return DefaultPrecision
 	}
 	s := strings.TrimRight(strings.TrimRight(step.String(), "0"), ".")
 	i := strings.IndexByte(s, '.')
@@ -558,119 +497,6 @@ func precisionFromStep(step decimal.Decimal) int {
 		return 0
 	}
 	return len(s) - i - 1
-}
-
-func validatePlaceOrderInputBasic(input mdtypes.PlaceOrderInput) error {
-	if !input.Symbol.IsValid() {
-		return fmt.Errorf("simulate: invalid symbol")
-	}
-	if input.Quantity == nil || input.Quantity.Sign() <= 0 {
-		return fmt.Errorf("simulate: invalid quantity")
-	}
-	if input.OrderType == ctypes.OrderTypeLimit && (input.Price == nil || input.Price.Sign() <= 0) {
-		return fmt.Errorf("simulate: limit requires price")
-	}
-	return nil
-}
-
-func validatePlaceOrderByMarketRules(ctx context.Context, c *Connector, input mdtypes.PlaceOrderInput, market *ctypes.Market) error {
-	_ = ctx
-	rules := market.Rules
-	if input.OrderType == ctypes.OrderTypeLimit {
-		if err := validatePriceRules(*input.Price, rules); err != nil {
-			return err
-		}
-	}
-	if err := validateQuantityRules(*input.Quantity, rules); err != nil {
-		return err
-	}
-	if input.OrderType == ctypes.OrderTypeLimit {
-		if err := validateNotionalRules(*input.Price, *input.Quantity, rules); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validatePriceRules(price decimal.Decimal, rules ctypes.MarketRules) error {
-	if rules.TickSize.Sign() > 0 && !isStepAligned(price, rules.TickSize) {
-		return ErrInvalidPrice
-	}
-	return nil
-}
-
-func validateQuantityRules(qty decimal.Decimal, rules ctypes.MarketRules) error {
-	if qty.LessThan(rules.MinQuantity) {
-		return ErrBelowMinQty
-	}
-	if rules.LotSize.Sign() > 0 && !isStepAligned(qty, rules.LotSize) {
-		return ErrInvalidQty
-	}
-	return nil
-}
-
-func validateNotionalRules(price, qty decimal.Decimal, rules ctypes.MarketRules) error {
-	if price.Mul(qty).LessThan(rules.MinNotional) {
-		return ErrBelowMinNotional
-	}
-	return nil
-}
-
-func isStepAligned(v, step decimal.Decimal) bool {
-	if step.IsZero() {
-		return true
-	}
-	q := v.Div(step)
-	return q.Equal(q.Truncate(0))
-}
-
-func marketTypeToInstrumentKind(mt ctypes.MarketType) InstrumentKind {
-	if mt == ctypes.MarketTypeFuture {
-		return KindPerp
-	}
-	return KindSpot
-}
-
-func toSimSide(isBuy bool) Side {
-	if isBuy {
-		return SideBuy
-	}
-	return SideSell
-}
-
-func toSimIntent(input mdtypes.PlaceOrderInput) ContractIntent {
-	if lo.FromPtr(input.ReduceOnly) {
-		return IntentClose
-	}
-	return IntentOpen
-}
-
-func placeOrderRequestFromInput(c *Connector, input mdtypes.PlaceOrderInput, market *ctypes.Market) PlaceOrderRequest {
-	sym := toPaperSymbol(input.Symbol)
-	mode := c.rt.Engine.AccountPositionMode(c.accountID)
-	lev := int32(c.rt.Engine.Leverage(c.accountID, sym))
-	req := PlaceOrderRequest{
-		AccountID:     c.accountID,
-		Symbol:        sym,
-		OrderType:     OrderTypeMarket,
-		Side:          toSimSide(input.IsBuy),
-		Intent:        toSimIntent(input),
-		ReduceOnly:    lo.FromPtr(input.ReduceOnly),
-		Leverage:      lev,
-		Price:         decimal.Zero,
-		Qty:           *input.Quantity,
-		ClientOrderID: string(lo.FromPtr(input.ClientOrderID)),
-	}
-	if input.OrderType == ctypes.OrderTypeLimit {
-		req.OrderType = OrderTypeLimit
-		if input.Price != nil {
-			req.Price = *input.Price
-		}
-	}
-	if market.Symbol.Type == ctypes.MarketTypeFuture && mode == PositionModeHedge {
-		req.PosSide = input.Side
-	}
-	return req
 }
 
 func (c *Connector) ensureInstrument(market *ctypes.Market) {
@@ -791,9 +617,14 @@ func (c *Connector) SeedAccountBalances(bals map[ctypes.WalletType]map[Asset]dec
 }
 
 // SeedAccountPositions seeds perp slots from DB snapshots (one-way net or hedge legs).
-func (c *Connector) SeedAccountPositions(posMap map[ctypes.Symbol]ctypes.Position) error {
+// Callers must pass each leg separately in hedge mode (same Symbol, distinct Side); a map keyed only by Symbol would drop a leg.
+func (c *Connector) SeedAccountPositions(positions []*ctypes.Position) error {
 	mode := c.rt.Engine.AccountPositionMode(c.accountID)
-	for sym, p := range posMap {
+	for _, p := range positions {
+		if p == nil {
+			continue
+		}
+		sym := p.Symbol
 		if !sym.IsValid() || sym.Type != ctypes.MarketTypeFuture {
 			continue
 		}
@@ -868,7 +699,7 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 			return fmt.Errorf("simulate: seed order unknown market %s", od.Symbol)
 		}
 		c.ensureInstrument(market)
-		po := paperOrderFromTypes(c, od, rem)
+		po := orderFromTypes(c, od, rem)
 		if err := c.rt.Engine.SeedOpenOrder(c.accountID, po); err != nil {
 			return err
 		}
@@ -883,56 +714,5 @@ func (c *Connector) WarmSymbols(ctx context.Context, symbols []ctypes.Symbol) {
 			continue
 		}
 		_ = c.ensureSymbolInitialized(ctx, sym)
-	}
-}
-
-func paperOrderFromTypes(c *Connector, od *ctypes.Order, qtyRemaining decimal.Decimal) Order {
-	sym := Symbol(od.Symbol.String())
-	side := SideSell
-	if od.IsBuy {
-		side = SideBuy
-	}
-	intent := IntentOpen
-	if od.ReduceOnly {
-		intent = IntentClose
-	}
-	lev := int32(c.rt.Engine.Leverage(c.accountID, sym))
-	if lev <= 0 {
-		lev = 1
-	}
-	st := OrderStatusNew
-	switch od.Status {
-	case ctypes.OrderStatusPartialDone:
-		st = OrderStatusPartiallyFilled
-	}
-	var posSide ctypes.PositionSide
-	mode := c.rt.Engine.AccountPositionMode(c.accountID)
-	if od.Symbol.Type == ctypes.MarketTypeFuture && mode == PositionModeHedge && od.Side.Valid() {
-		posSide = od.Side
-	}
-	now := od.UpdatedTs
-	if now.IsZero() {
-		now = od.CreatedTs
-	}
-	return Order{
-		ID:            string(od.OrderID),
-		AccountID:     c.accountID,
-		ClientOrderID: string(od.ClientOrderID),
-		Symbol:        sym,
-		OrderType:     OrderTypeLimit,
-		Side:          side,
-		Intent:        intent,
-		ReduceOnly:    od.ReduceOnly,
-		Leverage:      lev,
-		PosSide:       posSide,
-		Price:         od.Price,
-		QtyOriginal:   od.OriginalQty,
-		QtyRemaining:  qtyRemaining,
-		QtyFilled:     od.ExecutedQty,
-		AvgFillPrice:  od.AvgPrice,
-		Status:        st,
-		CreatedAt:     od.CreatedTs,
-		LastUpdatedAt: now,
-		RejectReason:  od.RejectReason,
 	}
 }
