@@ -75,7 +75,7 @@ func (e *Engine) SetAccountPositionMode(accountID string, mode PositionMode) {
 	e.accountModes[accountID] = mode
 }
 
-// AccountPositionMode returns configured mode (default one-way).
+// AccountPositionMode returns configured mode (default hedge / 双向).
 func (e *Engine) AccountPositionMode(accountID string) PositionMode {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -92,7 +92,7 @@ func (e *Engine) modeForUnlock(accountID string) PositionMode {
 	if m, ok := e.accountModes[accountID]; ok {
 		return m
 	}
-	return PositionModeOneWay
+	return PositionModeHedge
 }
 
 // RegisterInstrument registers symbol metadata.

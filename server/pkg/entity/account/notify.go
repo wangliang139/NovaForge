@@ -35,24 +35,23 @@ func (e *Entity) maybeNotifyOrderTelegram(ctx context.Context, prev *orders.Orde
 		curStatus = ctypes.OrderStatusNew
 	}
 
-	var isCreate, isFinishedTransition bool
+	var shouldNotify bool
 	if prev == nil {
-		isCreate = true
+		// 首次落库即终态（如市价单一次成交）：仍算完结通知
+		shouldNotify = curStatus.IsFinished()
 	} else {
 		prevStatus := ctypes.OrderStatus(strings.ToUpper(strings.TrimSpace(prev.Status)))
-		if !prevStatus.IsFinished() && curStatus.IsFinished() {
-			isFinishedTransition = true
+		if prevStatus == "" {
+			prevStatus = ctypes.OrderStatusNew
 		}
+		shouldNotify = !prevStatus.IsFinished() && curStatus.IsFinished()
 	}
 
-	if !isCreate && !isFinishedTransition {
+	if !shouldNotify {
 		return
 	}
 
-	title := "📋 新订单"
-	if isFinishedTransition {
-		title = "✅ 订单已结束"
-	}
+	title := "✅ 订单已结束"
 
 	accountDisplay := fmt.Sprintf("%s (%s)", acct.Name, ord.AccountID)
 

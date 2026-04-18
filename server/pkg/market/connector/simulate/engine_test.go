@@ -112,6 +112,7 @@ func TestOneWayNetPosition(t *testing.T) {
 	seedDepth(t, eng, sym)
 
 	acc := "u1"
+	eng.SetAccountPositionMode(acc, PositionModeOneWay)
 	eng.InitBalances(acc, map[ctypes.WalletType]map[Asset]decimal.Decimal{
 		ctypes.WalletTypeFuture: {"USDT": dec("100000")},
 	})
@@ -147,6 +148,7 @@ func TestApplyDepthBookMakerFill(t *testing.T) {
 	}))
 
 	acc := "m1"
+	eng.SetAccountPositionMode(acc, PositionModeOneWay)
 	eng.InitBalances(acc, map[ctypes.WalletType]map[Asset]decimal.Decimal{
 		ctypes.WalletTypeFuture: {"USDT": dec("100000")},
 	})
