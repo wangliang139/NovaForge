@@ -107,17 +107,6 @@ func (e *Engine) RegisterInstrument(ins *Instrument) error {
 	return nil
 }
 
-// BindDepth attaches shared L2 for a symbol.
-func (e *Engine) BindDepth(sym Symbol, d *MarketDepth) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	if _, ok := e.ins[sym]; !ok {
-		return ErrUnknownSymbol
-	}
-	e.depths[sym] = d
-	return nil
-}
-
 // InitBalances seeds wallet balances.
 func (e *Engine) InitBalances(accountID string, bals map[ctypes.WalletType]map[Asset]decimal.Decimal) {
 	if len(bals) == 0 {
@@ -330,56 +319,33 @@ func (e *Engine) rejectOrder(accountID string, req *PlaceOrderRequest, orderID, 
 	return &PlaceOrderResult{Order: o, Fills: nil, FeePaid: decimal.Zero}
 }
 
+// PlaceOrderCompleteFunc runs after PlaceOrder commits ledger and releases e.mu.
+// Implementations must not call back into Engine (deadlock risk).
+type PlaceOrderCompleteFunc func(before, after AccountSnapshot, res *PlaceOrderResult)
+
+// PlaceOrderNewFunc is invoked after the working order is created (StatusNew) and before matching; e.mu is held.
+// Implementations must not call back into Engine (deadlock risk).
+type PlaceOrderNewFunc func(order Order)
+
 // PlaceOrder validates, matches against public depth, updates ledger, rests remainder.
-func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrderResult, error) {
+// If onNew is non-nil, it runs once the order record is accepted (NEW) and before any fill simulation.
+// If onComplete is non-nil, it is invoked after mutations with before/after account snapshots (lock released).
+func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest, onNew PlaceOrderNewFunc, onComplete PlaceOrderCompleteFunc) {
 	ts := e.now()
 	e.mu.Lock()
-	defer e.mu.Unlock()
+	before := e.accountSnapshotLocked(req.AccountID, req.Symbol)
+	res := e.placeOrderMuLocked(req, ts, onNew)
+	after := e.accountSnapshotLocked(req.AccountID, req.Symbol)
+	e.mu.Unlock()
+	if onComplete != nil {
+		onComplete(before, after, res)
+	}
+}
 
+// placeOrderMuLocked runs the matching/ledger path; e.mu must be held.
+func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew PlaceOrderNewFunc) *PlaceOrderResult {
 	accountID := req.AccountID
 	orderID := req.OrderID
-	if orderID == "" {
-		orderID = e.genOrderID(accountID)
-	}
-
-	ins, ok := e.ins[req.Symbol]
-	if !ok {
-		return e.rejectOrder(accountID, &req, orderID, ErrUnknownSymbol.Error(), ts), nil
-	}
-	d, ok := e.depths[req.Symbol]
-	if !ok || d == nil {
-		return e.rejectOrder(accountID, &req, orderID, ErrNotInitialized.Error(), ts), nil
-	}
-	book := e.getBook(accountID, req.Symbol)
-
-	mode := e.modeForUnlock(accountID)
-	slot := e.ledger.EnsurePerpSlot(accountID, req.Symbol, mode)
-	if slot.Mode != mode {
-		// slot existed with different mode — should not happen if SetPerpMode used
-		slot.Mode = mode
-	}
-
-	if ins.Kind == KindPerp {
-		if mode == PositionModeHedge {
-			if err := e.validateHedgePerp(&req, ins, slot); err != nil {
-				return e.rejectOrder(accountID, &req, orderID, err.Error(), ts), nil
-			}
-		} else {
-			pos := slot.Net
-			if err := e.validateOneWayPerp(&req, ins, pos); err != nil {
-				return e.rejectOrder(accountID, &req, orderID, err.Error(), ts), nil
-			}
-		}
-	}
-
-	qty := FloorToStep(req.Qty, ins.QtyStep)
-	price := req.Price
-	if req.OrderType == OrderTypeLimit {
-		price = FloorToTick(req.Price, ins.PriceTick)
-	}
-	if err := ins.ValidateOrderParams(price, qty, req.OrderType == OrderTypeLimit); err != nil {
-		return e.rejectOrder(accountID, &req, orderID, err.Error(), ts), nil
-	}
 
 	now := ts.UTC()
 	order := &Order{
@@ -393,12 +359,55 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 		ReduceOnly:    req.ReduceOnly,
 		Leverage:      req.Leverage,
 		PosSide:       req.PosSide,
-		Price:         price,
-		QtyOriginal:   qty,
-		QtyRemaining:  qty,
+		Price:         req.Price,
+		QtyOriginal:   req.Qty,
+		QtyRemaining:  req.Qty,
 		Status:        OrderStatusNew,
 		CreatedAt:     now,
 		LastUpdatedAt: now,
+	}
+
+	if onNew != nil {
+		onNew(*order)
+	}
+
+	ins, ok := e.ins[req.Symbol]
+	if !ok {
+		return e.rejectOrder(accountID, &req, orderID, ErrUnknownSymbol.Error(), ts)
+	}
+	d, ok := e.depths[req.Symbol]
+	if !ok || d == nil {
+		return e.rejectOrder(accountID, &req, orderID, ErrNotInitialized.Error(), ts)
+	}
+	book := e.getBook(accountID, req.Symbol)
+
+	mode := e.modeForUnlock(accountID)
+	slot := e.ledger.EnsurePerpSlot(accountID, req.Symbol, mode)
+	if slot.Mode != mode {
+		// slot existed with different mode — should not happen if SetPerpMode used
+		slot.Mode = mode
+	}
+
+	if ins.Kind == KindPerp {
+		if mode == PositionModeHedge {
+			if err := e.validateHedgePerp(&req, ins, slot); err != nil {
+				return e.rejectOrder(accountID, &req, orderID, err.Error(), ts)
+			}
+		} else {
+			pos := slot.Net
+			if err := e.validateOneWayPerp(&req, ins, pos); err != nil {
+				return e.rejectOrder(accountID, &req, orderID, err.Error(), ts)
+			}
+		}
+	}
+
+	qty := FloorToStep(req.Qty, ins.QtyStep)
+	price := req.Price
+	if req.OrderType == OrderTypeLimit {
+		price = FloorToTick(req.Price, ins.PriceTick)
+	}
+	if err := ins.ValidateOrderParams(price, qty, req.OrderType == OrderTypeLimit); err != nil {
+		return e.rejectOrder(accountID, &req, orderID, err.Error(), ts)
 	}
 
 	var allFills []Fill
@@ -415,7 +424,7 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 		case OrderTypeMarket:
 			ref := midPrice(d)
 			if err := ins.ValidateMarketQty(qty, ref); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+				return e.rejectPlacedOrder(order, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
@@ -428,17 +437,17 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 				order.Status = OrderStatusRejected
 				order.RejectReason = "no liquidity"
 				book.PutOrderRecord(order)
-				return &PlaceOrderResult{Order: *order, Fills: nil, FeePaid: decimal.Zero}, nil
+				return &PlaceOrderResult{Order: *order, Fills: nil, FeePaid: decimal.Zero}
 			}
 			filledQty := totalFilledQty(fills)
 			fee := FeeNotional(notional, takerBps)
 			if req.Side == SideBuy {
 				if err := e.ledger.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
-					return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+					return e.rejectPlacedOrder(order, book, err.Error(), now)
 				}
 			} else {
 				if err := e.ledger.ApplySpotSell(accountID, ins, fills, fee); err != nil {
-					return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+					return e.rejectPlacedOrder(order, book, err.Error(), now)
 				}
 			}
 			allFills = fills
@@ -447,7 +456,7 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 
 		case OrderTypeLimit:
 			if err := ins.ValidateOrderParams(price, qty, true); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+				return e.rejectPlacedOrder(order, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
@@ -467,11 +476,11 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 				fee := FeeNotional(notional, takerBps)
 				if req.Side == SideBuy {
 					if err := e.ledger.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
-						return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+						return e.rejectPlacedOrder(order, book, err.Error(), now)
 					}
 				} else {
 					if err := e.ledger.ApplySpotSell(accountID, ins, fills, fee); err != nil {
-						return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+						return e.rejectPlacedOrder(order, book, err.Error(), now)
 					}
 				}
 				allFills = append(allFills, fills...)
@@ -492,7 +501,7 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 		case OrderTypeMarket:
 			ref := midPrice(d)
 			if err := ins.ValidateMarketQty(qty, ref); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+				return e.rejectPlacedOrder(order, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
@@ -505,12 +514,12 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 				order.Status = OrderStatusRejected
 				order.RejectReason = "no liquidity"
 				book.PutOrderRecord(order)
-				return &PlaceOrderResult{Order: *order, Fills: nil, FeePaid: decimal.Zero}, nil
+				return &PlaceOrderResult{Order: *order, Fills: nil, FeePaid: decimal.Zero}
 			}
 			filledQty := totalFilledQty(fills)
 			fee := FeeNotional(notional, takerBps)
 			if err := e.applyPerpFills(accountID, ins, &req, fills, fee, lev, slot); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+				return e.rejectPlacedOrder(order, book, err.Error(), now)
 			}
 			allFills = fills
 			feeSum = fee
@@ -518,7 +527,7 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 
 		case OrderTypeLimit:
 			if err := ins.ValidateOrderParams(price, qty, true); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+				return e.rejectPlacedOrder(order, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
@@ -537,7 +546,7 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 				filledQty := totalFilledQty(fills)
 				fee := FeeNotional(notional, takerBps)
 				if err := e.applyPerpFills(accountID, ins, &req, fills, fee, lev, slot); err != nil {
-					return e.rejectPlacedOrder(order, book, err.Error(), now), nil
+					return e.rejectPlacedOrder(order, book, err.Error(), now)
 				}
 				allFills = append(allFills, fills...)
 				feeSum = feeSum.Add(fee)
@@ -557,7 +566,7 @@ func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) (*PlaceOrd
 		book.PutOrderRecord(order)
 	}
 	cp := *order
-	return &PlaceOrderResult{Order: cp, Fills: allFills, FeePaid: feeSum}, nil
+	return &PlaceOrderResult{Order: cp, Fills: allFills, FeePaid: feeSum}
 }
 
 func (e *Engine) applyPerpFills(accountID string, ins *Instrument, req *PlaceOrderRequest, fills []Fill, fee decimal.Decimal, lev int32, slot *PerpSlot) error {
@@ -881,6 +890,11 @@ type AccountSnapshot struct {
 func (e *Engine) AccountSnapshot(accountID string, sym Symbol) AccountSnapshot {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	return e.accountSnapshotLocked(accountID, sym)
+}
+
+// accountSnapshotLocked is like AccountSnapshot but caller must hold e.mu.
+func (e *Engine) accountSnapshotLocked(accountID string, sym Symbol) AccountSnapshot {
 	bal := e.ledger.Balances(accountID)
 	mode := e.modeForUnlock(accountID)
 	slot, ok := e.ledger.GetPerpSlot(accountID, sym)

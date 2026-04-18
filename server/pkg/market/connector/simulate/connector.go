@@ -709,17 +709,15 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 		switch od.OrderType {
 		case ctypes.OrderTypeMarket:
 			req := placeOrderRequestFromPersistedOrder(c, od, market, rem)
-			paperSym := Symbol(od.Symbol.String())
-			before := c.rt.Engine.AccountSnapshot(c.accountID, paperSym)
-			res, err := c.rt.Engine.PlaceOrder(ctx, req)
-			if err != nil {
-				return err
-			}
-			after := c.rt.Engine.AccountSnapshot(c.accountID, paperSym)
-			for _, m := range c.buildTakerFillMessages(od.Symbol, before, after, res) {
-				c.publishAccountMessage(m)
-			}
-			if res.Order.Status == OrderStatusRejected {
+			var res *PlaceOrderResult
+			c.rt.Engine.PlaceOrder(ctx, req,
+				func(o Order) { c.publishOrderAcceptedNew(od.Symbol, o) },
+				func(before, after AccountSnapshot, r *PlaceOrderResult) {
+					res = r
+					c.publishPlaceOrderOutcome(od.Symbol, before, after, r)
+				},
+			)
+			if res != nil && res.Order.Status == OrderStatusRejected {
 				return fmt.Errorf("simulate: seed market order rejected: %s", res.Order.RejectReason)
 			}
 		case ctypes.OrderTypeLimit:

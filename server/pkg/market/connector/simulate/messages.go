@@ -30,20 +30,36 @@ func (c *Connector) buildDiffAndMakerMessages(symbol ctypes.Symbol, events []Mat
 	return out
 }
 
-func (c *Connector) buildTakerFillMessages(symbol ctypes.Symbol, before, after AccountSnapshot, res *PlaceOrderResult) []*ctypes.Message {
-	if res == nil {
-		return nil
+// publishOrderAcceptedNew emits an order lifecycle message with status NEW right after the engine accepts the order (before matching).
+func (c *Connector) publishOrderAcceptedNew(symbol ctypes.Symbol, o Order) {
+	to := toTypesOrder(c.exchange, &o)
+	to.Symbol = symbol
+	to.Status = ctypes.OrderStatusNew
+	if m := c.newOrderLifecycleMessage(to); m != nil {
+		c.publishAccountMessage(m)
 	}
-	out := make([]*ctypes.Message, 0)
-	if len(res.Fills) == 0 {
-		out = append(out, c.newOrderLifecycleMessage(toTypesOrder(c.exchange, &res.Order)))
-	} else {
-		for _, f := range res.Fills {
-			out = append(out, c.newOrderFillMessage(symbol, res.Order, f))
+}
+
+// publishPlaceOrderOutcome publishes taker outcomes: per-fill trade events, then order lifecycle if there were no fills, then balance/position snapshots.
+func (c *Connector) publishPlaceOrderOutcome(symbol ctypes.Symbol, before, after AccountSnapshot, res *PlaceOrderResult) {
+	if res == nil {
+		return
+	}
+	for _, f := range res.Fills {
+		if m := c.newOrderFillMessage(symbol, res.Order, f); m != nil {
+			c.publishAccountMessage(m)
 		}
 	}
-	out = append(out, c.buildSnapshotDiffMessages(symbol, before, after)...)
-	return out
+	if len(res.Fills) == 0 && res.Order.Status != OrderStatusNew {
+		if m := c.newOrderLifecycleMessage(toTypesOrder(c.exchange, &res.Order)); m != nil {
+			c.publishAccountMessage(m)
+		}
+	}
+	for _, m := range c.buildSnapshotDiffMessages(symbol, before, after) {
+		if m != nil {
+			c.publishAccountMessage(m)
+		}
+	}
 }
 
 func (c *Connector) buildSnapshotDiffMessages(symbol ctypes.Symbol, before, after AccountSnapshot) []*ctypes.Message {

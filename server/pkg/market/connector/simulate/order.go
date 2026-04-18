@@ -88,7 +88,7 @@ type Order struct {
 	RejectReason  string
 }
 
-// PlaceOrderResult is returned from Engine.PlaceOrder.
+// PlaceOrderResult is the outcome of a simulated place; delivered via PlaceOrderCompleteFunc.
 type PlaceOrderResult struct {
 	Order   Order
 	Fills   []Fill

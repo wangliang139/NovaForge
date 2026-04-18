@@ -38,24 +38,24 @@ func testPerpInstrument(sym Symbol) *Instrument {
 	}
 }
 
-func seedDepth(t *testing.T, eng *Engine, sym Symbol) {
+func seedDepth(t *testing.T, eng *Engine, ct ctypes.Symbol) {
 	t.Helper()
-	d := NewMarketDepth()
-	require.NoError(t, d.ApplySnapshot(&OrderBook{
-		Symbol: sym,
+	_, err := eng.ApplyDepthBook(&ctypes.OrderBook{
+		Symbol: ct,
 		SeqId:  1,
-		Bids:   []OrderBookLevel{{Price: dec("49900"), Size: dec("1")}},
-		Asks:   []OrderBookLevel{{Price: dec("50100"), Size: dec("1")}},
-	}))
-	require.NoError(t, eng.BindDepth(sym, d))
+		Bids:   []ctypes.OrderBookLevel{{Price: dec("49900"), Size: dec("1")}},
+		Asks:   []ctypes.OrderBookLevel{{Price: dec("50100"), Size: dec("1")}},
+		Ts:     time.Now().UTC(),
+	}, false)
+	require.NoError(t, err)
 }
 
 func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	ctx := context.Background()
 	eng := NewEngine()
-	_, sym := btcFutureSym()
+	ct, sym := btcFutureSym()
 	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
-	seedDepth(t, eng, sym)
+	seedDepth(t, eng, ct)
 
 	acc := "trader1"
 	eng.SetAccountPositionMode(acc, PositionModeHedge)
@@ -64,12 +64,13 @@ func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	})
 
 	// Open long 0.1 @ market (buy long)
-	res, err := eng.PlaceOrder(ctx, PlaceOrderRequest{
+	var res *PlaceOrderResult
+	eng.PlaceOrder(ctx, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
 		PosSide: ctypes.PositionSideLong, ReduceOnly: false, Leverage: 10,
 		Qty: dec("0.1"),
-	})
-	require.NoError(t, err)
+	}, nil, func(before, after AccountSnapshot, r *PlaceOrderResult) { res = r })
+	require.NotNil(t, res)
 	require.Equal(t, OrderStatusFilled, res.Order.Status)
 
 	slot, _ := eng.Ledger().GetPerpSlot(acc, sym)
@@ -77,12 +78,13 @@ func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	require.True(t, slot.Short.Qty.IsZero())
 
 	// Open short 0.05 (sell short)
-	res2, err := eng.PlaceOrder(ctx, PlaceOrderRequest{
+	var res2 *PlaceOrderResult
+	eng.PlaceOrder(ctx, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideSell,
 		PosSide: ctypes.PositionSideShort, ReduceOnly: false, Leverage: 10,
 		Qty: dec("0.05"),
-	})
-	require.NoError(t, err)
+	}, nil, func(before, after AccountSnapshot, r *PlaceOrderResult) { res2 = r })
+	require.NotNil(t, res2)
 	require.Equal(t, OrderStatusFilled, res2.Order.Status)
 
 	slot, _ = eng.Ledger().GetPerpSlot(acc, sym)
@@ -90,12 +92,13 @@ func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	require.True(t, slot.Short.Qty.Equal(dec("0.05")))
 
 	// Close long 0.1 (sell long, reduce-only style direction)
-	res3, err := eng.PlaceOrder(ctx, PlaceOrderRequest{
+	var res3 *PlaceOrderResult
+	eng.PlaceOrder(ctx, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideSell,
 		PosSide: ctypes.PositionSideLong, ReduceOnly: true, Leverage: 10,
 		Qty: dec("0.1"),
-	})
-	require.NoError(t, err)
+	}, nil, func(before, after AccountSnapshot, r *PlaceOrderResult) { res3 = r })
+	require.NotNil(t, res3)
 	require.Equal(t, OrderStatusFilled, res3.Order.Status)
 
 	slot, _ = eng.Ledger().GetPerpSlot(acc, sym)
@@ -109,7 +112,7 @@ func TestOneWayNetPosition(t *testing.T) {
 	ct := ctypes.NewSymbol("ETH", "USDT", ctypes.MarketTypeFuture)
 	sym := Symbol(ct.String())
 	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
-	seedDepth(t, eng, sym)
+	seedDepth(t, eng, ct)
 
 	acc := "u1"
 	eng.SetAccountPositionMode(acc, PositionModeOneWay)
@@ -117,11 +120,10 @@ func TestOneWayNetPosition(t *testing.T) {
 		ctypes.WalletTypeFuture: {"USDT": dec("100000")},
 	})
 
-	_, err := eng.PlaceOrder(ctx, PlaceOrderRequest{
+	eng.PlaceOrder(ctx, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
 		Intent: IntentOpen, ReduceOnly: false, Leverage: 5, Qty: dec("0.02"),
-	})
-	require.NoError(t, err)
+	}, nil, nil)
 	pos, ok := eng.NetPosition(acc, sym)
 	require.True(t, ok)
 	require.True(t, pos.Qty.GreaterThan(decimal.Zero))
@@ -139,13 +141,14 @@ func TestApplyDepthBookMakerFill(t *testing.T) {
 	ct, sym := btcFutureSym()
 	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
 
-	d := NewMarketDepth()
-	require.NoError(t, eng.BindDepth(sym, d))
-	require.NoError(t, d.ApplySnapshot(&OrderBook{
-		Symbol: sym, SeqId: 1,
-		Asks: []OrderBookLevel{{Price: dec("50000"), Size: dec("10")}},
-		Bids: []OrderBookLevel{{Price: dec("49000"), Size: dec("10")}},
-	}))
+	_, err := eng.ApplyDepthBook(&ctypes.OrderBook{
+		Symbol: ct,
+		SeqId:  1,
+		Asks:   []ctypes.OrderBookLevel{{Price: dec("50000"), Size: dec("10")}},
+		Bids:   []ctypes.OrderBookLevel{{Price: dec("49000"), Size: dec("10")}},
+		Ts:     time.Now().UTC(),
+	}, false)
+	require.NoError(t, err)
 
 	acc := "m1"
 	eng.SetAccountPositionMode(acc, PositionModeOneWay)
@@ -154,12 +157,11 @@ func TestApplyDepthBookMakerFill(t *testing.T) {
 	})
 
 	// Resting buy below best ask — no immediate fill
-	_, err := eng.PlaceOrder(ctx, PlaceOrderRequest{
+	eng.PlaceOrder(ctx, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeLimit, Side: SideBuy,
 		Intent: IntentOpen, ReduceOnly: false, Leverage: 10,
 		Price: dec("49950"), Qty: dec("0.1"),
-	})
-	require.NoError(t, err)
+	}, nil, nil)
 
 	evs, err := eng.ApplyDepthBook(&ctypes.OrderBook{
 		Symbol:    ct,
