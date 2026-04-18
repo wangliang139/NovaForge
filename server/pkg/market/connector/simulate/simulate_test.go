@@ -4,22 +4,14 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
-	simcore "github.com/wangliang139/NovaForge/server/pkg/simulate"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
-
-func seedUSDT(wallet ctypes.WalletType, amount decimal.Decimal) map[ctypes.WalletType]map[simcore.Asset]decimal.Decimal {
-	return map[ctypes.WalletType]map[simcore.Asset]decimal.Decimal{
-		wallet: {simcore.Asset("USDT"): amount},
-	}
-}
 
 type fakePublicConnector struct {
 	market   *ctypes.Market
@@ -164,7 +156,7 @@ func (f *fakePublicConnector) GetLeverageBracket(ctx context.Context, symbol cty
 }
 
 func newTestConnector(accountID string, market *ctypes.Market, depth *ctypes.OrderBook) *Connector {
-	ex := simcore.NewSimExchange()
+	ex := NewSimExchange()
 	pub := &fakePublicConnector{
 		market: market,
 		depth:  depth,
@@ -174,21 +166,22 @@ func newTestConnector(accountID string, market *ctypes.Market, depth *ctypes.Ord
 			ctypes.StreamTypeMarkPrice: true,
 		},
 	}
-	return &Connector{
+	c := &Connector{
 		exchange:    ctypes.ExchangeBinance,
 		accountID:   accountID,
 		accountSubs: make(map[chan *ctypes.Message]struct{}),
 		state: &exchangeState{
 			ex:            ex,
-			adapter:       simcore.NewConnectorAdapter(ex),
-			ticker:        simcore.NewTickerStore(),
+			adapter:       NewConnectorAdapter(ex),
+			ticker:        NewTickerStore(),
 			publicConn:    pub,
-			depths:        make(map[simcore.Symbol]*simcore.MarketDepth),
-			leverages:     make(map[accountSymbolKey]int),
+			depths:        make(map[Symbol]*MarketDepth),
+			leverages:     make(map[leverageKey]int),
 			bootstraps:    make(map[string]bool),
-			markPriceOnce: make(map[string]*sync.Once),
 		},
 	}
+	c.state.registerConn(c)
+	return c
 }
 
 func TestConnector_PlaceGetCancelOrder(t *testing.T) {
@@ -448,15 +441,15 @@ func TestConnector_Supports(t *testing.T) {
 
 func TestToTypesOrderStatus(t *testing.T) {
 	cases := []struct {
-		in   simcore.OrderStatus
+		in   OrderStatus
 		want ctypes.OrderStatus
 	}{
-		{simcore.OrderStatusNew, ctypes.OrderStatusNew},
-		{simcore.OrderStatusPartiallyFilled, ctypes.OrderStatusPartialDone},
-		{simcore.OrderStatusFilled, ctypes.OrderStatusDone},
-		{simcore.OrderStatusCanceled, ctypes.OrderStatusCanceled},
-		{simcore.OrderStatusRejected, ctypes.OrderStatusRejected},
-		{simcore.OrderStatus(999), ctypes.OrderStatusPending},
+		{OrderStatusNew, ctypes.OrderStatusNew},
+		{OrderStatusPartiallyFilled, ctypes.OrderStatusPartialDone},
+		{OrderStatusFilled, ctypes.OrderStatusDone},
+		{OrderStatusCanceled, ctypes.OrderStatusCanceled},
+		{OrderStatusRejected, ctypes.OrderStatusRejected},
+		{OrderStatus(999), ctypes.OrderStatusPending},
 	}
 	for _, tc := range cases {
 		got := toTypesOrderStatus(tc.in)

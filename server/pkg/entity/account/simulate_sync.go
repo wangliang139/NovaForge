@@ -8,7 +8,6 @@ import (
 	"github.com/shopspring/decimal"
 	simconnector "github.com/wangliang139/NovaForge/server/pkg/market/connector/simulate"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
-	simcore "github.com/wangliang139/NovaForge/server/pkg/simulate"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
@@ -60,7 +59,7 @@ func (e *Entity) syncOneSimulateAccount(ctx context.Context, accountID string, r
 		ctypes.GetWalletType(acct.Exchange, ctypes.MarketTypeSpot):   {},
 		ctypes.GetWalletType(acct.Exchange, ctypes.MarketTypeFuture): {},
 	}
-	bals := make(map[ctypes.WalletType]map[simcore.Asset]decimal.Decimal)
+	bals := make(map[ctypes.WalletType]map[simconnector.Asset]decimal.Decimal)
 	for _, a := range assets {
 		if a == nil {
 			continue
@@ -70,10 +69,10 @@ func (e *Entity) syncOneSimulateAccount(ctx context.Context, accountID string, r
 		}
 		m := bals[a.WalletType]
 		if m == nil {
-			m = make(map[simcore.Asset]decimal.Decimal)
+			m = make(map[simconnector.Asset]decimal.Decimal)
 			bals[a.WalletType] = m
 		}
-		code := simcore.Asset(a.Code)
+		code := simconnector.Asset(a.Code)
 		m[code] = m[code].Add(a.Balance)
 	}
 	if err := simConn.SeedAccountBalances(bals); err != nil {

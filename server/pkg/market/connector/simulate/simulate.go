@@ -13,7 +13,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector/binance"
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector/okx"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
-	simcore "github.com/wangliang139/NovaForge/server/pkg/simulate"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
@@ -30,22 +29,26 @@ type Connector struct {
 type exchangeState struct {
 	mu sync.RWMutex
 
-	ex         *simcore.SimExchange
-	adapter    *simcore.ConnectorAdapter
-	ticker     *simcore.TickerStore
+	ex         *SimExchange
+	adapter    *ConnectorAdapter
+	ticker     *TickerStore
 	publicConn mdtypes.Connector
-	depths     map[simcore.Symbol]*simcore.MarketDepth
-	leverages  map[accountSymbolKey]int
+	depths     map[Symbol]*MarketDepth
+	leverages  map[leverageKey]int
 	bootstraps map[string]bool
 
-	// markPriceOnce ensures at most one public mark-price subscription per symbol (exchange-wide).
-	markPriceMu   sync.Mutex
-	markPriceOnce map[string]*sync.Once
+	// conns lists every simulate Connector sharing this exchange-wide SimExchange (multi-account notifications).
+	connsMu sync.RWMutex
+	conns   map[*Connector]struct{}
+
+	// streamHubs multiplex publicConn subscriptions keyed by StreamSelector.Key (Depth/Ticker/MarkPrice/Trade/Kline…).
+	streamHubMu sync.Mutex
+	streamHubs  map[string]*publicStreamHub
 }
 
-type accountSymbolKey struct {
+type leverageKey struct {
 	accountID string
-	symbol    simcore.Symbol
+	symbol    Symbol
 }
 
 var (
@@ -68,12 +71,29 @@ func New(exchange ctypes.Exchange, account *mdtypes.ApiAccount) (*Connector, err
 		return nil, err
 	}
 
-	return &Connector{
+	conn := &Connector{
 		exchange:    exchange,
 		accountID:   account.ID,
 		state:       state,
 		accountSubs: make(map[chan *ctypes.Message]struct{}),
-	}, nil
+	}
+	conn.state.registerConn(conn)
+	return conn, nil
+}
+
+func (st *exchangeState) registerConn(c *Connector) {
+	st.connsMu.Lock()
+	defer st.connsMu.Unlock()
+	if st.conns == nil {
+		st.conns = make(map[*Connector]struct{})
+	}
+	st.conns[c] = struct{}{}
+}
+
+func (st *exchangeState) unregisterConn(c *Connector) {
+	st.connsMu.Lock()
+	defer st.connsMu.Unlock()
+	delete(st.conns, c)
 }
 
 func getOrCreateState(exchange ctypes.Exchange) (*exchangeState, error) {
@@ -89,16 +109,15 @@ func getOrCreateState(exchange ctypes.Exchange) (*exchangeState, error) {
 		return nil, err
 	}
 
-	ex := simcore.NewSimExchange()
+	ex := NewSimExchange()
 	st := &exchangeState{
 		ex:            ex,
-		adapter:       simcore.NewConnectorAdapter(ex),
-		ticker:        simcore.NewTickerStore(),
+		adapter:       NewConnectorAdapter(ex),
+		ticker:        NewTickerStore(),
 		publicConn:    publicConn,
-		depths:        make(map[simcore.Symbol]*simcore.MarketDepth),
-		leverages:     make(map[accountSymbolKey]int),
-		bootstraps:    make(map[string]bool),
-		markPriceOnce: make(map[string]*sync.Once),
+		depths:     make(map[Symbol]*MarketDepth),
+		leverages:  make(map[leverageKey]int),
+		bootstraps: make(map[string]bool),
 	}
 	states[exchange] = st
 	return st, nil
@@ -144,52 +163,19 @@ func (c *Connector) Supports(selector ctypes.StreamSelector) bool {
 
 func (c *Connector) Subscribe(ctx context.Context, selector ctypes.StreamSelector) (*mdtypes.StreamHandle, error) {
 	switch selector.Stream {
-	case ctypes.StreamTypeTicker, ctypes.StreamTypeDepth, ctypes.StreamTypeMarkPrice:
-		handle, err := c.state.publicConn.Subscribe(ctx, selector)
-		if err != nil {
+	case ctypes.StreamTypeDepth,
+		ctypes.StreamTypeTicker,
+		ctypes.StreamTypeMarkPrice,
+		ctypes.StreamTypeTrade,
+		ctypes.StreamTypeKline:
+		if err := validateSimulatePublicSelector(selector); err != nil {
 			return nil, err
 		}
-		out := make(chan *ctypes.Message, 256)
-		errCh := make(chan error, 1)
-		stopC := make(chan struct{})
-		doneC := make(chan struct{})
-
-		go func() {
-			defer close(doneC)
-			defer close(out)
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-stopC:
-					return
-				case err, ok := <-handle.ErrCh:
-					if !ok {
-						return
-					}
-					select {
-					case errCh <- err:
-					default:
-					}
-				case msg, ok := <-handle.C:
-					if !ok {
-						return
-					}
-					if msg != nil {
-						c.ingestMessage(msg)
-						select {
-						case out <- msg:
-						case <-ctx.Done():
-							return
-						case <-stopC:
-							return
-						}
-					}
-				}
-			}
-		}()
-
-		return mdtypes.BuildHandle(ctx, out, errCh, stopC, doneC), nil
+		if !c.state.publicConn.Supports(selector) {
+			return nil, fmt.Errorf("simulate: public connector does not support stream %s", selector.Stream)
+		}
+		hub := c.state.getOrCreateStreamHub(selector)
+		return hub.attachListener(ctx)
 	case ctypes.StreamTypeAccountRaw, ctypes.StreamTypeAccount:
 		if selector.Account != nil && *selector.Account != "" && *selector.Account != c.accountID {
 			return nil, fmt.Errorf("account mismatch: selector=%s connector=%s", *selector.Account, c.accountID)
@@ -220,27 +206,13 @@ func (c *Connector) Subscribe(ctx context.Context, selector ctypes.StreamSelecto
 
 func (c *Connector) ingestMessage(msg *ctypes.Message) {
 	if msg.Depth != nil && msg.Depth.Symbol.IsValid() {
-		beforeBal, beforePos := c.snapshotAccountState(msg.Depth.Symbol)
-		c.state.mu.Lock()
-		events := c.applyDepthBookLocked(msg.Depth, true)
-		c.state.mu.Unlock()
-		afterBal, afterPos := c.snapshotAccountState(msg.Depth.Symbol)
-		for _, em := range c.buildMakerMatchMessages(msg.Depth.Symbol, events, beforeBal, afterBal, beforePos, afterPos) {
-			c.publishAccountMessage(em)
-		}
+		c.state.dispatchDepthIngest(msg)
 	}
 	if msg.Ticker != nil && msg.Ticker.Symbol.IsValid() {
-		c.state.mu.Lock()
-		c.state.ticker.Update(simcore.Ticker{
-			Symbol: toSimSymbol(msg.Ticker.Symbol),
-			Last:   msg.Ticker.LastPrice,
-			Mark:   msg.Ticker.LastPrice,
-			Ts:     msg.Ticker.Ts,
-		})
-		c.state.mu.Unlock()
+		c.state.dispatchTickerIngest(msg)
 	}
 	if msg.MarkPrice != nil && msg.MarkPrice.Symbol.IsValid() {
-		c.ingestMarkPrice(msg.MarkPrice)
+		c.state.dispatchMarkPricePayload(msg.MarkPrice)
 	}
 }
 
@@ -267,7 +239,7 @@ func (c *Connector) Price(ctx context.Context, symbol ctypes.Symbol) (*ctypes.Pr
 	}
 	if price != nil {
 		c.state.mu.Lock()
-		c.state.ticker.Update(simcore.Ticker{
+		c.state.ticker.Update(Ticker{
 			Symbol: toSimSymbol(symbol),
 			Last:   price.Price,
 			Mark:   price.Price,
@@ -490,8 +462,9 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 	if err := c.syncMarketDepth(ctx, input.Symbol, true); err != nil {
 		return nil, err
 	}
+	c.ensureDepthStreamStarted(input.Symbol)
 
-	req := simcore.PlaceOrderRequest{
+	req := PlaceOrderRequest{
 		AccountID:     c.accountID,
 		Symbol:        toSimSymbol(input.Symbol),
 		OrderType:     toSimOrderType(input.OrderType),
@@ -522,7 +495,7 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 }
 
 // SeedAccountBalances initializes simulate balances once from external account assets.
-func (c *Connector) SeedAccountBalances(bals map[ctypes.WalletType]map[simcore.Asset]decimal.Decimal) error {
+func (c *Connector) SeedAccountBalances(bals map[ctypes.WalletType]map[Asset]decimal.Decimal) error {
 	if len(bals) == 0 {
 		return nil
 	}
@@ -545,7 +518,7 @@ func (c *Connector) SeedAccountPositions(positions map[ctypes.Symbol]ctypes.Posi
 		if p.Side == ctypes.PositionSideShort {
 			sqty = sqty.Neg()
 		}
-		err := c.state.ex.InitPosition(c.accountID, toSimSymbol(sym), simcore.Position{
+		err := c.state.ex.InitPosition(c.accountID, toSimSymbol(sym), Position{
 			Qty:        sqty,
 			EntryPrice: p.EntryPrice,
 			UsedMargin: p.InitialMargin,
@@ -556,7 +529,7 @@ func (c *Connector) SeedAccountPositions(positions map[ctypes.Symbol]ctypes.Posi
 		}
 		if p.Leverage > 0 {
 			c.state.mu.Lock()
-			c.state.leverages[accountSymbolKey{accountID: c.accountID, symbol: toSimSymbol(sym)}] = p.Leverage
+			c.state.leverages[leverageKey{accountID: c.accountID, symbol: toSimSymbol(sym)}] = p.Leverage
 			c.state.mu.Unlock()
 		}
 	}
@@ -572,11 +545,11 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 		if rem.Sign() <= 0 {
 			continue
 		}
-		st := simcore.OrderStatusNew
+		st := OrderStatusNew
 		if od.Status == ctypes.OrderStatusPartialDone {
-			st = simcore.OrderStatusPartiallyFilled
+			st = OrderStatusPartiallyFilled
 		}
-		err := c.state.ex.SeedOpenOrder(simcore.SimOrder{
+		err := c.state.ex.SeedOpenOrder(SimOrder{
 			ID:            od.OrderID.String(),
 			AccountID:     c.accountID,
 			ClientOrderID: od.ClientOrderID.String(),
@@ -600,6 +573,7 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 }
 
 func (c *Connector) RemoveAccountState() {
+	c.state.unregisterConn(c)
 	c.state.mu.Lock()
 	delete(c.state.bootstraps, c.accountID)
 	for key := range c.state.leverages {
@@ -634,6 +608,7 @@ func (c *Connector) ensureSymbolInitialized(ctx context.Context, symbol ctypes.S
 	if err := c.syncMarketDepth(ctx, symbol, false); err != nil {
 		return err
 	}
+	c.ensureDepthStreamStarted(symbol)
 	if symbol.Type == ctypes.MarketTypeFuture {
 		if mp, err := c.state.publicConn.MarkPrice(ctx, symbol); err == nil && mp != nil && mp.MarkPrice.GreaterThan(decimal.Zero) {
 			c.ingestMarkPrice(mp)
@@ -678,19 +653,18 @@ func (c *Connector) syncMarketDepth(ctx context.Context, symbol ctypes.Symbol, e
 	return nil
 }
 
-// applyDepthBookLocked installs a depth snapshot/delta into the shared MarketDepth. When matchResting
-// is true (incremental public updates), resting orders are matched via SimExchange.OnDepthUpdated.
-// Bootstrap paths (initialization) pass matchResting=false so no fills are driven during warm-up.
-func (c *Connector) applyDepthBookLocked(book *ctypes.OrderBook, matchResting bool) []simcore.MatchEvent {
+// applyDepthBookLocked installs a depth snapshot/delta into the shared MarketDepth. Caller must hold state.mu when mutating shared books.
+// When matchResting is true (incremental public updates), resting orders are matched via SimExchange.OnDepthUpdated.
+func (st *exchangeState) applyDepthBookLocked(book *ctypes.OrderBook, matchResting bool) []MatchEvent {
 	if book == nil || !book.Symbol.IsValid() {
 		return nil
 	}
 	sym := toSimSymbol(book.Symbol)
-	d, ok := c.state.depths[sym]
+	d, ok := st.depths[sym]
 	if !ok {
-		d = simcore.NewMarketDepth()
-		c.state.depths[sym] = d
-		_ = c.state.ex.BindDepth(sym, d)
+		d = NewMarketDepth()
+		st.depths[sym] = d
+		_ = st.ex.BindDepth(sym, d)
 	}
 	depth := toSimOrderBook(book)
 	if depth.PrevSeqId > 0 && d.LastSeqID() > 0 {
@@ -703,78 +677,45 @@ func (c *Connector) applyDepthBookLocked(book *ctypes.OrderBook, matchResting bo
 	if !matchResting {
 		return nil
 	}
-	events, _ := c.state.ex.OnDepthUpdated(sym)
+	events, _ := st.ex.OnDepthUpdated(sym)
 	return events
 }
 
+func (c *Connector) applyDepthBookLocked(book *ctypes.OrderBook, matchResting bool) []MatchEvent {
+	return c.state.applyDepthBookLocked(book, matchResting)
+}
+
 func (c *Connector) ingestMarkPrice(mp *ctypes.MarkPrice) {
-	if mp == nil || !mp.Symbol.IsValid() || !mp.MarkPrice.GreaterThan(decimal.Zero) {
+	c.state.dispatchMarkPricePayload(mp)
+}
+
+// ensureDepthStreamStarted pins the shared stream hub so one publicConn subscription serves ingest + fan-out consumers.
+func (c *Connector) ensureDepthStreamStarted(symbol ctypes.Symbol) {
+	if !symbol.IsValid() {
 		return
 	}
-	c.state.mu.Lock()
-	sym := toSimSymbol(mp.Symbol)
-	prev, _ := c.state.ticker.Get(sym)
-	last := prev.Last
-	if !last.GreaterThan(decimal.Zero) {
-		last = mp.MarkPrice
+	sym := symbol
+	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeDepth, Symbol: &sym}
+	if !c.state.publicConn.Supports(sel) {
+		return
 	}
-	c.state.ticker.Update(simcore.Ticker{
-		Symbol: sym,
-		Last:   last,
-		Mark:   mp.MarkPrice,
-		Ts:     mp.Ts,
-	})
-	c.state.mu.Unlock()
-	c.tryLiquidateAfterMark(mp.Symbol, mp.MarkPrice)
+	hub := c.state.getOrCreateStreamHub(sel)
+	hub.setPinned()
+	hub.ensureRunning()
 }
 
 func (c *Connector) ensureMarkPriceStreamStarted(symbol ctypes.Symbol) {
 	if symbol.Type != ctypes.MarketTypeFuture || !symbol.IsValid() {
 		return
 	}
-	key := symbol.String()
-	c.state.markPriceMu.Lock()
-	if c.state.markPriceOnce == nil {
-		c.state.markPriceOnce = make(map[string]*sync.Once)
-	}
-	o, ok := c.state.markPriceOnce[key]
-	if !ok {
-		o = &sync.Once{}
-		c.state.markPriceOnce[key] = o
-	}
-	c.state.markPriceMu.Unlock()
-
-	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeMarkPrice, Symbol: &symbol}
+	sym := symbol
+	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeMarkPrice, Symbol: &sym}
 	if !c.state.publicConn.Supports(sel) {
 		return
 	}
-
-	o.Do(func() {
-		// Stream lifetime follows the process; cancellation is not tied to WarmSymbols ctx.
-		go c.runMarkPriceIngest(context.Background(), symbol)
-	})
-}
-
-func (c *Connector) runMarkPriceIngest(ctx context.Context, symbol ctypes.Symbol) {
-	sel := ctypes.StreamSelector{Stream: ctypes.StreamTypeMarkPrice, Symbol: &symbol}
-	h, err := c.state.publicConn.Subscribe(ctx, sel)
-	if err != nil {
-		return
-	}
-	defer h.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case msg, ok := <-h.C:
-			if !ok {
-				return
-			}
-			if msg != nil && msg.MarkPrice != nil {
-				c.ingestMarkPrice(msg.MarkPrice)
-			}
-		}
-	}
+	hub := c.state.getOrCreateStreamHub(sel)
+	hub.setPinned()
+	hub.ensureRunning()
 }
 
 // liquidationLossRatio triggers forced close when unrealized PnL <= -ratio * usedInitialMargin (minimal model).
@@ -790,7 +731,7 @@ func (c *Connector) tryLiquidateAfterMark(symbol ctypes.Symbol, mark decimal.Dec
 		return
 	}
 	ins, ok := c.state.ex.InstrumentBySymbol(sym)
-	if !ok || ins.Kind != simcore.KindPerp {
+	if !ok || ins.Kind != KindPerp {
 		return
 	}
 
@@ -1007,7 +948,7 @@ func (c *Connector) SetLeverage(ctx context.Context, symbol ctypes.Symbol, lever
 	}
 	c.state.mu.Lock()
 	defer c.state.mu.Unlock()
-	c.state.leverages[accountSymbolKey{accountID: c.accountID, symbol: toSimSymbol(symbol)}] = leverage
+	c.state.leverages[leverageKey{accountID: c.accountID, symbol: toSimSymbol(symbol)}] = leverage
 	return leverage, nil
 }
 
@@ -1038,13 +979,13 @@ func (c *Connector) ensureInstrument(market *ctypes.Market) {
 	if market == nil {
 		return
 	}
-	ins := simcore.Instrument{
+	ins := Instrument{
 		Symbol:             toSimSymbol(market.Symbol),
 		Kind:               marketTypeToInstrumentKind(market.Symbol.Type),
 		Exchange:           c.exchange,
 		Market:             market.Symbol.Type,
-		Base:               simcore.Asset(market.Symbol.Base),
-		Quote:              simcore.Asset(market.Symbol.Quote),
+		Base:               Asset(market.Symbol.Base),
+		Quote:              Asset(market.Symbol.Quote),
 		PriceTick:          market.Rules.TickSize,
 		QtyStep:            market.Rules.LotSize,
 		MinQty:             market.Rules.MinQuantity,
@@ -1056,22 +997,22 @@ func (c *Connector) ensureInstrument(market *ctypes.Market) {
 	_ = c.state.ex.RegisterInstrument(&ins)
 }
 
-func toSimOrderBook(book *ctypes.OrderBook) simcore.OrderBook {
-	out := simcore.OrderBook{
+func toSimOrderBook(book *ctypes.OrderBook) OrderBook {
+	out := OrderBook{
 		Symbol: toSimSymbol(book.Symbol),
 		Ts:     book.Ts,
 		SeqId:  book.SeqId,
 	}
 	for _, bid := range book.Bids {
-		out.Bids = append(out.Bids, simcore.OrderBookLevel{Price: bid.Price, Size: bid.Size})
+		out.Bids = append(out.Bids, OrderBookLevel{Price: bid.Price, Size: bid.Size})
 	}
 	for _, ask := range book.Asks {
-		out.Asks = append(out.Asks, simcore.OrderBookLevel{Price: ask.Price, Size: ask.Size})
+		out.Asks = append(out.Asks, OrderBookLevel{Price: ask.Price, Size: ask.Size})
 	}
 	return out
 }
 
-func toTypesOrder(exchange ctypes.Exchange, od simcore.SimOrder) *ctypes.Order {
+func toTypesOrder(exchange ctypes.Exchange, od SimOrder) *ctypes.Order {
 	return &ctypes.Order{
 		AccountID:        od.AccountID,
 		Exchange:         exchange,
@@ -1079,7 +1020,7 @@ func toTypesOrder(exchange ctypes.Exchange, od simcore.SimOrder) *ctypes.Order {
 		OrderID:          ctypes.OrderId(od.ID),
 		ClientOrderID:    ctypes.OrderId(od.ClientOrderID),
 		OrderType:        toTypesOrderType(od.OrderType),
-		IsBuy:            od.Side == simcore.SideBuy,
+		IsBuy:            od.Side == SideBuy,
 		Price:            od.Price,
 		OriginalQty:      od.QtyOriginal,
 		ExecutedQty:      od.QtyFilled,
@@ -1092,55 +1033,55 @@ func toTypesOrder(exchange ctypes.Exchange, od simcore.SimOrder) *ctypes.Order {
 	}
 }
 
-func toSimSymbol(symbol ctypes.Symbol) simcore.Symbol { return simcore.Symbol(symbol.String()) }
-func toTypesSymbol(symbol simcore.Symbol) ctypes.Symbol {
+func toSimSymbol(symbol ctypes.Symbol) Symbol { return Symbol(symbol.String()) }
+func toTypesSymbol(symbol Symbol) ctypes.Symbol {
 	s, _ := ctypes.ParseSymbol(string(symbol))
 	return s
 }
 
-func toSimOrderType(tp ctypes.OrderType) simcore.OrderType {
+func toSimOrderType(tp ctypes.OrderType) OrderType {
 	if tp == ctypes.OrderTypeLimit {
-		return simcore.OrderTypeLimit
+		return OrderTypeLimit
 	}
-	return simcore.OrderTypeMarket
+	return OrderTypeMarket
 }
 
-func toTypesOrderType(tp simcore.OrderType) ctypes.OrderType {
-	if tp == simcore.OrderTypeLimit {
+func toTypesOrderType(tp OrderType) ctypes.OrderType {
+	if tp == OrderTypeLimit {
 		return ctypes.OrderTypeLimit
 	}
 	return ctypes.OrderTypeMarket
 }
 
-func toSimSide(isBuy bool) simcore.Side {
+func toSimSide(isBuy bool) Side {
 	if isBuy {
-		return simcore.SideBuy
+		return SideBuy
 	}
-	return simcore.SideSell
+	return SideSell
 }
 
-func toSimIntent(input mdtypes.PlaceOrderInput) simcore.ContractIntent {
+func toSimIntent(input mdtypes.PlaceOrderInput) ContractIntent {
 	if lo.FromPtr(input.ReduceOnly) {
-		return simcore.IntentClose
+		return IntentClose
 	}
-	return simcore.IntentOpen
+	return IntentOpen
 }
 
-func marketTypeToInstrumentKind(mt ctypes.MarketType) simcore.InstrumentKind {
+func marketTypeToInstrumentKind(mt ctypes.MarketType) InstrumentKind {
 	if mt == ctypes.MarketTypeFuture {
-		return simcore.KindPerp
+		return KindPerp
 	}
-	return simcore.KindSpot
+	return KindSpot
 }
 
-func (c *Connector) leverageLocked(sym simcore.Symbol) int {
-	if v, ok := c.state.leverages[accountSymbolKey{accountID: c.accountID, symbol: sym}]; ok && v > 0 {
+func (c *Connector) leverageLocked(sym Symbol) int {
+	if v, ok := c.state.leverages[leverageKey{accountID: c.accountID, symbol: sym}]; ok && v > 0 {
 		return v
 	}
 	return 1
 }
 
-func (c *Connector) currentLeverage(sym simcore.Symbol) int {
+func (c *Connector) currentLeverage(sym Symbol) int {
 	c.state.mu.RLock()
 	defer c.state.mu.RUnlock()
 	return c.leverageLocked(sym)
@@ -1186,7 +1127,7 @@ func (c *Connector) publicMarkPriceFallback(ctx context.Context, symbol ctypes.S
 
 func (c *Connector) fetchMarkPrices(ctx context.Context) ([]*ctypes.MarkPrice, error) {
 	c.state.mu.RLock()
-	symbols := make([]simcore.Symbol, 0, len(c.state.depths))
+	symbols := make([]Symbol, 0, len(c.state.depths))
 	for sym := range c.state.depths {
 		symbols = append(symbols, sym)
 	}
@@ -1236,7 +1177,7 @@ func maxInt(a, b int) int {
 }
 
 func (c *Connector) nextEventID() string {
-	return simcore.GenerateCompactID(c.accountID)
+	return GenerateCompactID(c.accountID)
 }
 
 func (c *Connector) publishAccountMessage(msg *ctypes.Message) {
@@ -1253,7 +1194,7 @@ func (c *Connector) publishAccountMessage(msg *ctypes.Message) {
 	}
 }
 
-func (c *Connector) snapshotAccountState(symbol ctypes.Symbol) (map[simcore.BalanceKey]decimal.Decimal, simcore.Position) {
+func (c *Connector) snapshotAccountState(symbol ctypes.Symbol) (map[BalanceKey]decimal.Decimal, Position) {
 	c.state.mu.RLock()
 	defer c.state.mu.RUnlock()
 	bal := c.state.adapter.Balance(context.Background(), c.accountID)
@@ -1261,7 +1202,7 @@ func (c *Connector) snapshotAccountState(symbol ctypes.Symbol) (map[simcore.Bala
 	return bal, pos
 }
 
-func (c *Connector) buildOrderAndSnapshotMessages(symbol ctypes.Symbol, beforeBal, afterBal map[simcore.BalanceKey]decimal.Decimal, beforePos, afterPos simcore.Position, res *simcore.PlaceOrderResult) []*ctypes.Message {
+func (c *Connector) buildOrderAndSnapshotMessages(symbol ctypes.Symbol, beforeBal, afterBal map[BalanceKey]decimal.Decimal, beforePos, afterPos Position, res *PlaceOrderResult) []*ctypes.Message {
 	out := make([]*ctypes.Message, 0)
 	if res != nil {
 		if len(res.Fills) == 0 {
@@ -1276,11 +1217,11 @@ func (c *Connector) buildOrderAndSnapshotMessages(symbol ctypes.Symbol, beforeBa
 	return out
 }
 
-func (c *Connector) buildSnapshotDiffMessages(symbol ctypes.Symbol, beforeBal, afterBal map[simcore.BalanceKey]decimal.Decimal, beforePos, afterPos simcore.Position) []*ctypes.Message {
+func (c *Connector) buildSnapshotDiffMessages(symbol ctypes.Symbol, beforeBal, afterBal map[BalanceKey]decimal.Decimal, beforePos, afterPos Position) []*ctypes.Message {
 	now := time.Now().UTC()
 	out := make([]*ctypes.Message, 0)
 	changedAssets := make([]*ctypes.AssetEvent, 0)
-	assetSeen := map[simcore.BalanceKey]struct{}{}
+	assetSeen := map[BalanceKey]struct{}{}
 	for k, v := range beforeBal {
 		assetSeen[k] = struct{}{}
 		if !afterBal[k].Equal(v) {
@@ -1357,7 +1298,7 @@ func (c *Connector) newOrderLifecycleMessage(order *ctypes.Order) *ctypes.Messag
 	return ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, order, order.UpdatedTs)
 }
 
-func (c *Connector) newOrderFillMessage(symbol ctypes.Symbol, od simcore.SimOrder, fill simcore.Fill) *ctypes.Message {
+func (c *Connector) newOrderFillMessage(symbol ctypes.Symbol, od SimOrder, fill Fill) *ctypes.Message {
 	ts := time.Now().UTC()
 	order := toTypesOrder(c.exchange, od)
 	order.Symbol = symbol
@@ -1374,7 +1315,7 @@ func (c *Connector) newOrderFillMessage(symbol ctypes.Symbol, od simcore.SimOrde
 	return ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, order, ts)
 }
 
-func (c *Connector) buildMakerMatchMessages(symbol ctypes.Symbol, events []simcore.MatchEvent, beforeBal, afterBal map[simcore.BalanceKey]decimal.Decimal, beforePos, afterPos simcore.Position) []*ctypes.Message {
+func (c *Connector) buildMakerMatchMessages(symbol ctypes.Symbol, events []MatchEvent, beforeBal, afterBal map[BalanceKey]decimal.Decimal, beforePos, afterPos Position) []*ctypes.Message {
 	if len(events) == 0 {
 		return nil
 	}
@@ -1404,17 +1345,17 @@ func (c *Connector) mustEventMetaJSON(ts time.Time) string {
 	return string(payload)
 }
 
-func toTypesOrderStatus(st simcore.OrderStatus) ctypes.OrderStatus {
+func toTypesOrderStatus(st OrderStatus) ctypes.OrderStatus {
 	switch st {
-	case simcore.OrderStatusNew:
+	case OrderStatusNew:
 		return ctypes.OrderStatusNew
-	case simcore.OrderStatusPartiallyFilled:
+	case OrderStatusPartiallyFilled:
 		return ctypes.OrderStatusPartialDone
-	case simcore.OrderStatusFilled:
+	case OrderStatusFilled:
 		return ctypes.OrderStatusDone
-	case simcore.OrderStatusCanceled:
+	case OrderStatusCanceled:
 		return ctypes.OrderStatusCanceled
-	case simcore.OrderStatusRejected:
+	case OrderStatusRejected:
 		return ctypes.OrderStatusRejected
 	default:
 		return ctypes.OrderStatusPending

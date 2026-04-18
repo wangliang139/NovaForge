@@ -23,7 +23,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
-	simcore "github.com/wangliang139/NovaForge/server/pkg/simulate"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
@@ -120,7 +119,7 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 			if err != nil {
 				return nil, fmt.Errorf("load account assets for simulate bootstrap: %w", err)
 			}
-			bals := make(map[types.WalletType]map[simcore.Asset]decimal.Decimal)
+			bals := make(map[types.WalletType]map[simconnector.Asset]decimal.Decimal)
 			// Spot vs futures market types — GetWalletType decides buckets (OKX: both → trade).
 			allowedWalletTypes := map[types.WalletType]struct{}{
 				types.GetWalletType(acct.Exchange, types.MarketTypeSpot):   {},
@@ -135,10 +134,10 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 				}
 				m := bals[a.WalletType]
 				if m == nil {
-					m = make(map[simcore.Asset]decimal.Decimal)
+					m = make(map[simconnector.Asset]decimal.Decimal)
 					bals[a.WalletType] = m
 				}
-				code := simcore.Asset(a.Code)
+				code := simconnector.Asset(a.Code)
 				m[code] = m[code].Add(a.Balance)
 			}
 			if err := simConn.SeedAccountBalances(bals); err != nil {
