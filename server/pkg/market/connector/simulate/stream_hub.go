@@ -3,6 +3,7 @@ package simulate
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/shopspring/decimal"
@@ -43,10 +44,10 @@ type publicStreamHub struct {
 
 	mu sync.Mutex
 
-	pinned   bool
-	running  bool
-	cancel   context.CancelFunc
-	nextID   int64
+	pinned    bool
+	running   bool
+	cancel    context.CancelFunc
+	nextID    int64
 	listeners map[int64]*fanoutListener
 }
 
@@ -114,6 +115,15 @@ func (st *exchangeState) removeStreamHub(key string) {
 	delete(st.streamHubs, key)
 }
 
+// removeStreamHubIfMatches deletes the hub entry only if it still points at h (avoids races with recreation).
+func (st *exchangeState) removeStreamHubIfMatches(key string, h *publicStreamHub) {
+	st.streamHubMu.Lock()
+	defer st.streamHubMu.Unlock()
+	if existing, ok := st.streamHubs[key]; ok && existing == h {
+		delete(st.streamHubs, key)
+	}
+}
+
 func (h *publicStreamHub) setPinned() {
 	h.mu.Lock()
 	h.pinned = true
@@ -132,6 +142,9 @@ func (h *publicStreamHub) ensureRunning() {
 	if err != nil {
 		cancel()
 		h.mu.Unlock()
+		log.Printf("simulate: publicConn.Subscribe failed stream=%s key=%s: %v", h.stream, h.key, err)
+		h.closeAllListeners()
+		h.st.removeStreamHubIfMatches(h.key, h)
 		return
 	}
 	h.running = true
@@ -140,6 +153,8 @@ func (h *publicStreamHub) ensureRunning() {
 	h.mu.Unlock()
 }
 
+// run pumps one public subscription; when the connection ends, pinned hubs close all listener
+// channels — clients must Subscribe again (or rely on ensureDepthStreamStarted / Warm to restart ingest).
 func (h *publicStreamHub) run(ctx context.Context, pub *mdtypes.StreamHandle) {
 	defer pub.Stop()
 	defer h.onRunFinished()
@@ -174,7 +189,9 @@ func (h *publicStreamHub) ingestOnce(msg *ctypes.Message) {
 	case ctypes.StreamTypeTicker:
 		h.st.dispatchTickerIngest(msg)
 	case ctypes.StreamTypeMarkPrice:
-		h.st.dispatchMarkPricePayload(msg.MarkPrice)
+		if msg.MarkPrice != nil {
+			h.st.dispatchMarkPricePayload(msg.MarkPrice)
+		}
 	default:
 		// Trade/Kline/Social : fan-out only for simulate UI / strategies.
 	}
@@ -206,6 +223,7 @@ func (h *publicStreamHub) stopPublicLocked() {
 	}
 }
 
+// broadcastMsg is best-effort: slow consumers may drop updates when out channel blocks (see select default).
 func (h *publicStreamHub) broadcastMsg(msg *ctypes.Message) {
 	h.mu.Lock()
 	ls := make([]*fanoutListener, 0, len(h.listeners))
@@ -225,6 +243,7 @@ func (h *publicStreamHub) broadcastMsg(msg *ctypes.Message) {
 	}
 }
 
+// broadcastErr is best-effort like broadcastMsg.
 func (h *publicStreamHub) broadcastErr(err error) {
 	h.mu.Lock()
 	ls := make([]*fanoutListener, 0, len(h.listeners))
@@ -341,6 +360,8 @@ func (st *exchangeState) dispatchDepthIngest(msg *ctypes.Message) {
 	}
 }
 
+// dispatchTickerIngest maps ticker last to both Last and Mark in TickerStore (simplified paper model;
+// mark-index streams still override Mark via dispatchMarkPricePayload).
 func (st *exchangeState) dispatchTickerIngest(msg *ctypes.Message) {
 	if msg == nil || msg.Ticker == nil || !msg.Ticker.Symbol.IsValid() {
 		return
@@ -355,7 +376,8 @@ func (st *exchangeState) dispatchTickerIngest(msg *ctypes.Message) {
 	st.mu.Unlock()
 }
 
-// dispatchMarkPricePayload updates shared ticker mark once, then runs liquidation hook for every registered Connector (multi-account).
+// dispatchMarkPricePayload updates shared ticker mark once, then runs liquidation per Connector.
+// tryLiquidateAfterMark does not hold exchangeState.mu; ordering vs PlaceOrder relies on SimExchange.mu.
 func (st *exchangeState) dispatchMarkPricePayload(mp *ctypes.MarkPrice) {
 	if mp == nil || !mp.Symbol.IsValid() || !mp.MarkPrice.GreaterThan(decimal.Zero) {
 		return

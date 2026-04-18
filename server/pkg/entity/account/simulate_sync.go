@@ -45,7 +45,7 @@ func (e *Entity) syncOneSimulateAccount(ctx context.Context, accountID string, r
 		return nil
 	}
 	if remove || acct.Status == ctypes.AccountStatusOffline {
-		simConn.RemoveAccountState()
+		simConn.Close()
 		return nil
 	}
 
