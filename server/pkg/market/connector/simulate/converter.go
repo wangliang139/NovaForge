@@ -56,6 +56,38 @@ func placeOrderRequestFromInput(c *Connector, input mdtypes.PlaceOrderInput, mar
 	return req
 }
 
+// placeOrderRequestFromPersistedOrder builds a PlaceOrderRequest from a persisted order and remaining qty.
+// Used by SeedOpenOrders to replay unfinished market orders against the public depth.
+func placeOrderRequestFromPersistedOrder(c *Connector, od *ctypes.Order, market *ctypes.Market, qtyExecute decimal.Decimal) PlaceOrderRequest {
+	sym := toPaperSymbol(od.Symbol)
+	mode := c.rt.Engine.AccountPositionMode(c.accountID)
+	lev := int32(c.rt.Engine.Leverage(c.accountID, sym))
+	if lev <= 0 {
+		lev = 1
+	}
+	intent := IntentOpen
+	if od.ReduceOnly {
+		intent = IntentClose
+	}
+	req := PlaceOrderRequest{
+		AccountID:     c.accountID,
+		Symbol:        sym,
+		OrderType:     OrderTypeMarket,
+		Side:          toSimSide(od.IsBuy),
+		Intent:        intent,
+		ReduceOnly:    od.ReduceOnly,
+		Leverage:      lev,
+		Price:         decimal.Zero,
+		Qty:           qtyExecute,
+		ClientOrderID: string(od.ClientOrderID),
+		OrderID:       string(od.OrderID),
+	}
+	if market.Symbol.Type == ctypes.MarketTypeFuture && mode == PositionModeHedge && od.Side.Valid() {
+		req.PosSide = od.Side
+	}
+	return req
+}
+
 func orderFromTypes(c *Connector, od *ctypes.Order, qtyRemaining decimal.Decimal) Order {
 	sym := Symbol(od.Symbol.String())
 	side := SideSell

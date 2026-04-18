@@ -357,7 +357,8 @@ func (rt *VenueRuntime) dispatchDepthIngest(msg *ctypes.Message) {
 		before[i] = rt.Engine.AccountSnapshot(c.accountID, Symbol(sym.String()))
 	}
 
-	events, err := rt.Engine.ApplyDepthBook(msg.Depth, true)
+	matchResting := rt.SymbolSimReady(sym)
+	events, err := rt.Engine.ApplyDepthBook(msg.Depth, matchResting)
 	if err != nil {
 		return
 	}
@@ -400,6 +401,10 @@ func (rt *VenueRuntime) dispatchMarkPricePayload(mp *ctypes.MarkPrice) {
 		Ts:     mp.Ts,
 	})
 
+	if !rt.SymbolSimReady(mp.Symbol) {
+		return
+	}
+
 	rt.connsMu.RLock()
 	conns := make([]*Connector, 0, len(rt.conns))
 	for c := range rt.conns {
@@ -408,5 +413,47 @@ func (rt *VenueRuntime) dispatchMarkPricePayload(mp *ctypes.MarkPrice) {
 	rt.connsMu.RUnlock()
 	for _, c := range conns {
 		c.tryLiquidateAfterMark(mp.Symbol, mp.MarkPrice)
+	}
+}
+
+// onSymbolSimReady runs a one-off maker match against the current depth and a liquidation
+// pass after the symbol first completes ensureSymbolInitialized (depth snapshots use matchResting=false).
+func (rt *VenueRuntime) onSymbolSimReady(sym ctypes.Symbol) {
+	if !sym.IsValid() {
+		return
+	}
+	paperSym := Symbol(sym.String())
+
+	rt.connsMu.RLock()
+	conns := make([]*Connector, 0, len(rt.conns))
+	for c := range rt.conns {
+		conns = append(conns, c)
+	}
+	rt.connsMu.RUnlock()
+
+	before := make([]AccountSnapshot, len(conns))
+	for i, c := range conns {
+		before[i] = rt.Engine.AccountSnapshot(c.accountID, paperSym)
+	}
+	events, err := rt.Engine.OnDepthUpdated(paperSym)
+	if err == nil {
+		for i, c := range conns {
+			after := rt.Engine.AccountSnapshot(c.accountID, paperSym)
+			msgs := c.buildDiffAndMakerMessages(sym, events, before[i], after)
+			for _, m := range msgs {
+				c.publishAccountMessage(m)
+			}
+		}
+	}
+
+	if sym.Type != ctypes.MarketTypeFuture {
+		return
+	}
+	q, ok := rt.Quotes.Get(paperSym)
+	if !ok || !q.Mark.GreaterThan(decimal.Zero) {
+		return
+	}
+	for _, c := range conns {
+		c.tryLiquidateAfterMark(sym, q.Mark)
 	}
 }

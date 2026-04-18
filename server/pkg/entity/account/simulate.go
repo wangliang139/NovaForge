@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	simconnector "github.com/wangliang139/NovaForge/server/pkg/market/connector/simulate"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
@@ -95,19 +94,5 @@ func (e *Entity) syncOneSimulateAccount(ctx context.Context, accountID string, r
 		return fmt.Errorf("seed orders: %w", err)
 	}
 
-	symbols := make([]ctypes.Symbol, 0, len(posList))
-	for _, p := range posList {
-		if p == nil || !p.Symbol.IsValid() {
-			continue
-		}
-		symbols = append(symbols, p.Symbol)
-	}
-	for _, od := range orders {
-		if od != nil && od.Symbol.IsValid() {
-			symbols = append(symbols, od.Symbol)
-		}
-	}
-
-	simConn.WarmSymbols(ctx, lo.UniqBy(symbols, func(s ctypes.Symbol) string { return s.String() }))
 	return nil
 }

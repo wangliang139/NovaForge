@@ -519,14 +519,24 @@ func (c *Connector) ensureInstrument(market *ctypes.Market) {
 }
 
 func (c *Connector) ensureSymbolInitialized(ctx context.Context, symbol ctypes.Symbol) error {
+	if c.rt.SymbolSimReady(symbol) {
+		return nil
+	}
 	market, err := c.GetMarket(ctx, symbol)
 	if err != nil {
 		return err
 	}
-	if market != nil {
-		c.ensureInstrument(market)
+	if market == nil {
+		return fmt.Errorf("simulate: unknown market %s", symbol)
 	}
-	return c.syncMarketDepth(ctx, symbol, true)
+	c.ensureInstrument(market)
+	if err := c.syncMarketDepth(ctx, symbol, true); err != nil {
+		return err
+	}
+	if c.rt.tryMarkSymbolSimReady(symbol) {
+		c.rt.onSymbolSimReady(symbol)
+	}
+	return nil
 }
 
 func (c *Connector) syncMarketDepth(ctx context.Context, symbol ctypes.Symbol, emptyFallback bool) error {
@@ -672,14 +682,17 @@ func (c *Connector) SeedAccountPositions(positions []*ctypes.Position) error {
 	return nil
 }
 
-// SeedOpenOrders hydrates resting limit orders from DB open orders.
+// SeedOpenOrders hydrates resting limit orders from DB open orders and replays unfinished market orders
+// (remaining qty) via PlaceOrder after ensureSymbolInitialized.
 func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 	ctx := context.Background()
 	for _, od := range orders {
 		if od == nil || !od.Symbol.IsValid() {
 			continue
 		}
-		if od.OrderType != ctypes.OrderTypeLimit {
+		switch od.OrderType {
+		case ctypes.OrderTypeLimit, ctypes.OrderTypeMarket:
+		default:
 			continue
 		}
 		switch od.Status {
@@ -698,21 +711,32 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 		if market == nil {
 			return fmt.Errorf("simulate: seed order unknown market %s", od.Symbol)
 		}
-		c.ensureInstrument(market)
-		po := orderFromTypes(c, od, rem)
-		if err := c.rt.Engine.SeedOpenOrder(c.accountID, po); err != nil {
-			return err
+		if err := c.ensureSymbolInitialized(ctx, od.Symbol); err != nil {
+			return fmt.Errorf("simulate: seed market order %s: %w", od.Symbol, err)
+		}
+
+		switch od.OrderType {
+		case ctypes.OrderTypeMarket:
+			req := placeOrderRequestFromPersistedOrder(c, od, market, rem)
+			paperSym := Symbol(od.Symbol.String())
+			before := c.rt.Engine.AccountSnapshot(c.accountID, paperSym)
+			res, err := c.rt.Engine.PlaceOrder(ctx, req)
+			if err != nil {
+				return err
+			}
+			after := c.rt.Engine.AccountSnapshot(c.accountID, paperSym)
+			for _, m := range c.buildTakerFillMessages(od.Symbol, before, after, res) {
+				c.publishAccountMessage(m)
+			}
+			if res.Order.Status == OrderStatusRejected {
+				return fmt.Errorf("simulate: seed market order rejected: %s", res.Order.RejectReason)
+			}
+		case ctypes.OrderTypeLimit:
+			po := orderFromTypes(c, od, rem)
+			if err := c.rt.Engine.SeedOpenOrder(c.accountID, po); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
-}
-
-// WarmSymbols ensures instrument registration and depth wiring for the given symbols.
-func (c *Connector) WarmSymbols(ctx context.Context, symbols []ctypes.Symbol) {
-	for _, sym := range symbols {
-		if !sym.IsValid() {
-			continue
-		}
-		_ = c.ensureSymbolInitialized(ctx, sym)
-	}
 }

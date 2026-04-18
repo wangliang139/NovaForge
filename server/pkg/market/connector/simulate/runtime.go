@@ -25,7 +25,11 @@ type VenueRuntime struct {
 	connsMu sync.RWMutex
 	conns   map[*Connector]struct{}
 
-	bootstraps map[string]bool
+	// symbolSimReady: symbol.String() -> ensureSymbolInitialized completed for this venue
+	// (instrument + depth sync + streams). Until set, public depth updates do not match
+	// resting orders and mark-price does not run liquidation.
+	simReadyMu     sync.RWMutex
+	symbolSimReady map[string]struct{}
 }
 
 var (
@@ -67,9 +71,9 @@ func getOrCreateVenue(ex ctypes.Exchange) (*VenueRuntime, error) {
 		Mark:       NewMarkIndexService(q),
 		Liq:        NewLiquidationEngine(eng),
 		Public:     pub,
-		streamHubs: make(map[string]*publicStreamHub),
-		conns:      make(map[*Connector]struct{}),
-		bootstraps: make(map[string]bool),
+		streamHubs:     make(map[string]*publicStreamHub),
+		conns:          make(map[*Connector]struct{}),
+		symbolSimReady: make(map[string]struct{}),
 	}
 	venues[ex] = rt
 	return rt, nil
@@ -85,6 +89,36 @@ func (rt *VenueRuntime) unregisterConn(c *Connector) {
 	rt.connsMu.Lock()
 	defer rt.connsMu.Unlock()
 	delete(rt.conns, c)
+}
+
+// tryMarkSymbolSimReady records that ensureSymbolInitialized finished for sym.
+// It returns true the first time sym becomes ready (caller may run post-ready hooks).
+func (rt *VenueRuntime) tryMarkSymbolSimReady(sym ctypes.Symbol) bool {
+	if !sym.IsValid() {
+		return false
+	}
+	key := sym.String()
+	rt.simReadyMu.Lock()
+	defer rt.simReadyMu.Unlock()
+	if rt.symbolSimReady == nil {
+		rt.symbolSimReady = make(map[string]struct{})
+	}
+	if _, ok := rt.symbolSimReady[key]; ok {
+		return false
+	}
+	rt.symbolSimReady[key] = struct{}{}
+	return true
+}
+
+// SymbolSimReady reports whether sym has completed ensureSymbolInitialized on this venue.
+func (rt *VenueRuntime) SymbolSimReady(sym ctypes.Symbol) bool {
+	if !sym.IsValid() {
+		return false
+	}
+	rt.simReadyMu.RLock()
+	defer rt.simReadyMu.RUnlock()
+	_, ok := rt.symbolSimReady[sym.String()]
+	return ok
 }
 
 func (rt *VenueRuntime) removeStreamHub(key string) {
