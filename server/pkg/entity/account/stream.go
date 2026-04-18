@@ -29,6 +29,7 @@ var tracer = otel.Tracer(TracerName)
 
 func (e *Entity) Start() error {
 	e.startAccountMessageWorkers()
+	go e.syncAllSimulateAccounts(context.Background())
 	uuid := snowflake.Generate().String()
 	go e.ListenAccountEvent(uuid)
 	return nil

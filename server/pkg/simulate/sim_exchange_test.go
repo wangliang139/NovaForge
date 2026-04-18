@@ -5,13 +5,208 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
+
+func seedUSDT(wallet ctypes.WalletType, amount decimal.Decimal) map[ctypes.WalletType]map[Asset]decimal.Decimal {
+	return map[ctypes.WalletType]map[Asset]decimal.Decimal{
+		wallet: {Asset("USDT"): amount},
+	}
+}
+
+// TestOkxUnifiedTradeWalletSpotAndPerpShareUSDT documents types.GetWalletType(okx, ·): spot and futures
+// both map to WalletTypeTrade — spot spend and perp margin debit the same USDT bucket.
+func TestOkxUnifiedTradeWalletSpotAndPerpShareUSDT(t *testing.T) {
+	ex := NewSimExchange()
+	if err := ex.InitBalances("u", seedUSDT(ctypes.WalletTypeTrade, decimal.NewFromInt(10000))); err != nil {
+		t.Fatal(err)
+	}
+	spotSym := Symbol("OKXBTCSPOT")
+	perpSym := Symbol("OKXBTCPERP")
+	spotIns := &Instrument{
+		Symbol:      spotSym,
+		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeOkx,
+		Market:      ctypes.MarketTypeSpot,
+		Base:        Asset("BTC"),
+		Quote:       Asset("USDT"),
+		PriceTick:   decimal.NewFromInt(1),
+		QtyStep:     decimal.NewFromInt(1),
+		MinQty:      decimal.NewFromInt(1),
+		MinNotional: decimal.NewFromInt(1),
+		TakerFeeBps: 0,
+	}
+	perpIns := &Instrument{
+		Symbol:             perpSym,
+		Kind:               KindPerp,
+		Exchange:           ctypes.ExchangeOkx,
+		Market:             ctypes.MarketTypeFuture,
+		Base:               Asset("BTC"),
+		Quote:              Asset("USDT"),
+		PriceTick:          decimal.NewFromInt(1),
+		QtyStep:            decimal.NewFromInt(1),
+		MinQty:             decimal.NewFromInt(1),
+		MinNotional:        decimal.NewFromInt(1),
+		TakerFeeBps:        0,
+		LeverageMax:        10,
+		ContractMultiplier: decimal.NewFromInt(1),
+	}
+	if wt := spotIns.WalletType(); wt != ctypes.WalletTypeTrade {
+		t.Fatalf("spot wallet want trade got %s", wt)
+	}
+	if wt := perpIns.WalletType(); wt != ctypes.WalletTypeTrade {
+		t.Fatalf("perp wallet want trade got %s", wt)
+	}
+
+	depthSpot := NewMarketDepth()
+	_ = depthSpot.ApplySnapshot(&OrderBook{
+		Symbol: spotSym,
+		SeqId:  1,
+		Asks:   []OrderBookLevel{{Price: decimal.NewFromInt(100), Size: decimal.NewFromInt(10)}},
+		Bids:   []OrderBookLevel{{Price: decimal.NewFromInt(99), Size: decimal.NewFromInt(10)}},
+	})
+	depthPerp := NewMarketDepth()
+	_ = depthPerp.ApplySnapshot(&OrderBook{
+		Symbol: perpSym,
+		SeqId:  1,
+		Asks:   []OrderBookLevel{{Price: decimal.NewFromInt(1000), Size: decimal.NewFromInt(10)}},
+		Bids:   []OrderBookLevel{{Price: decimal.NewFromInt(999), Size: decimal.NewFromInt(10)}},
+	})
+	_ = ex.RegisterInstrument(spotIns)
+	_ = ex.RegisterInstrument(perpIns)
+	_ = ex.BindDepth(spotSym, depthSpot)
+	_ = ex.BindDepth(perpSym, depthPerp)
+
+	if _, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "u",
+		Symbol:    spotSym,
+		OrderType: OrderTypeMarket,
+		Side:      SideBuy,
+		Qty:       decimal.NewFromInt(1),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "u",
+		Symbol:    perpSym,
+		OrderType: OrderTypeMarket,
+		Side:      SideBuy,
+		Intent:    IntentOpen,
+		Leverage:  5,
+		Qty:       decimal.NewFromInt(1),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	tradeUSDT := BalanceKey{Wallet: ctypes.WalletTypeTrade, Asset: Asset("USDT")}
+	bal := ex.GetBalances("u")
+	// Spot 1 @ 100 + perp IM 1 @ 1000 / lev 5 = 100 + 200
+	want := decimal.NewFromInt(9700)
+	if !bal[tradeUSDT].Equal(want) {
+		t.Fatalf("trade USDT=%s want %s", bal[tradeUSDT], want)
+	}
+}
+
+// TestWalletBucketsIsolateSameAssetCode covers Binance-style separation: spot vs futures USDT buckets.
+func TestWalletBucketsIsolateSameAssetCode(t *testing.T) {
+	ex := NewSimExchange()
+	if err := ex.InitBalances("u", map[ctypes.WalletType]map[Asset]decimal.Decimal{
+		ctypes.WalletTypeSpot:   {Asset("USDT"): decimal.NewFromInt(100)},
+		ctypes.WalletTypeFuture: {Asset("USDT"): decimal.NewFromInt(500)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	spotSym := Symbol("BTCUSDT")
+	perpSym := Symbol("BTC-PERP")
+	spotIns := &Instrument{
+		Symbol:      spotSym,
+		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
+		Base:        Asset("BTC"),
+		Quote:       Asset("USDT"),
+		PriceTick:   decimal.NewFromInt(1),
+		QtyStep:     decimal.NewFromInt(1),
+		MinQty:      decimal.NewFromInt(1),
+		MinNotional: decimal.NewFromInt(1),
+		TakerFeeBps: 0,
+	}
+	perpIns := &Instrument{
+		Symbol:             perpSym,
+		Kind:               KindPerp,
+		Exchange:           ctypes.ExchangeBinance,
+		Market:             ctypes.MarketTypeFuture,
+		Base:               Asset("BTC"),
+		Quote:              Asset("USDT"),
+		PriceTick:          decimal.NewFromInt(1),
+		QtyStep:            decimal.NewFromInt(1),
+		MinQty:             decimal.NewFromInt(1),
+		MinNotional:        decimal.NewFromInt(1),
+		TakerFeeBps:        0,
+		LeverageMax:        10,
+		ContractMultiplier: decimal.NewFromInt(1),
+	}
+	depthSpot := NewMarketDepth()
+	_ = depthSpot.ApplySnapshot(&OrderBook{
+		Symbol: spotSym,
+		SeqId:  1,
+		Asks:   []OrderBookLevel{{Price: decimal.NewFromInt(100), Size: decimal.NewFromInt(10)}},
+		Bids:   []OrderBookLevel{{Price: decimal.NewFromInt(99), Size: decimal.NewFromInt(10)}},
+	})
+	depthPerp := NewMarketDepth()
+	_ = depthPerp.ApplySnapshot(&OrderBook{
+		Symbol: perpSym,
+		SeqId:  1,
+		Asks:   []OrderBookLevel{{Price: decimal.NewFromInt(1000), Size: decimal.NewFromInt(10)}},
+		Bids:   []OrderBookLevel{{Price: decimal.NewFromInt(999), Size: decimal.NewFromInt(10)}},
+	})
+
+	_ = ex.RegisterInstrument(spotIns)
+	_ = ex.RegisterInstrument(perpIns)
+	_ = ex.BindDepth(spotSym, depthSpot)
+	_ = ex.BindDepth(perpSym, depthPerp)
+
+	if _, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "u",
+		Symbol:    spotSym,
+		OrderType: OrderTypeMarket,
+		Side:      SideBuy,
+		Qty:       decimal.NewFromInt(1),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ex.PlaceOrder(context.Background(), PlaceOrderRequest{
+		AccountID: "u",
+		Symbol:    perpSym,
+		OrderType: OrderTypeMarket,
+		Side:      SideBuy,
+		Intent:    IntentOpen,
+		Leverage:  5,
+		Qty:       decimal.NewFromInt(1),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	bal := ex.GetBalances("u")
+	spotUSDT := BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: Asset("USDT")}
+	futUSDT := BalanceKey{Wallet: ctypes.WalletTypeFuture, Asset: Asset("USDT")}
+	if !bal[spotUSDT].Equal(decimal.Zero) {
+		t.Fatalf("spot USDT=%s want 0", bal[spotUSDT])
+	}
+	if !bal[futUSDT].LessThan(decimal.NewFromInt(500)) {
+		t.Fatalf("future USDT=%s want < 500", bal[futUSDT])
+	}
+}
 
 func TestSimExchangeSpotMarketBuy(t *testing.T) {
 	sym := Symbol("BTCUSDT")
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("BTC"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -33,7 +228,7 @@ func TestSimExchangeSpotMarketBuy(t *testing.T) {
 	})
 
 	ex := NewSimExchange()
-	ex.Portfolio().SetBalance("default", Asset("USDT"), decimal.NewFromInt(10000))
+	ex.Portfolio().SetBalance("default", ctypes.WalletTypeSpot, Asset("USDT"), decimal.NewFromInt(10000))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
@@ -54,8 +249,9 @@ func TestSimExchangeSpotMarketBuy(t *testing.T) {
 		t.Fatalf("fills %d", len(res.Fills))
 	}
 	bal := ex.GetBalances("default")
-	if !bal[Asset("BTC")].Equal(decimal.NewFromInt(2)) {
-		t.Fatalf("base %s", bal[Asset("BTC")])
+	k := BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: Asset("BTC")}
+	if !bal[k].Equal(decimal.NewFromInt(2)) {
+		t.Fatalf("base %s", bal[k])
 	}
 }
 
@@ -64,6 +260,8 @@ func TestSimExchangePerpOpenClose(t *testing.T) {
 	ins := &Instrument{
 		Symbol:             sym,
 		Kind:               KindPerp,
+		Exchange:           ctypes.ExchangeBinance,
+		Market:             ctypes.MarketTypeFuture,
 		Base:               Asset("BTC"),
 		Quote:              Asset("USDT"),
 		PriceTick:          decimal.NewFromInt(1),
@@ -86,7 +284,7 @@ func TestSimExchangePerpOpenClose(t *testing.T) {
 		},
 	})
 	ex := NewSimExchange()
-	ex.Portfolio().SetBalance("default", Asset("USDT"), decimal.NewFromInt(100000))
+	ex.Portfolio().SetBalance("default", ctypes.WalletTypeFuture, Asset("USDT"), decimal.NewFromInt(100000))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
@@ -131,6 +329,8 @@ func TestSimExchangeRestingLimitDepthTrigger(t *testing.T) {
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("ETH"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -148,7 +348,7 @@ func TestSimExchangeRestingLimitDepthTrigger(t *testing.T) {
 		},
 	})
 	ex := NewSimExchange()
-	ex.Portfolio().SetBalance("default", Asset("USDT"), decimal.NewFromInt(1_000_000))
+	ex.Portfolio().SetBalance("default", ctypes.WalletTypeSpot, Asset("USDT"), decimal.NewFromInt(1_000_000))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
@@ -192,6 +392,8 @@ func TestSimExchangeMultiAccountIsolation(t *testing.T) {
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("XRP"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -208,8 +410,8 @@ func TestSimExchangeMultiAccountIsolation(t *testing.T) {
 		Bids:  []OrderBookLevel{{Price: decimal.NewFromInt(9), Size: decimal.NewFromInt(100)}},
 	})
 	ex := NewSimExchange()
-	_ = ex.InitBalances("a1", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(100)})
-	_ = ex.InitBalances("a2", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(100)})
+	_ = ex.InitBalances("a1", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(100)))
+	_ = ex.InitBalances("a2", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(100)))
 	_ = ex.RegisterInstrument(ins)
 	_ = ex.BindDepth(sym, depth)
 
@@ -226,10 +428,11 @@ func TestSimExchangeMultiAccountIsolation(t *testing.T) {
 
 	b1 := ex.GetBalances("a1")
 	b2 := ex.GetBalances("a2")
-	if !b1[Asset("XRP")].Equal(decimal.NewFromInt(5)) {
-		t.Fatalf("a1 xrp=%s", b1[Asset("XRP")])
+	xrpKey := BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: Asset("XRP")}
+	if !b1[xrpKey].Equal(decimal.NewFromInt(5)) {
+		t.Fatalf("a1 xrp=%s", b1[xrpKey])
 	}
-	if !b2[Asset("XRP")].IsZero() {
-		t.Fatalf("a2 xrp=%s", b2[Asset("XRP")])
+	if !b2[xrpKey].IsZero() {
+		t.Fatalf("a2 xrp=%s", b2[xrpKey])
 	}
 }

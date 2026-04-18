@@ -586,7 +586,8 @@ func isOrderFinal(status ctypes.OrderStatus) bool {
 	}
 }
 
-// AllOrders 返回所有未完结订单（只保留 NEW、PENDING、PARTIAL_DONE 状态的订单）
+// GetAllOrders 返回引擎 map 中的订单克隆。完结订单在生命周期处理中已从 map 删除，
+// 故此处等价于当前尚未完结的订单；完整历史订单由 OrderCollector 持有。
 func (m *orderEngine) GetAllOrders(ctx context.Context, accountID string) ([]*ctypes.Order, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -595,10 +596,7 @@ func (m *orderEngine) GetAllOrders(ctx context.Context, accountID string) ([]*ct
 		if order == nil {
 			continue
 		}
-		// 只返回未完结订单
-		if !isOrderFinal(order.Status) {
-			out = append(out, order.Clone())
-		}
+		out = append(out, order.Clone())
 	}
 	return out, nil
 }

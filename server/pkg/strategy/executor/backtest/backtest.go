@@ -28,7 +28,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api/facade"
-	"github.com/wangliang139/NovaForge/server/pkg/strategy/symbolaccount"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
@@ -71,7 +70,6 @@ type BacktestExecutor struct {
 	orderManager     strategy.OrderEngine             // 订单引擎（账户视角）
 	accountManager   strategy.AccountEngine           // 账户管理器（账户视角）
 	portfolio        *portfolio.Portfolio             // 投资组合（策略视角）
-	symbolAccountMgr *symbolaccount.Manager           // 策略级交易对账户管理器（用于资金隔离）
 
 	// Collectors 和 ResultBuilder
 	collectors    *collectors.Collectors
@@ -143,10 +141,6 @@ func NewBacktestExecutor(
 
 	// 创建 Portfolio
 	portfolio := portfolio.NewPortfolio(eventBus, marketProvider)
-
-	// 创建策略级交易对账户管理器（用于资金隔离）
-	symbolAccountMgr := symbolaccount.NewManager()
-	symbolAccountMgr.Subscribe(eventBus)
 
 	// 创建账户管理器（支持多账户管理）
 	accountManager, err := account.NewAccountManager(eventBus, clock)
@@ -336,7 +330,6 @@ func NewBacktestExecutor(
 		orderManager:     orderManager,
 		accountManager:   accountManager,
 		portfolio:        portfolio,
-		symbolAccountMgr: symbolAccountMgr,
 		marketProvider:   marketProvider,
 		collectors:       collectors,
 		resultBuilder:    resultBuilder,
@@ -476,6 +469,8 @@ func (e *BacktestExecutor) runBacktest() {
 			}
 			if err := e.exchangeGateway.OnMarketSignal(e.ctx, ev.Signal); err != nil {
 				log.Ctx(e.ctx).Err(err).Str("backtest_id", e.btCtx.ID).Msg("failed to send market signal to exchange gateway")
+				e.setRunErr(fmt.Errorf("exchange gateway on market signal: %w", err))
+				return
 			}
 		}
 
@@ -504,6 +499,8 @@ func (e *BacktestExecutor) runBacktest() {
 					Time("timestamp", msg.Ts).
 					Str("signal_type", string(msg.Type())).
 					Msg("failed to process merged frame signal")
+				e.setRunErr(fmt.Errorf("strategy OnSignal: %w", err))
+				return
 			}
 		}
 
@@ -659,11 +656,6 @@ func (e *BacktestExecutor) Done() <-chan struct{} {
 	return e.done
 }
 
-// GetSymbolAccountManager 获取策略级交易对账户管理器（用于测试）
-func (e *BacktestExecutor) GetSymbolAccountManager() *symbolaccount.Manager {
-	return e.symbolAccountMgr
-}
-
 // Stop 停止回测
 func (e *BacktestExecutor) Stop(ctx context.Context) error {
 	if e.status != stypes.ExecutorStatusRunning {
@@ -675,6 +667,14 @@ func (e *BacktestExecutor) Stop(ctx context.Context) error {
 	if e.cancel != nil {
 		e.cancel()
 	}
+
+	// 等待 runBacktest 退出后再释放 gateway / JS，避免与回测 goroutine 交叉关闭
+	select {
+	case <-e.done:
+	case <-time.After(30 * time.Second):
+		log.Ctx(ctx).Warn().Str("backtest_id", e.btCtx.ID).Msg("backtest stop wait timed out")
+	}
+
 	if e.exchangeGateway != nil {
 		e.exchangeGateway.Stop()
 	}
@@ -741,12 +741,27 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 	for _, symCfg := range e.config.Symbols {
 		exSymbol := ctypes.NewExSymbol(symCfg.Exchange, symCfg.Symbol)
 
-		// 从 symbolAccountMgr 获取该交易对的余额（避免跨交易对重复计价同一资产）
+		aid := accountIDProvider(symCfg.Exchange, symCfg.Symbol)
+		if aid == nil || *aid == "" {
+			return nil, fmt.Errorf("account id required for equity: %s", exSymbol.String())
+		}
+
+		baseBo, err := e.accountManager.GetAsset(ctx, *aid, symCfg.Symbol, exSymbol.GetBase())
+		if err != nil {
+			return nil, fmt.Errorf("get base asset for %s: %w", exSymbol.String(), err)
+		}
+		quoteBo, err := e.accountManager.GetAsset(ctx, *aid, symCfg.Symbol, exSymbol.GetQuote())
+		if err != nil {
+			return nil, fmt.Errorf("get quote asset for %s: %w", exSymbol.String(), err)
+		}
+
 		var baseQty, quoteQty decimal.Decimal
-		baseFree, baseFrozen := e.symbolAccountMgr.GetBalance(exSymbol, exSymbol.GetBase())
-		baseQty = baseFree.Add(baseFrozen)
-		quoteFree, quoteFrozen := e.symbolAccountMgr.GetBalance(exSymbol, exSymbol.GetQuote())
-		quoteQty = quoteFree.Add(quoteFrozen)
+		if baseBo != nil {
+			baseQty = baseBo.Balance
+		}
+		if quoteBo != nil {
+			quoteQty = quoteBo.Balance
+		}
 
 		var symbolEquity stypes.SymbolEquityPoint
 		var baseNetValue, quoteNetValue decimal.Decimal

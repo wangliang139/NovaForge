@@ -2,12 +2,12 @@ package simulate
 
 import (
 	"context"
-	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/shopspring/decimal"
+
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // SimExchange is a minimal simulated exchange: instruments, shared public depth per symbol,
@@ -20,8 +20,6 @@ type SimExchange struct {
 	books  map[accountSymbolKey]*SimBook
 	port   *Portfolio
 	nowFn  func() time.Time
-
-	nextOrderID int64
 }
 
 // SimExchangeOption customizes simulator runtime behavior.
@@ -64,33 +62,19 @@ func (e *SimExchange) now() time.Time {
 	return e.nowFn().UTC()
 }
 
-func normalizeAccountID(accountID string) (string, error) {
-	if accountID == "" {
-		return "", ErrInvalidAccount
-	}
-	return accountID, nil
-}
-
-func (e *SimExchange) InitBalances(accountID string, bals map[Asset]decimal.Decimal) error {
+func (e *SimExchange) InitBalances(accountID string, bals map[ctypes.WalletType]map[Asset]decimal.Decimal) error {
 	if len(bals) == 0 {
 		return nil
 	}
-	var err error
-	accountID, err = normalizeAccountID(accountID)
-	if err != nil {
-		return err
-	}
-	for asset, amount := range bals {
-		e.port.SetBalance(accountID, asset, amount)
+	for wt, byAsset := range bals {
+		for asset, amount := range byAsset {
+			e.port.SetBalance(accountID, wt, asset, amount)
+		}
 	}
 	return nil
 }
 
 func (e *SimExchange) InitPosition(accountID string, sym Symbol, pos Position) error {
-	accountID, err := normalizeAccountID(accountID)
-	if err != nil {
-		return err
-	}
 	e.port.SetPosition(accountID, sym, pos)
 	return nil
 }
@@ -130,9 +114,8 @@ func (e *SimExchange) getBook(accountID string, sym Symbol) *SimBook {
 	return b
 }
 
-func (e *SimExchange) genOrderID() string {
-	n := atomic.AddInt64(&e.nextOrderID, 1)
-	return fmt.Sprintf("o%d", n)
+func (e *SimExchange) genOrderID(accountID string) string {
+	return GenerateCompactID(accountID)
 }
 
 func (e *SimExchange) getDepth(sym Symbol) *MarketDepth {
@@ -225,10 +208,7 @@ func (e *SimExchange) placeOrderAt(ctx context.Context, req PlaceOrderRequest, t
 	if !ok || d == nil {
 		return nil, ErrNotInitialized
 	}
-	accountID, err := normalizeAccountID(req.AccountID)
-	if err != nil {
-		return nil, err
-	}
+	accountID := req.AccountID
 	book := e.getBook(accountID, req.Symbol)
 
 	pos, _ := e.port.Position(accountID, req.Symbol)
@@ -247,7 +227,7 @@ func (e *SimExchange) placeOrderAt(ctx context.Context, req PlaceOrderRequest, t
 
 	now := ts.UTC()
 	order := &SimOrder{
-		ID:            e.genOrderID(),
+		ID:            e.genOrderID(accountID),
 		AccountID:     accountID,
 		ClientOrderID: req.ClientOrderID,
 		Symbol:        req.Symbol,
@@ -536,11 +516,6 @@ func (e *SimExchange) CancelOrder(ctx context.Context, accountID string, sym Sym
 
 func (e *SimExchange) CancelOrderAt(ctx context.Context, accountID string, sym Symbol, orderID string, ts time.Time) error {
 	_ = ctx
-	var err error
-	accountID, err = normalizeAccountID(accountID)
-	if err != nil {
-		return err
-	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	b := e.getBook(accountID, sym)
@@ -554,10 +529,6 @@ func (e *SimExchange) CancelOrderAt(ctx context.Context, accountID string, sym S
 
 // GetOrder returns a copy of the order if known to the symbol book.
 func (e *SimExchange) GetOrder(accountID string, sym Symbol, orderID string) (SimOrder, bool) {
-	accountID, err := normalizeAccountID(accountID)
-	if err != nil {
-		return SimOrder{}, false
-	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	b := e.getBook(accountID, sym)
@@ -565,28 +536,93 @@ func (e *SimExchange) GetOrder(accountID string, sym Symbol, orderID string) (Si
 }
 
 func (e *SimExchange) ListOpenOrders(accountID string, sym Symbol) []SimOrder {
-	accountID, err := normalizeAccountID(accountID)
-	if err != nil {
-		return nil
-	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	b := e.getBook(accountID, sym)
 	return b.ListOpenOrders()
 }
 
-func (e *SimExchange) GetBalances(accountID string) map[Asset]decimal.Decimal {
-	accountID, err := normalizeAccountID(accountID)
-	if err != nil {
-		return nil
+func (e *SimExchange) SeedOpenOrder(order SimOrder) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if _, ok := e.ins[order.Symbol]; !ok {
+		return ErrUnknownSymbol
 	}
+	accountID := order.AccountID
+	book := e.getBook(accountID, order.Symbol)
+	cp := order
+	if cp.QtyRemaining.Sign() <= 0 {
+		cp.QtyRemaining = cp.QtyOriginal.Sub(cp.QtyFilled)
+		if cp.QtyRemaining.Sign() < 0 {
+			cp.QtyRemaining = decimal.Zero
+		}
+	}
+	if cp.CreatedAt.IsZero() {
+		cp.CreatedAt = e.now()
+	}
+	if cp.LastUpdatedAt.IsZero() {
+		cp.LastUpdatedAt = cp.CreatedAt
+	}
+	book.AddResting(&cp)
+	return nil
+}
+
+func (e *SimExchange) RemoveAccount(accountID string) {
+	if accountID == "" {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for key := range e.books {
+		if key.AccountID == accountID {
+			delete(e.books, key)
+		}
+	}
+	e.port.RemoveAccount(accountID)
+}
+
+func (e *SimExchange) GetBalances(accountID string) map[BalanceKey]decimal.Decimal {
 	return e.port.Balances(accountID)
 }
 
 func (e *SimExchange) GetPosition(accountID string, sym Symbol) (Position, bool) {
-	accountID, err := normalizeAccountID(accountID)
-	if err != nil {
-		return Position{}, false
-	}
 	return e.port.Position(accountID, sym)
+}
+
+// InstrumentBySymbol returns registered instrument metadata for the symbol, if any.
+func (e *SimExchange) InstrumentBySymbol(sym Symbol) (Instrument, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ins, ok := e.ins[sym]
+	if !ok || ins == nil {
+		return Instrument{}, false
+	}
+	return *ins, true
+}
+
+// ForceClosePerpAtMark closes an open perp position at mark (liquidation helper). Ignores order book.
+func (e *SimExchange) ForceClosePerpAtMark(accountID string, sym Symbol, mark decimal.Decimal) error {
+	if !mark.GreaterThan(decimal.Zero) {
+		return nil
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ins, ok := e.ins[sym]
+	if !ok || ins == nil || ins.Kind != KindPerp {
+		return ErrUnknownSymbol
+	}
+	pos, ok := e.port.Position(accountID, sym)
+	if !ok || pos.Qty.IsZero() {
+		return nil
+	}
+	qtyAbs := pos.Qty.Abs()
+	notional := mark.Mul(qtyAbs)
+	fee := FeeNotional(notional, ins.TakerFeeBps)
+	var fills []Fill
+	if pos.Qty.Sign() > 0 {
+		fills = []Fill{{Price: mark, Size: qtyAbs}}
+		return e.port.ApplyPerpCloseLong(accountID, sym, ins, fills, fee)
+	}
+	fills = []Fill{{Price: mark, Size: qtyAbs}}
+	return e.port.ApplyPerpCloseShort(accountID, sym, ins, fills, fee)
 }

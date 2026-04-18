@@ -33,6 +33,23 @@ func (s *TickerStore) Update(t Ticker) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	prev, ok := s.data[t.Symbol]
+	if ok {
+		// Keep ticker time monotonic in replay/event scenarios.
+		if !t.Ts.IsZero() && t.Ts.Before(prev.Ts) {
+			return
+		}
+		// Keep latest non-zero mark/index when source message lacks them.
+		if !t.Mark.GreaterThan(decimal.Zero) {
+			t.Mark = prev.Mark
+		}
+		if !t.Index.GreaterThan(decimal.Zero) {
+			t.Index = prev.Index
+		}
+		if !t.Last.GreaterThan(decimal.Zero) {
+			t.Last = prev.Last
+		}
+	}
 	s.data[t.Symbol] = t
 }
 

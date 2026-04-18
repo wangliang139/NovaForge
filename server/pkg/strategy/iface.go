@@ -31,7 +31,8 @@ type OrderEngine interface {
 	// GetOrders 查询订单列表
 	GetOrders(ctx context.Context, accountID string, symbol ctypes.Symbol) ([]*ctypes.Order, error)
 
-	// GetAllOrders 查询所有订单
+	// GetAllOrders 查询引擎当前持有的订单；已完结订单可能已从引擎移除（视实现而定），
+	// 全量历史需由调用方持久化或收集器提供。
 	GetAllOrders(ctx context.Context, accountID string) ([]*ctypes.Order, error)
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/converter"
 	"github.com/wangliang139/NovaForge/server/pkg/market"
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector"
+	simconnector "github.com/wangliang139/NovaForge/server/pkg/market/connector/simulate"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
 	"github.com/wangliang139/NovaForge/server/pkg/precision"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
@@ -22,6 +23,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/repos/ledgers"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/orders"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/positions"
+	simcore "github.com/wangliang139/NovaForge/server/pkg/simulate"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/utils"
@@ -112,6 +114,36 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 		conn, err := connector.GetConnector(exchange, apiAccount)
 		if err != nil {
 			return nil, err
+		}
+		if simConn, ok := conn.(*simconnector.Connector); ok {
+			assets, err := e.GetAssets(ctx, acct.ID)
+			if err != nil {
+				return nil, fmt.Errorf("load account assets for simulate bootstrap: %w", err)
+			}
+			bals := make(map[types.WalletType]map[simcore.Asset]decimal.Decimal)
+			// Spot vs futures market types — GetWalletType decides buckets (OKX: both → trade).
+			allowedWalletTypes := map[types.WalletType]struct{}{
+				types.GetWalletType(acct.Exchange, types.MarketTypeSpot):   {},
+				types.GetWalletType(acct.Exchange, types.MarketTypeFuture): {},
+			}
+			for _, a := range assets {
+				if a == nil || !a.Balance.GreaterThan(decimal.Zero) {
+					continue
+				}
+				if _, ok := allowedWalletTypes[a.WalletType]; !ok {
+					continue
+				}
+				m := bals[a.WalletType]
+				if m == nil {
+					m = make(map[simcore.Asset]decimal.Decimal)
+					bals[a.WalletType] = m
+				}
+				code := simcore.Asset(a.Code)
+				m[code] = m[code].Add(a.Balance)
+			}
+			if err := simConn.SeedAccountBalances(bals); err != nil {
+				return nil, fmt.Errorf("seed simulate account balances: %w", err)
+			}
 		}
 		return conn, nil
 	}
@@ -272,7 +304,13 @@ func (e *Entity) CreateAccount(ctx context.Context, input types.CreateAccountInp
 	if err != nil {
 		return nil, err
 	}
-	return converter.AccountRepo2Types(po), nil
+	out := converter.AccountRepo2Types(po)
+	if out != nil && out.AccountType == ctypes.AccountTypeVirtual && out.Status == ctypes.AccountStatusOnline {
+		go func() {
+			_ = e.syncOneSimulateAccount(context.Background(), out.ID, false)
+		}()
+	}
+	return out, nil
 }
 
 func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountRequest) (*types.Account, error) {
@@ -382,7 +420,13 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 	if err != nil {
 		return nil, err
 	}
-	return converter.AccountRepo2Types(po), nil
+	out := converter.AccountRepo2Types(po)
+	if out != nil && out.AccountType == ctypes.AccountTypeVirtual {
+		go func() {
+			_ = e.syncOneSimulateAccount(context.Background(), out.ID, out.Status == ctypes.AccountStatusOffline)
+		}()
+	}
+	return out, nil
 }
 
 func (e *Entity) UpdateAccountStatus(ctx context.Context, id string, status types.AccountStatus) (*types.Account, error) {
@@ -439,7 +483,13 @@ func (e *Entity) UpdateAccountStatus(ctx context.Context, id string, status type
 	if err != nil {
 		return nil, err
 	}
-	return converter.AccountRepo2Types(po), nil
+	out := converter.AccountRepo2Types(po)
+	if out != nil && out.AccountType == ctypes.AccountTypeVirtual {
+		go func() {
+			_ = e.syncOneSimulateAccount(context.Background(), out.ID, out.Status == ctypes.AccountStatusOffline)
+		}()
+	}
+	return out, nil
 }
 
 // DeleteAccount performs logical delete for an account by id.

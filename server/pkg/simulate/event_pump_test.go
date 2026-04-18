@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func TestEventPumpReplayTimeAndTicker(t *testing.T) {
@@ -16,6 +18,8 @@ func TestEventPumpReplayTimeAndTicker(t *testing.T) {
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("BTC"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -24,7 +28,7 @@ func TestEventPumpReplayTimeAndTicker(t *testing.T) {
 		MinNotional: decimal.NewFromInt(1),
 	}
 	depth := NewMarketDepth()
-	if err := ex.InitBalances("acct1", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(10000)}); err != nil {
+	if err := ex.InitBalances("acct1", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(10000))); err != nil {
 		t.Fatal(err)
 	}
 	if err := ex.RegisterInstrument(ins); err != nil {
@@ -77,8 +81,9 @@ func TestEventPumpReplayTimeAndTicker(t *testing.T) {
 		t.Fatalf("market order should not rest, got %d", len(orderList))
 	}
 	bal := ex.GetBalances("acct1")
-	if !bal[Asset("BTC")].Equal(decimal.NewFromInt(1)) {
-		t.Fatalf("unexpected BTC balance: %s", bal[Asset("BTC")])
+	btcKey := BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: Asset("BTC")}
+	if !bal[btcKey].Equal(decimal.NewFromInt(1)) {
+		t.Fatalf("unexpected BTC balance: %s", bal[btcKey])
 	}
 }
 
@@ -90,6 +95,8 @@ func TestEventPumpDelayedCancel(t *testing.T) {
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("ETH"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -109,7 +116,7 @@ func TestEventPumpDelayedCancel(t *testing.T) {
 			{Price: decimal.NewFromInt(199), Size: decimal.NewFromInt(5)},
 		},
 	})
-	if err := ex.InitBalances("acct1", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(10000)}); err != nil {
+	if err := ex.InitBalances("acct1", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(10000))); err != nil {
 		t.Fatal(err)
 	}
 	if err := ex.RegisterInstrument(ins); err != nil {

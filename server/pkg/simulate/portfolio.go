@@ -4,6 +4,8 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
+
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // Position is a one-way net position (positive long, negative short).
@@ -21,8 +23,16 @@ type Portfolio struct {
 	accounts map[string]*AccountState
 }
 
+// BalanceKey identifies a wallet bucket + asset code. The wallet dimension is exchange-specific:
+// routing uses types.GetWalletType(exchange, marketType) — e.g. OKX maps both spot and futures to
+// WalletTypeTrade (one shared bucket); Binance keeps spot vs futures in separate buckets.
+type BalanceKey struct {
+	Wallet ctypes.WalletType
+	Asset  Asset
+}
+
 type AccountState struct {
-	balances  map[Asset]decimal.Decimal
+	balances  map[ctypes.WalletType]map[Asset]decimal.Decimal
 	positions map[Symbol]*Position
 }
 
@@ -34,43 +44,61 @@ func NewPortfolio() *Portfolio {
 }
 
 // SetBalance sets absolute balance for an asset (initialization / deposit).
-func (p *Portfolio) SetBalance(accountID string, a Asset, v decimal.Decimal) {
+func (p *Portfolio) SetBalance(accountID string, wt ctypes.WalletType, a Asset, v decimal.Decimal) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	acc.balances[a] = v
+	m := acc.balances[wt]
+	if m == nil {
+		m = make(map[Asset]decimal.Decimal)
+		acc.balances[wt] = m
+	}
+	m[a] = v
 }
 
 // Balances returns a snapshot of balances (including zeros for known keys only if set).
-func (p *Portfolio) Balances(accountID string) map[Asset]decimal.Decimal {
+func (p *Portfolio) Balances(accountID string) map[BalanceKey]decimal.Decimal {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	out := make(map[Asset]decimal.Decimal, len(acc.balances))
-	for k, v := range acc.balances {
-		out[k] = v
+	out := make(map[BalanceKey]decimal.Decimal)
+	for wt, m := range acc.balances {
+		for a, v := range m {
+			out[BalanceKey{Wallet: wt, Asset: a}] = v
+		}
 	}
 	return out
 }
 
-// Balance returns balance for asset.
-func (p *Portfolio) Balance(accountID string, a Asset) decimal.Decimal {
+// Balance returns balance for asset in a wallet bucket.
+func (p *Portfolio) Balance(accountID string, wt ctypes.WalletType, a Asset) decimal.Decimal {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	return acc.balances[a]
+	if acc.balances[wt] == nil {
+		return decimal.Zero
+	}
+	return acc.balances[wt][a]
 }
 
-func (p *Portfolio) addBal(acc *AccountState, a Asset, v decimal.Decimal) {
-	acc.balances[a] = acc.balances[a].Add(v)
+func (p *Portfolio) addBal(acc *AccountState, wt ctypes.WalletType, a Asset, v decimal.Decimal) {
+	if acc.balances[wt] == nil {
+		acc.balances[wt] = make(map[Asset]decimal.Decimal)
+	}
+	m := acc.balances[wt]
+	m[a] = m[a].Add(v)
 }
 
-func (p *Portfolio) subBal(acc *AccountState, a Asset, v decimal.Decimal) error {
-	cur := acc.balances[a]
+func (p *Portfolio) subBal(acc *AccountState, wt ctypes.WalletType, a Asset, v decimal.Decimal) error {
+	if acc.balances[wt] == nil {
+		acc.balances[wt] = make(map[Asset]decimal.Decimal)
+	}
+	m := acc.balances[wt]
+	cur := m[a]
 	if cur.Sub(v).Sign() < 0 {
 		return ErrInsufficientBalance
 	}
-	acc.balances[a] = cur.Sub(v)
+	m[a] = cur.Sub(v)
 	return nil
 }
 
@@ -108,7 +136,7 @@ func (p *Portfolio) ensureAccount(accountID string) *AccountState {
 		return acc
 	}
 	acc := &AccountState{
-		balances:  make(map[Asset]decimal.Decimal),
+		balances:  make(map[ctypes.WalletType]map[Asset]decimal.Decimal),
 		positions: make(map[Symbol]*Position),
 	}
 	p.accounts[accountID] = acc
@@ -121,6 +149,12 @@ func (p *Portfolio) SetPosition(accountID string, sym Symbol, pos Position) {
 	acc := p.ensureAccount(accountID)
 	cp := pos
 	acc.positions[sym] = &cp
+}
+
+func (p *Portfolio) RemoveAccount(accountID string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	delete(p.accounts, accountID)
 }
 
 // ApplySpotBuy spends quote (incl. fee), receives base.
@@ -136,10 +170,11 @@ func (p *Portfolio) ApplySpotBuy(accountID string, ins *Instrument, fills []Fill
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	if err := p.subBal(acc, ins.Quote, quote.Add(feeQuote)); err != nil {
+	wt := ins.WalletType()
+	if err := p.subBal(acc, wt, ins.Quote, quote.Add(feeQuote)); err != nil {
 		return err
 	}
-	p.addBal(acc, ins.Base, base)
+	p.addBal(acc, wt, ins.Base, base)
 	return nil
 }
 
@@ -156,10 +191,11 @@ func (p *Portfolio) ApplySpotSell(accountID string, ins *Instrument, fills []Fil
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	if err := p.subBal(acc, ins.Base, base); err != nil {
+	wt := ins.WalletType()
+	if err := p.subBal(acc, wt, ins.Base, base); err != nil {
 		return err
 	}
-	p.addBal(acc, ins.Quote, quote.Sub(feeQuote))
+	p.addBal(acc, wt, ins.Quote, quote.Sub(feeQuote))
 	return nil
 }
 
@@ -220,7 +256,8 @@ func (p *Portfolio) ApplyPerpOpenLong(accountID string, sym Symbol, ins *Instrum
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	if err := p.subBal(acc, ins.Quote, im.Add(feeQuote)); err != nil {
+	wt := ins.WalletType()
+	if err := p.subBal(acc, wt, ins.Quote, im.Add(feeQuote)); err != nil {
 		return err
 	}
 	pos := p.posPtr(acc, sym)
@@ -250,7 +287,8 @@ func (p *Portfolio) ApplyPerpOpenShort(accountID string, sym Symbol, ins *Instru
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
-	if err := p.subBal(acc, ins.Quote, im.Add(feeQuote)); err != nil {
+	wt := ins.WalletType()
+	if err := p.subBal(acc, wt, ins.Quote, im.Add(feeQuote)); err != nil {
 		return err
 	}
 	pos := p.posPtr(acc, sym)
@@ -280,6 +318,7 @@ func (p *Portfolio) ApplyPerpCloseLong(accountID string, sym Symbol, ins *Instru
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
+	wt := ins.WalletType()
 	pos := p.posPtr(acc, sym)
 	if pos.Qty.Sign() <= 0 {
 		return ErrInvalidIntent
@@ -295,7 +334,7 @@ func (p *Portfolio) ApplyPerpCloseLong(accountID string, sym Symbol, ins *Instru
 	if pos.Qty.IsZero() {
 		pos.EntryPrice = decimal.Zero
 	}
-	p.addBal(acc, ins.Quote, realized.Sub(feeQuote).Add(rel))
+	p.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote).Add(rel))
 	return nil
 }
 
@@ -314,6 +353,7 @@ func (p *Portfolio) ApplyPerpCloseShort(accountID string, sym Symbol, ins *Instr
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	acc := p.ensureAccount(accountID)
+	wt := ins.WalletType()
 	pos := p.posPtr(acc, sym)
 	if pos.Qty.Sign() >= 0 {
 		return ErrInvalidIntent
@@ -330,6 +370,6 @@ func (p *Portfolio) ApplyPerpCloseShort(accountID string, sym Symbol, ins *Instr
 	if pos.Qty.IsZero() {
 		pos.EntryPrice = decimal.Zero
 	}
-	p.addBal(acc, ins.Quote, realized.Sub(feeQuote).Add(rel))
+	p.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote).Add(rel))
 	return nil
 }

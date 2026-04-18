@@ -5,19 +5,21 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 func TestConnectorAdapterFullAccountingSpot(t *testing.T) {
 	sym := Symbol("SOLUSDT")
 	ex := NewSimExchange()
-	if err := ex.InitBalances("u1", map[Asset]decimal.Decimal{
-		Asset("USDT"): decimal.NewFromInt(1000),
-	}); err != nil {
+	if err := ex.InitBalances("u1", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(1000))); err != nil {
 		t.Fatal(err)
 	}
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("SOL"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -59,19 +61,22 @@ func TestConnectorAdapterFullAccountingSpot(t *testing.T) {
 		t.Fatalf("unexpected order: %+v", got)
 	}
 	bal := adapter.Balance(context.Background(), "u1")
-	if !bal[Asset("SOL")].Equal(decimal.NewFromInt(2)) {
-		t.Fatalf("unexpected SOL balance: %s", bal[Asset("SOL")])
+	solKey := BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: Asset("SOL")}
+	if !bal[solKey].Equal(decimal.NewFromInt(2)) {
+		t.Fatalf("unexpected SOL balance: %s", bal[solKey])
 	}
 }
 
 func TestConnectorAdapterMultiAccountBalance(t *testing.T) {
 	sym := Symbol("ADAUSDT")
 	ex := NewSimExchange()
-	_ = ex.InitBalances("u1", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(1000)})
-	_ = ex.InitBalances("u2", map[Asset]decimal.Decimal{Asset("USDT"): decimal.NewFromInt(1000)})
+	_ = ex.InitBalances("u1", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(1000)))
+	_ = ex.InitBalances("u2", seedUSDT(ctypes.WalletTypeSpot, decimal.NewFromInt(1000)))
 	ins := &Instrument{
 		Symbol:      sym,
 		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
 		Base:        Asset("ADA"),
 		Quote:       Asset("USDT"),
 		PriceTick:   decimal.NewFromInt(1),
@@ -102,10 +107,11 @@ func TestConnectorAdapterMultiAccountBalance(t *testing.T) {
 	}
 	b1 := adapter.Balance(context.Background(), "u1")
 	b2 := adapter.Balance(context.Background(), "u2")
-	if !b1[Asset("ADA")].Equal(decimal.NewFromInt(3)) {
-		t.Fatalf("u1 ada=%s", b1[Asset("ADA")])
+	adaKey := BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: Asset("ADA")}
+	if !b1[adaKey].Equal(decimal.NewFromInt(3)) {
+		t.Fatalf("u1 ada=%s", b1[adaKey])
 	}
-	if !b2[Asset("ADA")].IsZero() {
-		t.Fatalf("u2 ada=%s", b2[Asset("ADA")])
+	if !b2[adaKey].IsZero() {
+		t.Fatalf("u2 ada=%s", b2[adaKey])
 	}
 }

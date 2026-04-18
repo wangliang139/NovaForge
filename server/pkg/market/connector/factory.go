@@ -54,7 +54,7 @@ func GetConnector(exchange ctypes.Exchange, account *mdtypes.ApiAccount) (mdtype
 
 	var err error
 	var connector mdtypes.Connector
-	if account.IsSimulate {
+	if account != nil && account.IsSimulate {
 		connector, err = simulate.New(exchange, account)
 	} else {
 		switch exchange {

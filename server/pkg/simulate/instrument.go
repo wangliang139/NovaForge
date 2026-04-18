@@ -2,6 +2,8 @@ package simulate
 
 import (
 	"github.com/shopspring/decimal"
+
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // InstrumentKind distinguishes spot and perpetual-style contracts.
@@ -24,6 +26,11 @@ type Instrument struct {
 	Base  Asset
 	Quote Asset
 
+	// Exchange + Market determine the wallet bucket via ctypes.GetWalletType(exchange, marketType).
+	// Examples: Binance spot vs futures use different buckets; OKX uses a single trade bucket for both.
+	Exchange ctypes.Exchange
+	Market   ctypes.MarketType
+
 	PriceTick decimal.Decimal
 	QtyStep   decimal.Decimal
 
@@ -39,6 +46,23 @@ type Instrument struct {
 
 	// LeverageMax caps leverage on perp opens (e.g. 125). Ignored for spot.
 	LeverageMax int32
+}
+
+// WalletType resolves the wallet bucket for this instrument's balances. It does not mean
+// “one bucket per spot/future” globally — see GetWalletType (e.g. OKX: trade for both markets).
+func (ins *Instrument) WalletType() ctypes.WalletType {
+	if ins == nil {
+		return ctypes.WalletTypeTrade
+	}
+	if ins.Exchange.IsValid() && ins.Market.Valid() {
+		return ctypes.GetWalletType(ins.Exchange, ins.Market)
+	}
+	switch ins.Kind {
+	case KindPerp:
+		return ctypes.WalletTypeFuture
+	default:
+		return ctypes.WalletTypeSpot
+	}
 }
 
 // DefaultContractMultiplier returns 1 if m is zero.

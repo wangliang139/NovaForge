@@ -65,9 +65,13 @@ func NewOrderEngineManager(
 
 	// 订单管理器在撮合阶段处理订单意图，在状态更新阶段处理订单和成交事件
 	// 单点订阅：Order（包含 intent + order events）
-	_, _ = eventBus.Subscribe(m.onOrderSignal, int(mb.StageMatching), mb.NewTypeFilter(stypes.SignalTypeOrder))
+	if _, err := eventBus.Subscribe(m.onOrderSignal, int(mb.StageMatching), mb.NewTypeFilter(stypes.SignalTypeOrder)); err != nil {
+		return nil, fmt.Errorf("subscribe order signals: %w", err)
+	}
 	// 单点订阅：Fill
-	_, _ = eventBus.Subscribe(m.onFillSignal, int(mb.StageStateUpdate), mb.NewTypeFilter(stypes.SignalTypeFill))
+	if _, err := eventBus.Subscribe(m.onFillSignal, int(mb.StageStateUpdate), mb.NewTypeFilter(stypes.SignalTypeFill)); err != nil {
+		return nil, fmt.Errorf("subscribe fill signals: %w", err)
+	}
 
 	return m, nil
 }

@@ -32,7 +32,7 @@ func (c *ConnectorAdapter) GetOrders(_ context.Context, accountID string, sym Sy
 	return c.ex.ListOpenOrders(accountID, sym)
 }
 
-func (c *ConnectorAdapter) Balance(_ context.Context, accountID string) map[Asset]decimal.Decimal {
+func (c *ConnectorAdapter) Balance(_ context.Context, accountID string) map[BalanceKey]decimal.Decimal {
 	return c.ex.GetBalances(accountID)
 }
 
