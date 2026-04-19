@@ -126,3 +126,11 @@ func FeeNotional(notional decimal.Decimal, feeBps int64) decimal.Decimal {
 	}
 	return notional.Mul(decimal.NewFromInt(feeBps)).Div(decimal.NewFromInt(10000))
 }
+
+// SpotFeeBaseFromQuote maps quote-denominated fee (bps on fill notional) to base quantity for spot buy fee-in-base.
+func SpotFeeBaseFromQuote(notional, baseQty, feeQuote decimal.Decimal) decimal.Decimal {
+	if notional.IsZero() || feeQuote.IsZero() {
+		return decimal.Zero
+	}
+	return feeQuote.Mul(baseQty).Div(notional)
+}

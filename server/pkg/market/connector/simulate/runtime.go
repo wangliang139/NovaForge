@@ -371,6 +371,20 @@ func (rt *VenueRuntime) accountEventToMessage(ev AccountEvent) *ctypes.Message {
 	}
 
 	switch ev.kind {
+	case AccountEventTypeLeverage:
+		sym := toTypesSymbol(ev.symbol)
+		if ev.leverage == nil || !sym.IsValid() || ev.leverage.leverage < 1 {
+			return nil
+		}
+		sl := &ctypes.SymbolLeverage{
+			Exchange:  rt.Exchange,
+			Symbol:    sym,
+			Side:      ev.leverage.leverageSide,
+			Leverage:  ev.leverage.leverage,
+			UpdatedTs: now,
+		}
+		return ctypes.NewMessage(rt.Exchange, sel, sl, now)
+
 	case AccountEventTypeOrder:
 		if ev.order == nil {
 			return nil

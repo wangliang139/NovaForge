@@ -148,10 +148,12 @@ type Order struct {
 	QtyRemaining  decimal.Decimal
 	QtyFilled     decimal.Decimal
 	AvgFillPrice  decimal.Decimal
-	// FeePaid is cumulative quote fee when QtyFilled > 0; negative (expense), magnitude matches ledger FeeNotional.
+	// FeePaid：累计手续费支出（负数）；合约/现货卖为 quote；现货买为 base（与扣款资产一致）。
 	FeePaid  decimal.Decimal
-	FeeAsset string // quote asset code, e.g. USDT; empty when no fills
-	Status   OrderStatus
+	FeeAsset string // 手续费币种：合约与现货卖为 quote；现货买为 base
+	// RealizedPnl：合约平仓维度累计（同一订单多次撮合含 maker 分批时递加）；开仓为 0；不含手续费；现货不使用。
+	RealizedPnl   decimal.Decimal
+	Status        OrderStatus
 	CreatedAt     time.Time
 	LastUpdatedAt time.Time
 	RejectReason  string
@@ -178,7 +180,13 @@ const (
 	AccountEventTypeOrder AccountEventType = iota
 	AccountEventTypeBalance
 	AccountEventTypePosition
+	AccountEventTypeLeverage
 )
+
+type LeverageChange struct {
+	leverage     int
+	leverageSide ctypes.PositionSide
+}
 
 type AccountEvent struct {
 	accountID string
@@ -187,4 +195,5 @@ type AccountEvent struct {
 	order     *Order
 	balance   *AccountSnapshot
 	position  *PerpSlot
+	leverage  *LeverageChange
 }

@@ -488,6 +488,7 @@ func (e *Engine) doPlaceOrder(o *Order, ts time.Time) *PlaceOrderResult {
 
 	var allFills []Fill
 	var feeSum decimal.Decimal
+	var feeBaseSum decimal.Decimal // 现货买入：累计以 base 计的手续费（用于订单展示与 attach）
 	takerBps := ins.TakerFeeBps
 	lev := o.Leverage
 	if lev <= 0 {
@@ -522,6 +523,7 @@ func (e *Engine) doPlaceOrder(o *Order, ts time.Time) *PlaceOrderResult {
 				if err := e.ledger.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
 					return e.rejectPlacedOrder(o, book, err.Error(), now)
 				}
+				feeBaseSum = feeBaseSum.Add(SpotFeeBaseFromQuote(notional, filledQty, fee))
 			} else {
 				if err := e.ledger.ApplySpotSell(accountID, ins, fills, fee); err != nil {
 					return e.rejectPlacedOrder(o, book, err.Error(), now)
@@ -555,6 +557,7 @@ func (e *Engine) doPlaceOrder(o *Order, ts time.Time) *PlaceOrderResult {
 					if err := e.ledger.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
 						return e.rejectPlacedOrder(o, book, err.Error(), now)
 					}
+					feeBaseSum = feeBaseSum.Add(SpotFeeBaseFromQuote(notional, filledQty, fee))
 				} else {
 					if err := e.ledger.ApplySpotSell(accountID, ins, fills, fee); err != nil {
 						return e.rejectPlacedOrder(o, book, err.Error(), now)
@@ -639,14 +642,43 @@ func (e *Engine) doPlaceOrder(o *Order, ts time.Time) *PlaceOrderResult {
 		}
 	}
 
-	attachOrderFeeMeta(o, ins, feeSum)
+	attachOrderFeeMeta(o, ins, feeSum, feeBaseSum)
 	if o.Status == OrderStatusFilled || o.Status == OrderStatusRejected {
 		book.PutOrderRecord(o)
 	}
-	return &PlaceOrderResult{Order: *o, Fills: allFills, FeePaid: feeSum.Neg()}
+	return &PlaceOrderResult{Order: *o, Fills: allFills, FeePaid: o.FeePaid}
+}
+
+func quoteRealizedPnLForPerpOrder(slot *PerpSlot, o *Order, fills []Fill) decimal.Decimal {
+	if slot == nil || len(fills) == 0 {
+		return decimal.Zero
+	}
+	if slot.Mode == PositionModeHedge {
+		isBuy := o.Side == SideBuy
+		if HedgeOpen(o.PosSide, isBuy) {
+			return decimal.Zero
+		}
+		switch o.PosSide {
+		case ctypes.PositionSideLong:
+			return QuoteRealizedPnLHedgeCloseLong(slot.Long, fills)
+		case ctypes.PositionSideShort:
+			return QuoteRealizedPnLHedgeCloseShort(slot.Short, fills)
+		default:
+			return decimal.Zero
+		}
+	}
+	if o.Intent != IntentClose {
+		return decimal.Zero
+	}
+	if o.Side == SideSell {
+		return QuoteRealizedPnLOneWayCloseLong(slot.Net, fills)
+	}
+	return QuoteRealizedPnLOneWayCloseShort(slot.Net, fills)
 }
 
 func (e *Engine) applyPerpFills(accountID string, ins *Instrument, o *Order, fills []Fill, fee decimal.Decimal, lev int32, slot *PerpSlot) error {
+	// RealizedPnl 按订单累计（限价多次吃单路径会多次进入此处）
+	o.RealizedPnl = o.RealizedPnl.Add(quoteRealizedPnLForPerpOrder(slot, o, fills))
 	if slot.Mode == PositionModeHedge {
 		isBuy := o.Side == SideBuy
 		opening := HedgeOpen(o.PosSide, isBuy)
@@ -697,12 +729,18 @@ func fillOrderImmediate(o *Order, fills []Fill, notional, filledQty decimal.Deci
 	o.LastUpdatedAt = now.UTC()
 }
 
-// attachOrderFeeMeta sets cumulative fee on the wire Order when there are fills (quote currency, negative = paid).
-func attachOrderFeeMeta(o *Order, ins *Instrument, feeSum decimal.Decimal) {
+// attachOrderFeeMeta sets cumulative fee on the wire Order when there are fills (negative = paid).
+// feeSumQuote: 按 bps×名义累计的 quote 手续费额；feeBaseSum: 现货买入时累计的 base 手续费量（与 ledger 一致）。
+func attachOrderFeeMeta(o *Order, ins *Instrument, feeSumQuote, feeBaseSum decimal.Decimal) {
 	if o == nil || ins == nil || o.QtyFilled.Sign() <= 0 {
 		return
 	}
-	o.FeePaid = feeSum.Neg()
+	if ins.Kind == KindSpot && o.Side == SideBuy {
+		o.FeePaid = feeBaseSum.Neg()
+		o.FeeAsset = string(ins.Base)
+		return
+	}
+	o.FeePaid = feeSumQuote.Neg()
 	o.FeeAsset = string(ins.Quote)
 }
 
@@ -768,20 +806,27 @@ func (e *Engine) onDepthUpdatedUnlocked(sym Symbol) ([]MatchEvent, error) {
 					if err := e.ledger.ApplySpotBuy(ev.Order.AccountID, ins, ev.Fills, fee); err != nil {
 						return all, err
 					}
+					fq := totalFilledQty(ev.Fills)
+					fb := SpotFeeBaseFromQuote(notional, fq, fee)
+					ev.Order.FeePaid = ev.Order.FeePaid.Add(fb.Neg())
+					ev.Order.FeeAsset = string(ins.Base)
 				} else {
 					if err := e.ledger.ApplySpotSell(ev.Order.AccountID, ins, ev.Fills, fee); err != nil {
 						return all, err
+					}
+					ev.Order.FeePaid = ev.Order.FeePaid.Add(fee.Neg())
+					if ev.Order.FeeAsset == "" {
+						ev.Order.FeeAsset = string(ins.Quote)
 					}
 				}
 			case KindPerp:
 				if err := e.applyPerpFills(ev.Order.AccountID, ins, ev.Order, ev.Fills, fee, ev.Order.Leverage, slot); err != nil {
 					return all, err
 				}
-			}
-
-			ev.Order.FeePaid = ev.Order.FeePaid.Add(fee.Neg())
-			if ev.Order.FeeAsset == "" {
-				ev.Order.FeeAsset = string(ins.Quote)
+				ev.Order.FeePaid = ev.Order.FeePaid.Add(fee.Neg())
+				if ev.Order.FeeAsset == "" {
+					ev.Order.FeeAsset = string(ins.Quote)
+				}
 			}
 
 			if e.rt != nil {
@@ -953,13 +998,16 @@ func (e *Engine) forceCloseOneWayAtMarkSynthetic(accountID string, sym Symbol, m
 	notional := mark.Mul(qtyAbs)
 	fee := FeeNotional(notional, ins.TakerFeeBps)
 	var fills []Fill
+	var rp decimal.Decimal
 	if pos.Qty.Sign() > 0 {
 		fills = []Fill{{Price: mark, Size: qtyAbs}}
+		rp = QuoteRealizedPnLOneWayCloseLong(pos, fills)
 		if err := e.ledger.ApplyPerpCloseLong(accountID, sym, ins, fills, fee, slot); err != nil {
 			return nil
 		}
 	} else {
 		fills = []Fill{{Price: mark, Size: qtyAbs}}
+		rp = QuoteRealizedPnLOneWayCloseShort(pos, fills)
 		if err := e.ledger.ApplyPerpCloseShort(accountID, sym, ins, fills, fee, slot); err != nil {
 			return nil
 		}
@@ -988,6 +1036,7 @@ func (e *Engine) forceCloseOneWayAtMarkSynthetic(accountID string, sym Symbol, m
 		AvgFillPrice:  mark,
 		FeePaid:       fee.Neg(),
 		FeeAsset:      string(ins.Quote),
+		RealizedPnl:   rp,
 		Status:        OrderStatusFilled,
 		CreatedAt:     now,
 		LastUpdatedAt: now,
@@ -1021,14 +1070,16 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 		if slot.Long.Qty.IsZero() {
 			return nil
 		}
+		legSnap := slot.Long
 		q := slot.Long.Qty
 		notional := mark.Mul(q)
 		fee = FeeNotional(notional, ins.TakerFeeBps)
 		fills = []Fill{{Price: mark, Size: q}}
+		rpLong := QuoteRealizedPnLHedgeCloseLong(legSnap, fills)
 		if err := e.ledger.ApplyHedgeCloseLong(accountID, ins, fills, fee, slot); err != nil {
 			return nil
 		}
-		lev := slot.Long.Leverage
+		lev := legSnap.Leverage
 		if lev <= 0 {
 			lev = int32(DefaultSimulateLeverage)
 		}
@@ -1048,6 +1099,7 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 			AvgFillPrice:  mark,
 			FeePaid:       fee.Neg(),
 			FeeAsset:      string(ins.Quote),
+			RealizedPnl:   rpLong,
 			Status:        OrderStatusFilled,
 			CreatedAt:     now,
 			LastUpdatedAt: now,
@@ -1057,14 +1109,16 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 		if slot.Short.Qty.IsZero() {
 			return nil
 		}
+		legSnap := slot.Short
 		q := slot.Short.Qty
 		notional := mark.Mul(q)
 		fee = FeeNotional(notional, ins.TakerFeeBps)
 		fills = []Fill{{Price: mark, Size: q}}
+		rpSh := QuoteRealizedPnLHedgeCloseShort(legSnap, fills)
 		if err := e.ledger.ApplyHedgeCloseShort(accountID, ins, fills, fee, slot); err != nil {
 			return nil
 		}
-		lev := slot.Short.Leverage
+		lev := legSnap.Leverage
 		if lev <= 0 {
 			lev = int32(DefaultSimulateLeverage)
 		}
@@ -1084,6 +1138,7 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 			AvgFillPrice:  mark,
 			FeePaid:       fee.Neg(),
 			FeeAsset:      string(ins.Quote),
+			RealizedPnl:   rpSh,
 			Status:        OrderStatusFilled,
 			CreatedAt:     now,
 			LastUpdatedAt: now,
@@ -1135,32 +1190,89 @@ func (e *Engine) Balances(accountID string) map[BalanceKey]decimal.Decimal {
 	return e.ledger.Balances(accountID)
 }
 
-// SetLeverage stores leverage for (account, symbol).
-func (e *Engine) SetLeverage(accountID string, sym Symbol, lev int) int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+// applyLeverageStateLocked updates per-symbol leverage map and rescales slot margin when instr is perp.
+// Caller must hold e.mu.
+func (e *Engine) applyLeverageStateLocked(accountID string, sym Symbol, lev int) error {
 	if e.leverages == nil {
 		e.leverages = make(map[accountLevKey]int)
 	}
+	ins := e.ins[sym]
+	if ins != nil && ins.Kind == KindPerp {
+		if err := e.ledger.SyncPerpSlotLeverage(accountID, sym, ins, int32(lev)); err != nil {
+			return err
+		}
+	}
 	e.leverages[accountLevKey{accountID, sym}] = lev
-	return lev
+	return nil
+}
+
+func (e *Engine) leverageForAccountSymbolLocked(accountID string, sym Symbol) int {
+	if v, ok := e.leverages[accountLevKey{accountID, sym}]; ok && v > 0 {
+		return v
+	}
+	return DefaultSimulateLeverage
+}
+
+func (e *Engine) publishLeverageChangeLocked(accountID string, sym Symbol, lev int) {
+	if e.rt == nil {
+		return
+	}
+	for _, side := range []ctypes.PositionSide{ctypes.PositionSideLong, ctypes.PositionSideShort} {
+		e.rt.enqueueAccountPublish(AccountEvent{
+			accountID: accountID,
+			symbol:    sym,
+			kind:      AccountEventTypeLeverage,
+			leverage:  &LeverageChange{leverage: lev, leverageSide: side},
+		})
+	}
+}
+
+// SetLeverage stores leverage for (account, symbol), syncs perp slot margin, and publishes when leverage changes.
+func (e *Engine) SetLeverage(accountID string, sym Symbol, lev int) (int, error) {
+	if lev < 1 {
+		return 0, fmt.Errorf("simulate: invalid leverage")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	oldLev := e.leverageForAccountSymbolLocked(accountID, sym)
+	if oldLev == lev {
+		return lev, nil
+	}
+
+	ins := e.ins[sym]
+	if ins != nil && ins.Kind == KindSpot {
+		return 0, fmt.Errorf("simulate: spot does not support leverage")
+	}
+
+	if err := e.applyLeverageStateLocked(accountID, sym, lev); err != nil {
+		return 0, err
+	}
+
+	e.publishLeverageChangeLocked(accountID, sym, lev)
+	return lev, nil
 }
 
 // MergeSymbolLeverages sets leverage for multiple symbols (does not delete keys omitted from levs).
+// Does not emit account stream events (used when hydrating from persistence).
 func (e *Engine) MergeSymbolLeverages(accountID string, levs map[Symbol]int) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if len(levs) == 0 {
 		return
 	}
-	if e.leverages == nil {
-		e.leverages = make(map[accountLevKey]int)
-	}
 	for sym, lev := range levs {
 		if lev <= 0 {
 			continue
 		}
-		e.leverages[accountLevKey{accountID, sym}] = lev
+		ins := e.ins[sym]
+		if ins != nil && ins.Kind != KindPerp {
+			continue
+		}
+		if err := e.applyLeverageStateLocked(accountID, sym, lev); err != nil {
+			log.Warn().Err(err).Str("symbol", string(sym)).Msg("simulate: merge leverage skipped")
+			continue
+		}
 	}
 }
 
@@ -1168,10 +1280,7 @@ func (e *Engine) MergeSymbolLeverages(accountID string, levs map[Symbol]int) {
 func (e *Engine) Leverage(accountID string, sym Symbol) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if v, ok := e.leverages[accountLevKey{accountID, sym}]; ok && v > 0 {
-		return v
-	}
-	return DefaultSimulateLeverage
+	return e.leverageForAccountSymbolLocked(accountID, sym)
 }
 
 // AllSymbols returns registered instrument symbols.

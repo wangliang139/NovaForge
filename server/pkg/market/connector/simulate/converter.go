@@ -121,6 +121,9 @@ func orderFromTypes(c *Connector, od *ctypes.Order, qtyRemaining decimal.Decimal
 	if od.FeeAsset != nil && *od.FeeAsset != "" {
 		o.FeeAsset = *od.FeeAsset
 	}
+	if od.Symbol.Type == ctypes.MarketTypeFuture && od.RealizedPnl != nil {
+		o.RealizedPnl = *od.RealizedPnl
+	}
 	return o
 }
 
@@ -165,10 +168,11 @@ func toTypesOrder(exchange ctypes.Exchange, od *Order) *ctypes.Order {
 	if src == "" {
 		src = ctypes.OrderSourceUser
 	}
-	return &ctypes.Order{
+	sym := toTypesSymbol(od.Symbol)
+	out := &ctypes.Order{
 		AccountID:        od.AccountID,
 		Exchange:         exchange,
-		Symbol:           toTypesSymbol(od.Symbol),
+		Symbol:           sym,
 		OrderID:          ctypes.OrderId(od.ID),
 		ClientOrderID:    ctypes.OrderId(od.ClientOrderID),
 		OrderType:        toTypesOrderType(od.OrderType),
@@ -186,7 +190,28 @@ func toTypesOrder(exchange ctypes.Exchange, od *Order) *ctypes.Order {
 		ExecutedQuoteQty: od.QtyFilled.Mul(od.AvgFillPrice),
 		Side:             od.PosSide,
 		Source:           src,
-		Fee:              &od.FeePaid,
-		FeeAsset:         &od.FeeAsset,
 	}
+	if od.QtyFilled.Sign() > 0 {
+		fee := od.FeePaid
+		out.Fee = &fee
+		asset := od.FeeAsset
+		if asset == "" {
+			asset = sym.Quote
+			if asset == "" {
+				asset = "USDT"
+			}
+		}
+		out.FeeAsset = &asset
+	}
+	// 仅合约：RealizedPnl 为累计值；现货不设置
+	if sym.Type == ctypes.MarketTypeFuture {
+		pnl := od.RealizedPnl
+		out.RealizedPnl = &pnl
+		pa := sym.Quote
+		if pa == "" {
+			pa = "USDT"
+		}
+		out.PnlAsset = &pa
+	}
+	return out
 }

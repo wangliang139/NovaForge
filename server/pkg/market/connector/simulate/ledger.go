@@ -236,11 +236,75 @@ func (l *Ledger) MergeSeedHedgeLeg(accountID string, sym Symbol, side ctypes.Pos
 	}
 }
 
+func slotUsedMarginSum(s *PerpSlot) decimal.Decimal {
+	if s == nil {
+		return decimal.Zero
+	}
+	if s.Mode == PositionModeHedge {
+		return s.Long.UsedMargin.Add(s.Short.UsedMargin)
+	}
+	return s.Net.UsedMargin
+}
+
 func initialMargin(qty, price decimal.Decimal, lev int32) decimal.Decimal {
 	if lev <= 0 {
 		lev = int32(DefaultSimulateLeverage)
 	}
 	return qty.Abs().Mul(price).Div(decimal.NewFromInt32(lev))
+}
+
+// SyncPerpSlotLeverage updates leg leverage fields and rescales booked initial margin.
+// If the new requirement exceeds available collateral, returns ErrInsufficientBalance.
+func (l *Ledger) SyncPerpSlotLeverage(accountID string, sym Symbol, ins *Instrument, newLev int32) error {
+	if ins == nil || newLev < 1 {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	acc := l.ensureAccount(accountID)
+	s, ok := acc.perpSlots[sym]
+	if !ok || s == nil {
+		return nil
+	}
+	oldSum := slotUsedMarginSum(s)
+	ns := *s
+
+	switch ns.Mode {
+	case PositionModeHedge:
+		if ns.Long.Qty.Sign() > 0 {
+			ns.Long.UsedMargin = initialMargin(ns.Long.Qty, ns.Long.EntryPrice, newLev)
+		} else {
+			ns.Long.UsedMargin = decimal.Zero
+		}
+		ns.Long.Leverage = newLev
+
+		if ns.Short.Qty.Sign() > 0 {
+			ns.Short.UsedMargin = initialMargin(ns.Short.Qty, ns.Short.EntryPrice, newLev)
+		} else {
+			ns.Short.UsedMargin = decimal.Zero
+		}
+		ns.Short.Leverage = newLev
+
+	default:
+		if ns.Net.Qty.IsZero() {
+			ns.Net.UsedMargin = decimal.Zero
+		} else {
+			ns.Net.UsedMargin = initialMargin(ns.Net.Qty.Abs(), ns.Net.EntryPrice, newLev)
+		}
+		ns.Net.Leverage = newLev
+	}
+
+	newSum := slotUsedMarginSum(&ns)
+	delta := newSum.Sub(oldSum)
+	if delta.Sign() > 0 {
+		wt := ins.WalletType()
+		avail := availableQuoteForPerpOpen(acc, wt, ins.Quote)
+		if avail.LessThan(delta) {
+			return ErrInsufficientBalance
+		}
+	}
+	*s = ns
+	return nil
 }
 
 func releaseUsedMargin(used, legQty, closedQty decimal.Decimal) decimal.Decimal {
@@ -275,9 +339,77 @@ func availableQuoteForPerpOpen(acc *accountState, wt ctypes.WalletType, quote As
 	return bal.Sub(sumUsedMarginSlots(acc))
 }
 
+// QuoteRealizedPnLOneWayCloseLong returns pre-fee realized PnL in quote for fills closing a long (pos snapshot before close).
+func QuoteRealizedPnLOneWayCloseLong(pos Position, fills []Fill) decimal.Decimal {
+	if len(fills) == 0 || pos.Qty.Sign() <= 0 {
+		return decimal.Zero
+	}
+	var fq, notional decimal.Decimal
+	for _, f := range fills {
+		fq = fq.Add(f.Size)
+		notional = notional.Add(f.Price.Mul(f.Size))
+	}
+	if fq.IsZero() {
+		return decimal.Zero
+	}
+	avgExit := AveragePrice(notional, fq)
+	return avgExit.Sub(pos.EntryPrice).Mul(fq)
+}
+
+// QuoteRealizedPnLOneWayCloseShort returns pre-fee realized PnL in quote for fills closing a short (one-way net before close).
+func QuoteRealizedPnLOneWayCloseShort(pos Position, fills []Fill) decimal.Decimal {
+	if len(fills) == 0 || pos.Qty.Sign() >= 0 {
+		return decimal.Zero
+	}
+	var fq, notional decimal.Decimal
+	for _, f := range fills {
+		fq = fq.Add(f.Size)
+		notional = notional.Add(f.Price.Mul(f.Size))
+	}
+	if fq.IsZero() {
+		return decimal.Zero
+	}
+	avgExit := AveragePrice(notional, fq)
+	return pos.EntryPrice.Sub(avgExit).Mul(fq)
+}
+
+// QuoteRealizedPnLHedgeCloseLong returns pre-fee realized PnL for hedge-mode sell closing long leg.
+func QuoteRealizedPnLHedgeCloseLong(leg PerpLeg, fills []Fill) decimal.Decimal {
+	if len(fills) == 0 || leg.Qty.IsZero() {
+		return decimal.Zero
+	}
+	var fq, notional decimal.Decimal
+	for _, f := range fills {
+		fq = fq.Add(f.Size)
+		notional = notional.Add(f.Price.Mul(f.Size))
+	}
+	if fq.IsZero() {
+		return decimal.Zero
+	}
+	avgExit := AveragePrice(notional, fq)
+	return avgExit.Sub(leg.EntryPrice).Mul(fq)
+}
+
+// QuoteRealizedPnLHedgeCloseShort returns pre-fee realized PnL for hedge-mode buy closing short leg.
+func QuoteRealizedPnLHedgeCloseShort(leg PerpLeg, fills []Fill) decimal.Decimal {
+	if len(fills) == 0 || leg.Qty.IsZero() {
+		return decimal.Zero
+	}
+	var fq, notional decimal.Decimal
+	for _, f := range fills {
+		fq = fq.Add(f.Size)
+		notional = notional.Add(f.Price.Mul(f.Size))
+	}
+	if fq.IsZero() {
+		return decimal.Zero
+	}
+	avgExit := AveragePrice(notional, fq)
+	return leg.EntryPrice.Sub(avgExit).Mul(fq)
+}
+
 // --- spot ---
 
-// ApplySpotBuy spends quote (incl. fee), receives base.
+// ApplySpotBuy spends quote for notional only; fee is taken from received base (fee-in-base).
 func (l *Ledger) ApplySpotBuy(accountID string, ins *Instrument, fills []Fill, feeQuote decimal.Decimal) error {
 	if len(fills) == 0 {
 		return nil
@@ -287,14 +419,18 @@ func (l *Ledger) ApplySpotBuy(accountID string, ins *Instrument, fills []Fill, f
 		base = base.Add(f.Size)
 		quote = quote.Add(f.Price.Mul(f.Size))
 	}
+	feeBase := SpotFeeBaseFromQuote(quote, base, feeQuote)
+	if feeBase.GreaterThan(base) {
+		return ErrInsufficientBalance
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	acc := l.ensureAccount(accountID)
 	wt := ins.WalletType()
-	if err := l.subBal(acc, wt, ins.Quote, quote.Add(feeQuote)); err != nil {
+	if err := l.subBal(acc, wt, ins.Quote, quote); err != nil {
 		return err
 	}
-	l.addBal(acc, wt, ins.Base, base)
+	l.addBal(acc, wt, ins.Base, base.Sub(feeBase))
 	return nil
 }
 

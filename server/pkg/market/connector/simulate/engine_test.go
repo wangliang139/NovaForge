@@ -38,6 +38,23 @@ func testPerpInstrument(sym Symbol) *Instrument {
 	}
 }
 
+func testSpotInstrument(sym Symbol) *Instrument {
+	return &Instrument{
+		Symbol:      sym,
+		Kind:        KindSpot,
+		Exchange:    ctypes.ExchangeBinance,
+		Market:      ctypes.MarketTypeSpot,
+		Base:        "BTC",
+		Quote:       "USDT",
+		PriceTick:   dec("0.1"),
+		QtyStep:     dec("0.001"),
+		MinQty:      dec("0.001"),
+		MinNotional: dec("5"),
+		TakerFeeBps: 10,
+		MakerFeeBps: 10,
+	}
+}
+
 func seedDepth(t *testing.T, eng *Engine, ct ctypes.Symbol) {
 	t.Helper()
 	_, err := eng.ApplyDepthBook(&ctypes.OrderBook{
@@ -133,6 +150,48 @@ func TestOneWayNetPosition(t *testing.T) {
 	require.True(t, pos.Qty.GreaterThan(decimal.Zero))
 }
 
+func TestSpotBuyFeeDeductedInBase(t *testing.T) {
+	eng := NewEngine()
+	ct := ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeSpot)
+	sym := Symbol(ct.String())
+	require.NoError(t, eng.RegisterInstrument(testSpotInstrument(sym)))
+	seedDepth(t, eng, ct)
+
+	acc := "spot-buy-fee"
+	eng.InitBalances(acc, map[ctypes.WalletType]map[Asset]decimal.Decimal{
+		ctypes.WalletTypeSpot: {"USDT": dec("100000"), "BTC": dec("0")},
+	})
+
+	res := placeOrderForTest(t, eng, PlaceOrderRequest{
+		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy, Qty: dec("0.1"),
+	})
+	require.Equal(t, OrderStatusFilled, res.Order.Status)
+
+	notional := dec("50100").Mul(dec("0.1"))
+	feeQ := FeeNotional(notional, 10)
+	wantFeeBase := SpotFeeBaseFromQuote(notional, dec("0.1"), feeQ)
+
+	bals := eng.Ledger().Balances(acc)
+	usdt := bals[BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: "USDT"}]
+	require.True(t, dec("100000").Sub(usdt).Equal(notional), "USDT 仅扣成交价不含 quote 手续费")
+
+	btc := bals[BalanceKey{Wallet: ctypes.WalletTypeSpot, Asset: "BTC"}]
+	require.True(t, dec("0.1").Sub(btc).Equal(wantFeeBase), "BTC 到账 = 成交量 - base 手续费")
+
+	stored, ok := eng.GetOrder(acc, sym, res.Order.ID)
+	require.True(t, ok)
+	require.Equal(t, "BTC", stored.FeeAsset)
+	require.True(t, stored.FeePaid.Equal(wantFeeBase.Neg()))
+}
+
+func TestToTypesOrderSpotOmitsRealizedPnl(t *testing.T) {
+	ct := ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeSpot)
+	od := &Order{Symbol: Symbol(ct.String()), RealizedPnl: dec("999")} // 即便内部误写，对外也不应带出（现货）
+	out := toTypesOrder(ctypes.ExchangeBinance, od)
+	require.Nil(t, out.RealizedPnl)
+	require.Nil(t, out.PnlAsset)
+}
+
 func TestFeeNotionalFormula(t *testing.T) {
 	n := decimal.NewFromInt(12345)
 	want := n.Mul(decimal.NewFromInt(7)).Div(decimal.NewFromInt(10000))
@@ -140,6 +199,43 @@ func TestFeeNotionalFormula(t *testing.T) {
 }
 
 // 合约开仓：USDT 钱包只扣手续费；初始保证金记在持仓 UsedMargin，不从钱包余额重复扣除。
+func TestOneWayCloseOrderRealizedPnl(t *testing.T) {
+	eng := NewEngine()
+	ct := ctypes.NewSymbol("ETH", "USDT", ctypes.MarketTypeFuture)
+	sym := Symbol(ct.String())
+	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
+	seedDepth(t, eng, ct)
+
+	acc := "pnl1"
+	eng.SetAccountPositionMode(acc, PositionModeOneWay)
+	eng.InitBalances(acc, map[ctypes.WalletType]map[Asset]decimal.Decimal{
+		ctypes.WalletTypeFuture: {"USDT": dec("100000")},
+	})
+
+	open := placeOrderForTest(t, eng, PlaceOrderRequest{
+		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
+		Intent: IntentOpen, Leverage: 10, Qty: dec("0.1"),
+	})
+	require.Equal(t, OrderStatusFilled, open.Order.Status)
+
+	closeRes := placeOrderForTest(t, eng, PlaceOrderRequest{
+		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideSell,
+		Intent: IntentClose, ReduceOnly: true, Leverage: 10, Qty: dec("0.1"),
+	})
+	require.Equal(t, OrderStatusFilled, closeRes.Order.Status)
+
+	storedClose, ok := eng.GetOrder(acc, sym, closeRes.Order.ID)
+	require.True(t, ok)
+	wantPnl := dec("49900").Sub(dec("50100")).Mul(dec("0.1"))
+	require.True(t, storedClose.RealizedPnl.Equal(wantPnl), "got %s want %s", storedClose.RealizedPnl, wantPnl)
+
+	co := toTypesOrder(ctypes.ExchangeBinance, &storedClose)
+	require.NotNil(t, co.RealizedPnl)
+	require.True(t, co.RealizedPnl.Equal(wantPnl))
+	require.NotNil(t, co.PnlAsset)
+	require.Equal(t, "USDT", *co.PnlAsset)
+}
+
 func TestOrderFillExposesFeeOnGetOrderAndTypes(t *testing.T) {
 	eng := NewEngine()
 	ct, sym := btcFutureSym()

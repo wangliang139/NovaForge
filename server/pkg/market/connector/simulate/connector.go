@@ -2,7 +2,6 @@ package simulate
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -436,11 +435,16 @@ func (c *Connector) CancelOrder(ctx context.Context, symbol ctypes.Symbol, order
 
 func (c *Connector) SetLeverage(ctx context.Context, symbol ctypes.Symbol, leverage int) (int, error) {
 	_ = ctx
+	if !symbol.IsValid() {
+		return 0, fmt.Errorf("simulate: invalid symbol")
+	}
+	if symbol.Type != ctypes.MarketTypeFuture {
+		return 0, fmt.Errorf("simulate: only futures support leverage")
+	}
 	if leverage < 1 {
 		return 0, fmt.Errorf("simulate: invalid leverage")
 	}
-	c.rt.Engine.SetLeverage(c.accountID, Symbol(symbol.String()), leverage)
-	return leverage, nil
+	return c.rt.Engine.SetLeverage(c.accountID, Symbol(symbol.String()), leverage)
 }
 
 // SyncSymbolLeveragesFromPersistence merges per-symbol leverage from DB-backed flat legs (qty=0 rows).
@@ -499,19 +503,6 @@ func (c *Connector) PublishAccountMessage(msg *ctypes.Message) {
 			log.Error().Str("accountID", c.accountID).Msg("simulate: account publish channel is full")
 		}
 	}
-}
-
-func (c *Connector) nextEventID() string {
-	return GenerateCompactID(c.accountID)
-}
-
-func (c *Connector) mustEventMetaJSON(ts time.Time) string {
-	payload, _ := json.Marshal(map[string]any{
-		"eventId": c.nextEventID(),
-		"ts":      ts.UnixMilli(),
-		"source":  "simulate",
-	})
-	return string(payload)
 }
 
 func defaultFeesByMarketType(mt ctypes.MarketType) (decimal.Decimal, decimal.Decimal) {
