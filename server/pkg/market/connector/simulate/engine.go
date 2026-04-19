@@ -1293,3 +1293,60 @@ func (e *Engine) AllSymbols() []Symbol {
 	}
 	return out
 }
+
+// fundingQuoteWalletDelta returns quote wallet delta (positive = receive) for Binance/OKX USDT-M style funding:
+// notional uses mark × contract multiplier × qty; long pays shorts when rate > 0.
+func fundingQuoteWalletDelta(slot *PerpSlot, mark, rate, mult decimal.Decimal) decimal.Decimal {
+	if rate.IsZero() || !mark.GreaterThan(decimal.Zero) || mult.Sign() <= 0 || slot == nil {
+		return decimal.Zero
+	}
+	m := mark.Mul(mult).Mul(rate)
+	switch slot.Mode {
+	case PositionModeHedge:
+		return slot.Short.Qty.Sub(slot.Long.Qty).Mul(m)
+	default:
+		return slot.Net.Qty.Neg().Mul(m)
+	}
+}
+
+// settleFunding applies funding to all accounts with a perp slot on sym; publishes balance snapshots only.
+func (e *Engine) settleFunding(sym Symbol, mark, rate decimal.Decimal) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ins := e.ins[sym]
+	if ins == nil || ins.Kind != KindPerp {
+		return
+	}
+	if !mark.GreaterThan(decimal.Zero) || rate.IsZero() {
+		return
+	}
+	mult := DefaultContractMultiplier(ins.ContractMultiplier)
+	wt := ins.WalletType()
+	quote := ins.Quote
+	ids := e.ledger.ListAccountIDs()
+	var changed []string
+	for _, aid := range ids {
+		st, ok := e.ledger.GetPerpSlot(aid, sym)
+		if !ok {
+			continue
+		}
+		delta := fundingQuoteWalletDelta(&st, mark, rate, mult)
+		if delta.IsZero() {
+			continue
+		}
+		e.ledger.ApplyQuoteDelta(aid, wt, quote, delta)
+		changed = append(changed, aid)
+	}
+	if len(changed) == 0 || e.rt == nil {
+		return
+	}
+	for _, aid := range changed {
+		after := e.accountSnapshotLocked(aid, sym)
+		e.rt.enqueueAccountPublish(AccountEvent{
+			accountID: aid,
+			symbol:    sym,
+			kind:      AccountEventTypeBalance,
+			balance:   &after,
+		})
+	}
+}

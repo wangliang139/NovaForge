@@ -68,6 +68,28 @@ func (l *Ledger) ensureAccount(accountID string) *accountState {
 	return acc
 }
 
+// ApplyQuoteDelta adds delta to the quote asset in a wallet (negative debits). Used for perp funding; no balance floor check.
+func (l *Ledger) ApplyQuoteDelta(accountID string, wt ctypes.WalletType, quote Asset, delta decimal.Decimal) {
+	if delta.IsZero() {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	acc := l.ensureAccount(accountID)
+	l.addBal(acc, wt, quote, delta)
+}
+
+// ListAccountIDs returns account ids that have ledger state (balances or perp slots).
+func (l *Ledger) ListAccountIDs() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	out := make([]string, 0, len(l.accounts))
+	for id := range l.accounts {
+		out = append(out, id)
+	}
+	return out
+}
+
 // SetBalance sets absolute balance for an asset (initialization / deposit).
 func (l *Ledger) SetBalance(accountID string, wt ctypes.WalletType, a Asset, v decimal.Decimal) {
 	l.mu.Lock()

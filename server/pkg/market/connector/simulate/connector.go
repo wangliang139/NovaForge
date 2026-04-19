@@ -562,6 +562,9 @@ func (c *Connector) ensureSymbolInitialized(ctx context.Context, symbol ctypes.S
 	}
 	if c.rt.tryMarkSymbolSimReady(symbol) {
 		c.rt.onSymbolSimReady(symbol)
+		if symbol.Type == ctypes.MarketTypeFuture {
+			c.rt.registerFundingSymbol(symbol)
+		}
 	}
 	return nil
 }

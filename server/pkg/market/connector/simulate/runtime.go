@@ -49,6 +49,13 @@ type VenueRuntime struct {
 
 	accountPublishCh       chan AccountEvent
 	accountPublishQueueCap int
+
+	// Perp funding: min-heap of scheduled settlements (Binance/OKX-aligned), one wall timer to next deadline.
+	fundingWakeMu sync.Mutex
+	fundingMu     sync.Mutex
+	fundingHeap   *fundingHeap
+	fundingTimer  *time.Timer
+	fundingNext   map[Symbol]time.Time // canonical next fire time per paper symbol (lazy heap eviction)
 }
 
 var (
