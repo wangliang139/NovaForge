@@ -250,6 +250,31 @@ func releaseUsedMargin(used, legQty, closedQty decimal.Decimal) decimal.Decimal 
 	return used.Mul(closedQty).Div(legQty)
 }
 
+// sumUsedMarginSlots returns total isolated-style margin booked on all perp slots (USDT-M style: quote collateral).
+func sumUsedMarginSlots(acc *accountState) decimal.Decimal {
+	var sum decimal.Decimal
+	for _, slot := range acc.perpSlots {
+		if slot == nil {
+			continue
+		}
+		if slot.Mode == PositionModeHedge {
+			sum = sum.Add(slot.Long.UsedMargin).Add(slot.Short.UsedMargin)
+			continue
+		}
+		sum = sum.Add(slot.Net.UsedMargin)
+	}
+	return sum
+}
+
+// availableQuoteForPerpOpen is ledger balance minus margin already tracked on positions (opening does not move IM into wallet subBal).
+func availableQuoteForPerpOpen(acc *accountState, wt ctypes.WalletType, quote Asset) decimal.Decimal {
+	var bal decimal.Decimal
+	if m := acc.balances[wt]; m != nil {
+		bal = m[quote]
+	}
+	return bal.Sub(sumUsedMarginSlots(acc))
+}
+
 // --- spot ---
 
 // ApplySpotBuy spends quote (incl. fee), receives base.
@@ -337,7 +362,10 @@ func (l *Ledger) ApplyPerpOpenLong(accountID string, sym Symbol, ins *Instrument
 	defer l.mu.Unlock()
 	acc := l.ensureAccount(accountID)
 	wt := ins.WalletType()
-	if err := l.subBal(acc, wt, ins.Quote, im.Add(feeQuote)); err != nil {
+	if availableQuoteForPerpOpen(acc, wt, ins.Quote).LessThan(im.Add(feeQuote)) {
+		return ErrInsufficientBalance
+	}
+	if err := l.subBal(acc, wt, ins.Quote, feeQuote); err != nil {
 		return err
 	}
 	pos := &slot.Net
@@ -368,7 +396,10 @@ func (l *Ledger) ApplyPerpOpenShort(accountID string, sym Symbol, ins *Instrumen
 	defer l.mu.Unlock()
 	acc := l.ensureAccount(accountID)
 	wt := ins.WalletType()
-	if err := l.subBal(acc, wt, ins.Quote, im.Add(feeQuote)); err != nil {
+	if availableQuoteForPerpOpen(acc, wt, ins.Quote).LessThan(im.Add(feeQuote)) {
+		return ErrInsufficientBalance
+	}
+	if err := l.subBal(acc, wt, ins.Quote, feeQuote); err != nil {
 		return err
 	}
 	pos := &slot.Net
@@ -414,7 +445,7 @@ func (l *Ledger) ApplyPerpCloseLong(accountID string, sym Symbol, ins *Instrumen
 	if pos.Qty.IsZero() {
 		pos.EntryPrice = decimal.Zero
 	}
-	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote).Add(rel))
+	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote))
 	return nil
 }
 
@@ -449,7 +480,7 @@ func (l *Ledger) ApplyPerpCloseShort(accountID string, sym Symbol, ins *Instrume
 	if pos.Qty.IsZero() {
 		pos.EntryPrice = decimal.Zero
 	}
-	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote).Add(rel))
+	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote))
 	return nil
 }
 
@@ -472,7 +503,10 @@ func (l *Ledger) ApplyHedgeOpenLong(accountID string, ins *Instrument, fills []F
 	defer l.mu.Unlock()
 	acc := l.ensureAccount(accountID)
 	wt := ins.WalletType()
-	if err := l.subBal(acc, wt, ins.Quote, im.Add(feeQuote)); err != nil {
+	if availableQuoteForPerpOpen(acc, wt, ins.Quote).LessThan(im.Add(feeQuote)) {
+		return ErrInsufficientBalance
+	}
+	if err := l.subBal(acc, wt, ins.Quote, feeQuote); err != nil {
 		return err
 	}
 	leg := &slot.Long
@@ -500,7 +534,10 @@ func (l *Ledger) ApplyHedgeOpenShort(accountID string, ins *Instrument, fills []
 	defer l.mu.Unlock()
 	acc := l.ensureAccount(accountID)
 	wt := ins.WalletType()
-	if err := l.subBal(acc, wt, ins.Quote, im.Add(feeQuote)); err != nil {
+	if availableQuoteForPerpOpen(acc, wt, ins.Quote).LessThan(im.Add(feeQuote)) {
+		return ErrInsufficientBalance
+	}
+	if err := l.subBal(acc, wt, ins.Quote, feeQuote); err != nil {
 		return err
 	}
 	leg := &slot.Short
@@ -538,7 +575,7 @@ func (l *Ledger) ApplyHedgeCloseLong(accountID string, ins *Instrument, fills []
 	if leg.Qty.IsZero() {
 		leg.EntryPrice = decimal.Zero
 	}
-	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote).Add(rel))
+	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote))
 	return nil
 }
 
@@ -569,6 +606,6 @@ func (l *Ledger) ApplyHedgeCloseShort(accountID string, ins *Instrument, fills [
 	if leg.Qty.IsZero() {
 		leg.EntryPrice = decimal.Zero
 	}
-	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote).Add(rel))
+	l.addBal(acc, wt, ins.Quote, realized.Sub(feeQuote))
 	return nil
 }

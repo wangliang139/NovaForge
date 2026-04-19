@@ -50,8 +50,15 @@ func seedDepth(t *testing.T, eng *Engine, ct ctypes.Symbol) {
 	require.NoError(t, err)
 }
 
+// placeOrderForTest runs the same path as PlaceOrder but returns the result for assertions.
+func placeOrderForTest(t *testing.T, eng *Engine, req PlaceOrderRequest) *PlaceOrderResult {
+	t.Helper()
+	eng.mu.Lock()
+	defer eng.mu.Unlock()
+	return eng.placeOrderMuLocked(req, eng.now())
+}
+
 func TestHedgeLongAndShortSimultaneously(t *testing.T) {
-	ctx := context.Background()
 	eng := NewEngine()
 	ct, sym := btcFutureSym()
 	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
@@ -64,12 +71,11 @@ func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	})
 
 	// Open long 0.1 @ market (buy long)
-	var res *PlaceOrderResult
-	eng.PlaceOrder(ctx, PlaceOrderRequest{
+	res := placeOrderForTest(t, eng, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
 		PosSide: ctypes.PositionSideLong, ReduceOnly: false, Leverage: 10,
 		Qty: dec("0.1"),
-	}, nil, func(before, after AccountSnapshot, r *PlaceOrderResult) { res = r })
+	})
 	require.NotNil(t, res)
 	require.Equal(t, OrderStatusFilled, res.Order.Status)
 
@@ -78,12 +84,11 @@ func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	require.True(t, slot.Short.Qty.IsZero())
 
 	// Open short 0.05 (sell short)
-	var res2 *PlaceOrderResult
-	eng.PlaceOrder(ctx, PlaceOrderRequest{
+	res2 := placeOrderForTest(t, eng, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideSell,
 		PosSide: ctypes.PositionSideShort, ReduceOnly: false, Leverage: 10,
 		Qty: dec("0.05"),
-	}, nil, func(before, after AccountSnapshot, r *PlaceOrderResult) { res2 = r })
+	})
 	require.NotNil(t, res2)
 	require.Equal(t, OrderStatusFilled, res2.Order.Status)
 
@@ -92,12 +97,11 @@ func TestHedgeLongAndShortSimultaneously(t *testing.T) {
 	require.True(t, slot.Short.Qty.Equal(dec("0.05")))
 
 	// Close long 0.1 (sell long, reduce-only style direction)
-	var res3 *PlaceOrderResult
-	eng.PlaceOrder(ctx, PlaceOrderRequest{
+	res3 := placeOrderForTest(t, eng, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideSell,
 		PosSide: ctypes.PositionSideLong, ReduceOnly: true, Leverage: 10,
 		Qty: dec("0.1"),
-	}, nil, func(before, after AccountSnapshot, r *PlaceOrderResult) { res3 = r })
+	})
 	require.NotNil(t, res3)
 	require.Equal(t, OrderStatusFilled, res3.Order.Status)
 
@@ -123,7 +127,7 @@ func TestOneWayNetPosition(t *testing.T) {
 	eng.PlaceOrder(ctx, PlaceOrderRequest{
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
 		Intent: IntentOpen, ReduceOnly: false, Leverage: 5, Qty: dec("0.02"),
-	}, nil, nil)
+	})
 	pos, ok := eng.NetPosition(acc, sym)
 	require.True(t, ok)
 	require.True(t, pos.Qty.GreaterThan(decimal.Zero))
@@ -133,6 +137,43 @@ func TestFeeNotionalFormula(t *testing.T) {
 	n := decimal.NewFromInt(12345)
 	want := n.Mul(decimal.NewFromInt(7)).Div(decimal.NewFromInt(10000))
 	require.True(t, FeeNotional(n, 7).Equal(want), "got %s want %s", FeeNotional(n, 7), want)
+}
+
+// 合约开仓：USDT 钱包只扣手续费；初始保证金记在持仓 UsedMargin，不从钱包余额重复扣除。
+func TestPerpOpenDeductsQuoteFeeOnly(t *testing.T) {
+	eng := NewEngine()
+	ct, sym := btcFutureSym()
+	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
+	seedDepth(t, eng, ct)
+
+	acc := "fee-check"
+	eng.SetAccountPositionMode(acc, PositionModeHedge)
+	start := dec("100000")
+	eng.InitBalances(acc, map[ctypes.WalletType]map[Asset]decimal.Decimal{
+		ctypes.WalletTypeFuture: {"USDT": start},
+	})
+
+	res := placeOrderForTest(t, eng, PlaceOrderRequest{
+		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
+		PosSide: ctypes.PositionSideLong, ReduceOnly: false, Leverage: 10,
+		Qty: dec("0.1"),
+	})
+	require.NotNil(t, res)
+	require.Equal(t, OrderStatusFilled, res.Order.Status)
+
+	// 深度 ask 50100 → 名义 5010 U，手续费 10 bps = 5.01；保证金记在持仓侧。
+	notional := dec("50100").Mul(dec("0.1"))
+	wantFee := FeeNotional(notional, 10)
+	wantIM := notional.Div(decimal.NewFromInt(10))
+
+	slot, ok := eng.Ledger().GetPerpSlot(acc, sym)
+	require.True(t, ok)
+	require.True(t, slot.Long.UsedMargin.Equal(wantIM))
+
+	bals := eng.Ledger().Balances(acc)
+	key := BalanceKey{Wallet: ctypes.WalletTypeFuture, Asset: "USDT"}
+	end := bals[key]
+	require.True(t, start.Sub(wantFee).Equal(end), "wallet want %s got %s (fee %s)", start.Sub(wantFee), end, wantFee)
 }
 
 func TestApplyDepthBookMakerFill(t *testing.T) {
@@ -161,7 +202,7 @@ func TestApplyDepthBookMakerFill(t *testing.T) {
 		AccountID: acc, Symbol: sym, OrderType: OrderTypeLimit, Side: SideBuy,
 		Intent: IntentOpen, ReduceOnly: false, Leverage: 10,
 		Price: dec("49950"), Qty: dec("0.1"),
-	}, nil, nil)
+	})
 
 	evs, err := eng.ApplyDepthBook(&ctypes.OrderBook{
 		Symbol:    ct,

@@ -17,8 +17,9 @@ type (
 )
 
 var (
-	TopicName           = ctypes.TopicName
-	StreamKey           = ctypes.StreamKey
-	NewSecretApiAccount = types.NewSecretApiAccount
-	NewPlainApiAccount  = types.NewPlainApiAccount
+	TopicName             = ctypes.TopicName
+	StreamKey             = ctypes.StreamKey
+	NewSecretApiAccount   = types.NewSecretApiAccount
+	NewPlainApiAccount    = types.NewPlainApiAccount
+	NewSimulateApiAccount = types.NewSimulateApiAccount
 )

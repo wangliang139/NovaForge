@@ -235,8 +235,16 @@ func (e *Engine) connector(subscription *Subscription) (Connector, error) {
 	if account.AccountType != accountrepo.AccountTypeReal && account.AccountType != accountrepo.AccountTypeVirtual {
 		return nil, fmt.Errorf("unsupported account type: %s", account.AccountType)
 	}
-	apiAccount := NewSecretApiAccount(account.ID, subscription.Exchange, account.ApiKey, account.ApiSecret, account.Passphrase, string(account.Algorithm))
-	return connector.GetConnector(subscription.Exchange, apiAccount)
+	switch account.AccountType {
+	case accountrepo.AccountTypeReal:
+		apiAccount := NewSecretApiAccount(account.ID, subscription.Exchange, account.ApiKey, account.ApiSecret, account.Passphrase, string(account.Algorithm))
+		return connector.GetConnector(subscription.Exchange, apiAccount)
+	case accountrepo.AccountTypeVirtual:
+		apiAccount := NewSimulateApiAccount(account.ID, subscription.Exchange)
+		return connector.GetConnector(subscription.Exchange, apiAccount)
+	default:
+		return nil, fmt.Errorf("unsupported account type: %s", account.AccountType)
+	}
 }
 
 func (e *Engine) startStream(subscription *Subscription) error {
