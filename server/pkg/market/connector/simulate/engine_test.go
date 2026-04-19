@@ -140,6 +140,40 @@ func TestFeeNotionalFormula(t *testing.T) {
 }
 
 // 合约开仓：USDT 钱包只扣手续费；初始保证金记在持仓 UsedMargin，不从钱包余额重复扣除。
+func TestOrderFillExposesFeeOnGetOrderAndTypes(t *testing.T) {
+	eng := NewEngine()
+	ct, sym := btcFutureSym()
+	require.NoError(t, eng.RegisterInstrument(testPerpInstrument(sym)))
+	seedDepth(t, eng, ct)
+
+	acc := "fee-wire"
+	eng.SetAccountPositionMode(acc, PositionModeHedge)
+	eng.InitBalances(acc, map[ctypes.WalletType]map[Asset]decimal.Decimal{
+		ctypes.WalletTypeFuture: {"USDT": dec("100000")},
+	})
+
+	res := placeOrderForTest(t, eng, PlaceOrderRequest{
+		AccountID: acc, Symbol: sym, OrderType: OrderTypeMarket, Side: SideBuy,
+		PosSide: ctypes.PositionSideLong, ReduceOnly: false, Leverage: 10,
+		Qty: dec("0.1"),
+	})
+	require.NotNil(t, res)
+	require.Equal(t, OrderStatusFilled, res.Order.Status)
+
+	stored, ok := eng.GetOrder(acc, sym, res.Order.ID)
+	require.True(t, ok)
+	notional := dec("50100").Mul(dec("0.1"))
+	wantFee := FeeNotional(notional, 10).Neg()
+	require.True(t, stored.FeePaid.Equal(wantFee))
+	require.Equal(t, "USDT", stored.FeeAsset)
+
+	out := toTypesOrder(ctypes.ExchangeBinance, &stored)
+	require.NotNil(t, out.Fee)
+	require.True(t, out.Fee.Equal(wantFee))
+	require.NotNil(t, out.FeeAsset)
+	require.Equal(t, "USDT", *out.FeeAsset)
+}
+
 func TestPerpOpenDeductsQuoteFeeOnly(t *testing.T) {
 	eng := NewEngine()
 	ct, sym := btcFutureSym()

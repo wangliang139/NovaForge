@@ -639,10 +639,11 @@ func (e *Engine) doPlaceOrder(o *Order, ts time.Time) *PlaceOrderResult {
 		}
 	}
 
+	attachOrderFeeMeta(o, ins, feeSum)
 	if o.Status == OrderStatusFilled || o.Status == OrderStatusRejected {
 		book.PutOrderRecord(o)
 	}
-	return &PlaceOrderResult{Order: *o, Fills: allFills, FeePaid: feeSum}
+	return &PlaceOrderResult{Order: *o, Fills: allFills, FeePaid: feeSum.Neg()}
 }
 
 func (e *Engine) applyPerpFills(accountID string, ins *Instrument, o *Order, fills []Fill, fee decimal.Decimal, lev int32, slot *PerpSlot) error {
@@ -694,6 +695,15 @@ func fillOrderImmediate(o *Order, fills []Fill, notional, filledQty decimal.Deci
 	o.AvgFillPrice = AveragePrice(notional, filledQty)
 	o.Status = OrderStatusFilled
 	o.LastUpdatedAt = now.UTC()
+}
+
+// attachOrderFeeMeta sets cumulative fee on the wire Order when there are fills (quote currency, negative = paid).
+func attachOrderFeeMeta(o *Order, ins *Instrument, feeSum decimal.Decimal) {
+	if o == nil || ins == nil || o.QtyFilled.Sign() <= 0 {
+		return
+	}
+	o.FeePaid = feeSum.Neg()
+	o.FeeAsset = string(ins.Quote)
 }
 
 func partialFillOrder(o *Order, fills []Fill, notional, filledQty decimal.Decimal, now time.Time) {
@@ -767,6 +777,11 @@ func (e *Engine) onDepthUpdatedUnlocked(sym Symbol) ([]MatchEvent, error) {
 				if err := e.applyPerpFills(ev.Order.AccountID, ins, ev.Order, ev.Fills, fee, ev.Order.Leverage, slot); err != nil {
 					return all, err
 				}
+			}
+
+			ev.Order.FeePaid = ev.Order.FeePaid.Add(fee.Neg())
+			if ev.Order.FeeAsset == "" {
+				ev.Order.FeeAsset = string(ins.Quote)
 			}
 
 			if e.rt != nil {
@@ -971,12 +986,14 @@ func (e *Engine) forceCloseOneWayAtMarkSynthetic(accountID string, sym Symbol, m
 		QtyRemaining:  decimal.Zero,
 		QtyFilled:     qtyAbs,
 		AvgFillPrice:  mark,
+		FeePaid:       fee.Neg(),
+		FeeAsset:      string(ins.Quote),
 		Status:        OrderStatusFilled,
 		CreatedAt:     now,
 		LastUpdatedAt: now,
 		Source:        ctypes.OrderSourceLiquidation,
 	}
-	return &PlaceOrderResult{Order: o, Fills: fills, FeePaid: fee}
+	return &PlaceOrderResult{Order: o, Fills: fills, FeePaid: fee.Neg()}
 }
 
 // forceCloseHedgeLegAtMarkSynthetic closes one hedge leg at mark without the order book (fallback).
@@ -1029,6 +1046,8 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 			QtyRemaining:  decimal.Zero,
 			QtyFilled:     q,
 			AvgFillPrice:  mark,
+			FeePaid:       fee.Neg(),
+			FeeAsset:      string(ins.Quote),
 			Status:        OrderStatusFilled,
 			CreatedAt:     now,
 			LastUpdatedAt: now,
@@ -1063,6 +1082,8 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 			QtyRemaining:  decimal.Zero,
 			QtyFilled:     q,
 			AvgFillPrice:  mark,
+			FeePaid:       fee.Neg(),
+			FeeAsset:      string(ins.Quote),
 			Status:        OrderStatusFilled,
 			CreatedAt:     now,
 			LastUpdatedAt: now,
@@ -1071,7 +1092,7 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 	default:
 		return nil
 	}
-	return &PlaceOrderResult{Order: o, Fills: fills, FeePaid: fee}
+	return &PlaceOrderResult{Order: o, Fills: fills, FeePaid: fee.Neg()}
 }
 
 // NetPosition returns one-way position snapshot for compatibility.

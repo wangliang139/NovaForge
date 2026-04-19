@@ -148,7 +148,10 @@ type Order struct {
 	QtyRemaining  decimal.Decimal
 	QtyFilled     decimal.Decimal
 	AvgFillPrice  decimal.Decimal
-	Status        OrderStatus
+	// FeePaid is cumulative quote fee when QtyFilled > 0; negative (expense), magnitude matches ledger FeeNotional.
+	FeePaid  decimal.Decimal
+	FeeAsset string // quote asset code, e.g. USDT; empty when no fills
+	Status   OrderStatus
 	CreatedAt     time.Time
 	LastUpdatedAt time.Time
 	RejectReason  string

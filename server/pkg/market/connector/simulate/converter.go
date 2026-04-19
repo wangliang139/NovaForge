@@ -93,7 +93,7 @@ func orderFromTypes(c *Connector, od *ctypes.Order, qtyRemaining decimal.Decimal
 	if od.OrderType == ctypes.OrderTypeMarket {
 		simOT = OrderTypeMarket
 	}
-	return Order{
+	o := Order{
 		ID:            string(od.OrderID),
 		AccountID:     c.accountID,
 		ClientOrderID: string(od.ClientOrderID),
@@ -115,6 +115,13 @@ func orderFromTypes(c *Connector, od *ctypes.Order, qtyRemaining decimal.Decimal
 		RejectReason:  od.RejectReason,
 		Source:        src,
 	}
+	if od.Fee != nil {
+		o.FeePaid = *od.Fee
+	}
+	if od.FeeAsset != nil && *od.FeeAsset != "" {
+		o.FeeAsset = *od.FeeAsset
+	}
+	return o
 }
 
 func toTypesSymbol(symbol Symbol) ctypes.Symbol {
@@ -179,5 +186,7 @@ func toTypesOrder(exchange ctypes.Exchange, od *Order) *ctypes.Order {
 		ExecutedQuoteQty: od.QtyFilled.Mul(od.AvgFillPrice),
 		Side:             od.PosSide,
 		Source:           src,
+		Fee:              &od.FeePaid,
+		FeeAsset:         &od.FeeAsset,
 	}
 }
