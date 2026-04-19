@@ -539,7 +539,7 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 				Ts:        ts,
 			},
 			Side:       side,
-			Qty:        newQty,
+			Qty:        abs(newQty),
 			EntryPrice: newEntry,
 		}); err != nil {
 			return err

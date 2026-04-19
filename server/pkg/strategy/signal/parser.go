@@ -134,7 +134,7 @@ func ConvertPositionSignal(base stypes.BaseSignal, p *ctypes.Position) *stypes.P
 	return &stypes.PositionSignal{
 		BaseSignal: base,
 		Side:       p.Side,
-		Qty:        p.Amount,
+		Qty:        p.Amount.Abs(),
 		EntryPrice: p.EntryPrice,
 	}
 }

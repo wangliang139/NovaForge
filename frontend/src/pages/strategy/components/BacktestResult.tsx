@@ -25,7 +25,7 @@ import {
 } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { utils } from 'elliptic';
+import utils from '@/utils';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CartesianGrid,
