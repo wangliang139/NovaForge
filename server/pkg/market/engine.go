@@ -232,8 +232,8 @@ func (e *Engine) connector(subscription *Subscription) (Connector, error) {
 	if account == nil {
 		return nil, fmt.Errorf("account not found: %s", *subscription.Selector.Account)
 	}
-	if account.AccountType != accountrepo.AccountTypeReal {
-		return nil, fmt.Errorf("only real account is supported")
+	if account.AccountType != accountrepo.AccountTypeReal && account.AccountType != accountrepo.AccountTypeVirtual {
+		return nil, fmt.Errorf("unsupported account type: %s", account.AccountType)
 	}
 	apiAccount := NewSecretApiAccount(account.ID, subscription.Exchange, account.ApiKey, account.ApiSecret, account.Passphrase, string(account.Algorithm))
 	return connector.GetConnector(subscription.Exchange, apiAccount)

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -718,10 +719,14 @@ func (e *Engine) rejectPlacedOrder(order *Order, book *RestingBook, reason strin
 }
 
 // OnDepthUpdated matches resting orders after a depth commit.
-func (e *Engine) OnDepthUpdated(sym Symbol) ([]MatchEvent, error) {
+func (e *Engine) OnDepthUpdated(sym Symbol) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.onDepthUpdatedUnlocked(sym)
+	_, err := e.onDepthUpdatedUnlocked(sym)
+	if err != nil {
+		log.Error().Str("symbol", string(sym)).Msg("simulate: onDepthUpdated failed")
+		return
+	}
 }
 
 func (e *Engine) onDepthUpdatedUnlocked(sym Symbol) ([]MatchEvent, error) {
@@ -762,6 +767,31 @@ func (e *Engine) onDepthUpdatedUnlocked(sym Symbol) ([]MatchEvent, error) {
 				if err := e.applyPerpFills(ev.Order.AccountID, ins, ev.Order, ev.Fills, fee, ev.Order.Leverage, slot); err != nil {
 					return all, err
 				}
+			}
+
+			if e.rt != nil {
+				after := e.accountSnapshotLocked(ev.Order.AccountID, ev.Order.Symbol)
+				// 发布订单事件
+				e.rt.enqueueAccountPublish(AccountEvent{
+					accountID: ev.Order.AccountID,
+					symbol:    ev.Order.Symbol,
+					kind:      AccountEventTypeOrder,
+					order:     ev.Order,
+				})
+				// 发布资产事件
+				e.rt.enqueueAccountPublish(AccountEvent{
+					accountID: ev.Order.AccountID,
+					symbol:    ev.Order.Symbol,
+					kind:      AccountEventTypeBalance,
+					balance:   &after,
+				})
+				// 发布持仓事件
+				e.rt.enqueueAccountPublish(AccountEvent{
+					accountID: ev.Order.AccountID,
+					symbol:    ev.Order.Symbol,
+					kind:      AccountEventTypePosition,
+					position:  &after.Slot,
+				})
 			}
 			all = append(all, ev)
 		}

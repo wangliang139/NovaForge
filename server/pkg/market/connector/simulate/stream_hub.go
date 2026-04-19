@@ -358,17 +358,9 @@ func (rt *VenueRuntime) dispatchDepthIngest(msg *ctypes.Message) {
 	}
 
 	matchResting := rt.SymbolSimReady(sym)
-	events, err := rt.Engine.ApplyDepthBook(msg.Depth, matchResting)
+	_, err := rt.Engine.ApplyDepthBook(msg.Depth, matchResting)
 	if err != nil {
 		return
-	}
-
-	for i, c := range conns {
-		after := rt.Engine.AccountSnapshot(c.accountID, Symbol(sym.String()))
-		msgs := c.buildDiffAndMakerMessages(sym, events, before[i], after)
-		for _, m := range msgs {
-			c.publishAccountMessage(m)
-		}
 	}
 }
 
@@ -431,20 +423,7 @@ func (rt *VenueRuntime) onSymbolSimReady(sym ctypes.Symbol) {
 	}
 	rt.connsMu.RUnlock()
 
-	before := make([]AccountSnapshot, len(conns))
-	for i, c := range conns {
-		before[i] = rt.Engine.AccountSnapshot(c.accountID, paperSym)
-	}
-	events, err := rt.Engine.OnDepthUpdated(paperSym)
-	if err == nil {
-		for i, c := range conns {
-			after := rt.Engine.AccountSnapshot(c.accountID, paperSym)
-			msgs := c.buildDiffAndMakerMessages(sym, events, before[i], after)
-			for _, m := range msgs {
-				c.publishAccountMessage(m)
-			}
-		}
-	}
+	rt.Engine.OnDepthUpdated(paperSym)
 
 	if sym.Type != ctypes.MarketTypeFuture {
 		return

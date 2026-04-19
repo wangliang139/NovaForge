@@ -122,7 +122,7 @@ func (rt *VenueRuntime) runAccountPublishLoop() {
 		conns := rt.conns[aid]
 		rt.connsMu.RUnlock()
 		for _, conn := range conns {
-			conn.publishAccountMessage(msg)
+			conn.PublishAccountMessage(msg)
 		}
 	}
 }

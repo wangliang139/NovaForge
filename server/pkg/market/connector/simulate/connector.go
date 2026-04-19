@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
@@ -484,16 +485,18 @@ func (c *Connector) GetLeverageBracket(ctx context.Context, symbol ctypes.Symbol
 	}, nil
 }
 
-func (c *Connector) publishAccountMessage(msg *ctypes.Message) {
+func (c *Connector) PublishAccountMessage(msg *ctypes.Message) {
 	if msg == nil {
 		return
 	}
+	log.Info().Str("accountID", c.accountID).Any("msg", msg).Msg("simulate: publish account message")
 	c.subMu.Lock()
 	defer c.subMu.Unlock()
 	for ch := range c.accountSubs {
 		select {
 		case ch <- msg:
 		default:
+			log.Error().Str("accountID", c.accountID).Msg("simulate: account publish channel is full")
 		}
 	}
 }
