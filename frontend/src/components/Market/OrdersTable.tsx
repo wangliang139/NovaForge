@@ -408,9 +408,6 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         align: 'right',
         width: 120,
         render: (v: any, row: Order) => {
-          if (row.orderType === OrderType.Market) {
-            return '市价';
-          }
           return utils.math.formatByPrecision(v, 8);
         },
       },

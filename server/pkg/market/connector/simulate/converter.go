@@ -69,7 +69,7 @@ func orderFromTypes(c *Connector, od *ctypes.Order, qtyRemaining decimal.Decimal
 	}
 	lev := int32(c.rt.Engine.Leverage(c.accountID, sym))
 	if lev <= 0 {
-		lev = 1
+		lev = int32(DefaultSimulateLeverage)
 	}
 	st := OrderStatusNew
 	switch od.Status {

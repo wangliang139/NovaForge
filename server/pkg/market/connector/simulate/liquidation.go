@@ -60,7 +60,7 @@ func (l *LiquidationEngine) tryOneWay(accountID string, sym Symbol, mark decimal
 	}
 	lev := pos.Leverage
 	if lev <= 0 {
-		lev = 1
+		lev = int32(DefaultSimulateLeverage)
 	}
 	qtyAbs := pos.Qty.Abs()
 	side := SideSell
@@ -129,7 +129,7 @@ func (l *LiquidationEngine) tryHedgeLeg(accountID string, sym Symbol, side ctype
 		lev = slot.Short.Leverage
 	}
 	if lev <= 0 {
-		lev = 1
+		lev = int32(DefaultSimulateLeverage)
 	}
 	req := PlaceOrderRequest{
 		AccountID:     accountID,

@@ -8,6 +8,7 @@ import (
 	simconnector "github.com/wangliang139/NovaForge/server/pkg/market/connector/simulate"
 	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
+	"github.com/wangliang139/NovaForge/server/pkg/utils"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -76,6 +77,34 @@ func (e *Entity) syncOneSimulateAccount(ctx context.Context, accountID string, r
 	}
 	if err := simConn.SeedAccountBalances(bals); err != nil {
 		return fmt.Errorf("seed balances: %w", err)
+	}
+
+	// Hydrate per-symbol leverage from flat DB legs (qty=0). GetPositions skips zero-qty rows, so
+	// after restart the simulate engine would otherwise lose user leverage preferences for closed symbols.
+	rows, err := e.db.PositionsRepo.ListPositionsByAccount(ctx, acct.ID)
+	if err != nil {
+		return fmt.Errorf("list positions for leverage sync: %w", err)
+	}
+	exch := string(acct.Exchange)
+	levBySym := make(map[string]int)
+	for _, row := range rows {
+		if row.Exchange != exch {
+			continue
+		}
+		qty := utils.Decimal.PgNumericToDecimal(row.Qty)
+		if !qty.IsZero() {
+			continue
+		}
+		if row.Leverage <= 0 {
+			continue
+		}
+		s := row.Symbol
+		if cur, ok := levBySym[s]; !ok || int(row.Leverage) > cur {
+			levBySym[s] = int(row.Leverage)
+		}
+	}
+	if len(levBySym) > 0 {
+		simConn.SyncSymbolLeveragesFromPersistence(levBySym)
 	}
 
 	posList, err := e.GetPositions(ctx, acct.ID)

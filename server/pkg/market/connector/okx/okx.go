@@ -1990,7 +1990,7 @@ func (c *Connector) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ct
 		Exchange:              c.Exchange(),
 		Symbol:                symbol,
 		Market:                *mkt,
-		IsolatedMarginEnabled: true,
+		IsolatedMarginEnabled: false,
 		CrossMarginEnabled:    true,
 		MaxNotionalValue:      number.DecimalFromString(market.PosLmtAmt),
 	}

@@ -16,6 +16,9 @@ import (
 
 const DefaultPrecision int = 8
 
+// DefaultSimulateLeverage is used when no per-symbol leverage was persisted or configured in-engine.
+const DefaultSimulateLeverage int = 10
+
 // Connector implements mdtypes.Connector for paper trading (see VenueRuntime).
 type Connector struct {
 	exchange  ctypes.Exchange
@@ -266,7 +269,7 @@ func (c *Connector) Positions(ctx context.Context, mt *ctypes.MarketType) ([]*ct
 			lev = c.rt.Engine.Leverage(c.accountID, sym)
 		}
 		if lev <= 0 {
-			lev = 1
+			lev = DefaultSimulateLeverage
 		}
 		out = append(out, &ctypes.Position{
 			AccountID:     c.accountID,
@@ -293,7 +296,7 @@ func (c *Connector) ctypePositionLeg(typedSym ctypes.Symbol, side ctypes.Positio
 		lev = c.rt.Engine.Leverage(c.accountID, Symbol(typedSym.String()))
 	}
 	if lev <= 0 {
-		lev = 1
+		lev = DefaultSimulateLeverage
 	}
 	return &ctypes.Position{
 		AccountID:     c.accountID,
@@ -320,13 +323,29 @@ func (c *Connector) SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ct
 	if market == nil {
 		return nil, nil
 	}
+	bracket, err := c.GetLeverageBracket(ctx, symbol, decimal.Zero)
+	if err != nil {
+		return nil, err
+	}
+	if bracket == nil {
+		return nil, nil
+	}
+	leverage := c.rt.Engine.Leverage(c.accountID, Symbol(symbol.String()))
+	if leverage <= 0 {
+		leverage = DefaultSimulateLeverage
+	}
 	maker, taker := defaultFeesByMarketType(symbol.Type)
 	cfg := &ctypes.SymbolConfig{
-		Exchange:        c.exchange,
-		Symbol:          symbol,
-		Market:          *market,
-		MakerCommission: maker,
-		TakerCommission: taker,
+		Exchange:              c.exchange,
+		Symbol:                symbol,
+		Market:                *market,
+		MakerCommission:       maker,
+		TakerCommission:       taker,
+		IsolatedMarginEnabled: false,
+		CrossMarginEnabled:    true,
+		IsAutoAddMargin:       false,
+		CrossLeverage:         [2]int{leverage, leverage},
+		MaxNotionalValue:      decimal.Zero,
 	}
 
 	if cfg.Market.PricePrecision <= 0 {
@@ -423,6 +442,23 @@ func (c *Connector) SetLeverage(ctx context.Context, symbol ctypes.Symbol, lever
 	return leverage, nil
 }
 
+// SyncSymbolLeveragesFromPersistence merges per-symbol leverage from DB-backed flat legs (qty=0 rows).
+// Keys are persisted symbol strings; only valid futures symbols are applied. Does not remove existing entries.
+func (c *Connector) SyncSymbolLeveragesFromPersistence(bySymbolString map[string]int) {
+	m := make(map[Symbol]int, len(bySymbolString))
+	for sStr, lev := range bySymbolString {
+		if lev <= 0 {
+			continue
+		}
+		sym, err := ctypes.ParseSymbol(sStr)
+		if err != nil || !sym.IsValid() || sym.Type != ctypes.MarketTypeFuture {
+			continue
+		}
+		m[Symbol(sym.String())] = lev
+	}
+	c.rt.Engine.MergeSymbolLeverages(c.accountID, m)
+}
+
 func (c *Connector) GetLeverageBracket(ctx context.Context, symbol ctypes.Symbol, markPrice decimal.Decimal) (*ctypes.LeverageBracket, error) {
 	_ = ctx
 	_ = markPrice
@@ -431,7 +467,7 @@ func (c *Connector) GetLeverageBracket(ctx context.Context, symbol ctypes.Symbol
 	}
 	maxLev := float32(c.rt.Engine.Leverage(c.accountID, Symbol(symbol.String())))
 	if maxLev <= 0 {
-		maxLev = 1
+		maxLev = float32(DefaultSimulateLeverage)
 	}
 	return &ctypes.LeverageBracket{
 		Symbol: symbol,
@@ -646,7 +682,7 @@ func (c *Connector) SeedAccountPositions(positions []*ctypes.Position) error {
 			lev = int32(c.rt.Engine.Leverage(c.accountID, psym))
 		}
 		if lev <= 0 {
-			lev = 1
+			lev = int32(DefaultSimulateLeverage)
 		}
 		if mode == PositionModeHedge {
 			if !p.Side.Valid() {

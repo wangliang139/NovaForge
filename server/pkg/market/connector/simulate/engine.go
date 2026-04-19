@@ -476,7 +476,7 @@ func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew P
 	takerBps := ins.TakerFeeBps
 	lev := req.Leverage
 	if lev <= 0 {
-		lev = 1
+		lev = int32(DefaultSimulateLeverage)
 	}
 
 	switch ins.Kind {
@@ -925,7 +925,7 @@ func (e *Engine) forceCloseOneWayAtMarkSynthetic(accountID string, sym Symbol, m
 	}
 	lev := pos.Leverage
 	if lev <= 0 {
-		lev = 1
+		lev = int32(DefaultSimulateLeverage)
 	}
 	o := Order{
 		ID:            e.genOrderID(accountID),
@@ -982,7 +982,7 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 		}
 		lev := slot.Long.Leverage
 		if lev <= 0 {
-			lev = 1
+			lev = int32(DefaultSimulateLeverage)
 		}
 		o = Order{
 			ID:            e.genOrderID(accountID),
@@ -1016,7 +1016,7 @@ func (e *Engine) forceCloseHedgeLegAtMarkSynthetic(accountID string, sym Symbol,
 		}
 		lev := slot.Short.Leverage
 		if lev <= 0 {
-			lev = 1
+			lev = int32(DefaultSimulateLeverage)
 		}
 		o = Order{
 			ID:            e.genOrderID(accountID),
@@ -1094,14 +1094,32 @@ func (e *Engine) SetLeverage(accountID string, sym Symbol, lev int) int {
 	return lev
 }
 
-// Leverage returns configured leverage or 1.
+// MergeSymbolLeverages sets leverage for multiple symbols (does not delete keys omitted from levs).
+func (e *Engine) MergeSymbolLeverages(accountID string, levs map[Symbol]int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(levs) == 0 {
+		return
+	}
+	if e.leverages == nil {
+		e.leverages = make(map[accountLevKey]int)
+	}
+	for sym, lev := range levs {
+		if lev <= 0 {
+			continue
+		}
+		e.leverages[accountLevKey{accountID, sym}] = lev
+	}
+}
+
+// Leverage returns configured leverage or DefaultSimulateLeverage.
 func (e *Engine) Leverage(accountID string, sym Symbol) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if v, ok := e.leverages[accountLevKey{accountID, sym}]; ok && v > 0 {
 		return v
 	}
-	return 1
+	return DefaultSimulateLeverage
 }
 
 // AllSymbols returns registered instrument symbols.

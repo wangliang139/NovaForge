@@ -238,7 +238,7 @@ func (l *Ledger) MergeSeedHedgeLeg(accountID string, sym Symbol, side ctypes.Pos
 
 func initialMargin(qty, price decimal.Decimal, lev int32) decimal.Decimal {
 	if lev <= 0 {
-		lev = 1
+		lev = int32(DefaultSimulateLeverage)
 	}
 	return qty.Abs().Mul(price).Div(decimal.NewFromInt32(lev))
 }
