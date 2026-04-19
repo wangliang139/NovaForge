@@ -295,6 +295,28 @@ func perpSlotToPositionsUpdate(
 			side = ctypes.PositionSideShort
 			amount = amount.Abs()
 		}
+		if amount.IsZero() {
+			// 净仓归零：同时下发多空两腿 qty=0，避免仅 LONG 快照无法清除此前 SHORT 侧 DB 行。
+			positions = append(positions,
+				&ctypes.Position{
+					AccountID: accountID,
+					Exchange:  ex,
+					Symbol:    symbol,
+					Side:      ctypes.PositionSideLong,
+					Amount:    decimal.Zero,
+					UpdatedTs: now,
+				},
+				&ctypes.Position{
+					AccountID: accountID,
+					Exchange:  ex,
+					Symbol:    symbol,
+					Side:      ctypes.PositionSideShort,
+					Amount:    decimal.Zero,
+					UpdatedTs: now,
+				},
+			)
+			break
+		}
 		positions = append(positions, &ctypes.Position{
 			AccountID:     accountID,
 			Exchange:      ex,
@@ -308,7 +330,25 @@ func perpSlotToPositionsUpdate(
 		})
 	}
 	if len(positions) == 0 {
-		return nil
+		// 该标的已无持仓（常见于双向模式平掉最后一腿）：仍发快照，否则 accountEventToMessage 返回 nil，下游收不到平仓后的仓位更新。
+		positions = []*ctypes.Position{
+			{
+				AccountID: accountID,
+				Exchange:  ex,
+				Symbol:    symbol,
+				Side:      ctypes.PositionSideLong,
+				Amount:    decimal.Zero,
+				UpdatedTs: now,
+			},
+			{
+				AccountID: accountID,
+				Exchange:  ex,
+				Symbol:    symbol,
+				Side:      ctypes.PositionSideShort,
+				Amount:    decimal.Zero,
+				UpdatedTs: now,
+			},
+		}
 	}
 	return &ctypes.PositionsUpdate{
 		EventID:   eventID,
