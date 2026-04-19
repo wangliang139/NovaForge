@@ -25,6 +25,8 @@ type accountLevKey struct {
 type Engine struct {
 	mu sync.Mutex
 
+	rt *VenueRuntime
+
 	ins    map[Symbol]*Instrument
 	depths map[Symbol]*MarketDepth
 	books  map[accountSymbolKey]*RestingBook
@@ -48,6 +50,11 @@ func NewEngine() *Engine {
 		accountModes: make(map[string]PositionMode),
 		leverages:    make(map[accountLevKey]int),
 	}
+}
+
+func (e *Engine) WithRuntime(rt *VenueRuntime) *Engine {
+	e.rt = rt
+	return e
 }
 
 // WithNowFn sets clock source (tests / replay).
@@ -138,9 +145,9 @@ func (e *Engine) SeedLedgerHedgeLeg(accountID string, sym Symbol, side ctypes.Po
 // SeedOpenOrder bootstraps open orders from persistence. Limit orders are added as resting (no immediate match).
 // Market orders execute remaining qty against public depth like PlaceOrder; depth must exist (e.g. after ensureSymbolInitialized).
 // onNew/onComplete are optional; for market orders they match PlaceOrder semantics (onComplete runs after e.mu is released).
-func (e *Engine) SeedOpenOrder(accountID string, po Order, onNew PlaceOrderNewFunc, onComplete PlaceOrderCompleteFunc) error {
+func (e *Engine) SeedOpenOrder(accountID string, po Order) error {
 	if po.OrderType == OrderTypeMarket {
-		return e.seedOpenMarketOrder(accountID, po, onNew, onComplete)
+		return e.seedOpenMarketOrder(accountID, po)
 	}
 	if po.OrderType != OrderTypeLimit {
 		return fmt.Errorf("simulate: seed open order unsupported type")
@@ -196,7 +203,7 @@ func (e *Engine) SeedOpenOrder(accountID string, po Order, onNew PlaceOrderNewFu
 	return nil
 }
 
-func (e *Engine) seedOpenMarketOrder(accountID string, po Order, onNew PlaceOrderNewFunc, onComplete PlaceOrderCompleteFunc) error {
+func (e *Engine) seedOpenMarketOrder(accountID string, po Order) error {
 	e.mu.Lock()
 	ins, ok := e.ins[po.Symbol]
 	if !ok {
@@ -234,13 +241,8 @@ func (e *Engine) seedOpenMarketOrder(accountID string, po Order, onNew PlaceOrde
 		OrderID:       po.ID,
 		Source:        po.Source,
 	}
-	before := e.accountSnapshotLocked(accountID, po.Symbol)
-	res := e.placeOrderMuLocked(req, e.now(), onNew)
-	after := e.accountSnapshotLocked(accountID, po.Symbol)
+	res := e.placeOrderMuLocked(req, e.now())
 	e.mu.Unlock()
-	if onComplete != nil {
-		onComplete(before, after, res)
-	}
 	if res.Order.Status == OrderStatusRejected {
 		return fmt.Errorf("simulate: seed market order rejected: %s", res.Order.RejectReason)
 	}
@@ -276,40 +278,40 @@ func midPrice(d *MarketDepth) decimal.Decimal {
 	return decimal.Zero
 }
 
-func (e *Engine) validateOneWayPerp(req *PlaceOrderRequest, ins *Instrument, pos Position) error {
+func (e *Engine) validateOneWayPerp(o *Order, ins *Instrument, pos Position) error {
 	if ins.Kind != KindPerp {
 		return nil
 	}
-	switch req.Intent {
+	switch o.Intent {
 	case IntentOpen:
-		if req.Leverage < 1 || (ins.LeverageMax > 0 && req.Leverage > ins.LeverageMax) {
+		if o.Leverage < 1 || (ins.LeverageMax > 0 && o.Leverage > ins.LeverageMax) {
 			return ErrLeverage
 		}
-		if req.ReduceOnly {
+		if o.ReduceOnly {
 			return ErrInvalidIntent
 		}
-		if req.Side == SideBuy && pos.Qty.Sign() < 0 {
+		if o.Side == SideBuy && pos.Qty.Sign() < 0 {
 			return ErrInvalidIntent
 		}
-		if req.Side == SideSell && pos.Qty.Sign() > 0 {
+		if o.Side == SideSell && pos.Qty.Sign() > 0 {
 			return ErrInvalidIntent
 		}
 	case IntentClose:
-		if !req.ReduceOnly {
+		if !o.ReduceOnly {
 			return ErrInvalidIntent
 		}
-		if req.Side == SideSell {
+		if o.Side == SideSell {
 			if pos.Qty.Sign() <= 0 {
 				return ErrInvalidIntent
 			}
-			if req.Qty.GreaterThan(pos.Qty) {
+			if o.QtyOriginal.GreaterThan(pos.Qty) {
 				return ErrReduceOnly
 			}
-		} else if req.Side == SideBuy {
+		} else if o.Side == SideBuy {
 			if pos.Qty.Sign() >= 0 {
 				return ErrInvalidIntent
 			}
-			if req.Qty.GreaterThan(pos.Qty.Abs()) {
+			if o.QtyOriginal.GreaterThan(pos.Qty.Abs()) {
 				return ErrReduceOnly
 			}
 		}
@@ -317,63 +319,44 @@ func (e *Engine) validateOneWayPerp(req *PlaceOrderRequest, ins *Instrument, pos
 	return nil
 }
 
-func (e *Engine) validateHedgePerp(req *PlaceOrderRequest, ins *Instrument, slot *PerpSlot) error {
-	if !req.PosSide.Valid() {
+func (e *Engine) validateHedgePerp(o *Order, ins *Instrument, slot *PerpSlot) error {
+	if !o.PosSide.Valid() {
 		return ErrInvalidIntent
 	}
-	isBuy := req.Side == SideBuy
+	isBuy := o.Side == SideBuy
 	var legQty decimal.Decimal
-	switch req.PosSide {
+	switch o.PosSide {
 	case ctypes.PositionSideLong:
 		legQty = slot.Long.Qty
 	case ctypes.PositionSideShort:
 		legQty = slot.Short.Qty
 	}
-	if err := ValidateHedgeOrder(req.PosSide, isBuy, req.ReduceOnly, legQty); err != nil {
+	if err := ValidateHedgeOrder(o.PosSide, isBuy, o.ReduceOnly, legQty); err != nil {
 		return err
 	}
-	opening := HedgeOpen(req.PosSide, isBuy)
+	opening := HedgeOpen(o.PosSide, isBuy)
 	if opening {
-		if req.Leverage < 1 || (ins.LeverageMax > 0 && req.Leverage > ins.LeverageMax) {
+		if o.Leverage < 1 || (ins.LeverageMax > 0 && o.Leverage > ins.LeverageMax) {
 			return ErrLeverage
 		}
 	} else {
-		if req.Qty.GreaterThan(legQty) {
+		if o.QtyOriginal.GreaterThan(legQty) {
 			return ErrReduceOnly
 		}
 	}
 	return nil
 }
 
-func (e *Engine) rejectOrder(accountID string, req *PlaceOrderRequest, orderID, reason string, ts time.Time) *PlaceOrderResult {
-	book := e.getBook(accountID, req.Symbol)
+func (e *Engine) rejectOrder(o *Order, reason string, ts time.Time) *PlaceOrderResult {
+	book := e.getBook(o.AccountID, o.Symbol)
 	now := ts.UTC()
-	qty := req.Qty
-	if ins, ok := e.ins[req.Symbol]; ok {
-		qty = FloorToStep(req.Qty, ins.QtyStep)
-	}
-	o := Order{
-		ID:            orderID,
-		AccountID:     accountID,
-		ClientOrderID: req.ClientOrderID,
-		Symbol:        req.Symbol,
-		OrderType:     req.OrderType,
-		Side:          req.Side,
-		Intent:        req.Intent,
-		ReduceOnly:    req.ReduceOnly,
-		Leverage:      req.Leverage,
-		PosSide:       req.PosSide,
-		Price:         req.Price,
-		QtyOriginal:   qty,
-		QtyRemaining:  qty,
-		Status:        OrderStatusRejected,
-		RejectReason:  reason,
-		CreatedAt:     now,
-		LastUpdatedAt: now,
-		Source:        req.Source,
-	}
-	book.PutOrderRecord(&o)
-	return &PlaceOrderResult{Order: o, Fills: nil, FeePaid: decimal.Zero}
+
+	o.Status = OrderStatusRejected
+	o.RejectReason = reason
+	o.LastUpdatedAt = now
+
+	book.PutOrderRecord(o)
+	return &PlaceOrderResult{Order: *o, Fills: nil, FeePaid: decimal.Zero}
 }
 
 // PlaceOrderCompleteFunc runs after PlaceOrder commits ledger and releases e.mu.
@@ -387,20 +370,15 @@ type PlaceOrderNewFunc func(order Order)
 // PlaceOrder validates, matches against public depth, updates ledger, rests remainder.
 // If onNew is non-nil, it runs once the order record is accepted (NEW) and before any fill simulation.
 // If onComplete is non-nil, it is invoked after mutations with before/after account snapshots (lock released).
-func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest, onNew PlaceOrderNewFunc, onComplete PlaceOrderCompleteFunc) {
+func (e *Engine) PlaceOrder(_ context.Context, req PlaceOrderRequest) {
 	ts := e.now()
 	e.mu.Lock()
-	before := e.accountSnapshotLocked(req.AccountID, req.Symbol)
-	res := e.placeOrderMuLocked(req, ts, onNew)
-	after := e.accountSnapshotLocked(req.AccountID, req.Symbol)
+	_ = e.placeOrderMuLocked(req, ts)
 	e.mu.Unlock()
-	if onComplete != nil {
-		onComplete(before, after, res)
-	}
 }
 
 // placeOrderMuLocked runs the matching/ledger path; e.mu must be held.
-func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew PlaceOrderNewFunc) *PlaceOrderResult {
+func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time) *PlaceOrderResult {
 	accountID := req.AccountID
 	orderID := req.OrderID
 	if orderID == "" {
@@ -427,23 +405,59 @@ func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew P
 		LastUpdatedAt: now,
 		Source:        req.Source,
 	}
+	res := e.doPlaceOrder(order, ts)
+	after := e.accountSnapshotLocked(req.AccountID, req.Symbol)
+	if e.rt != nil {
+		// 订单快照
+		e.rt.enqueueAccountPublish(AccountEvent{
+			accountID: accountID,
+			symbol:    req.Symbol,
+			kind:      AccountEventTypeOrder,
+			order:     order,
+		})
+		// 资产事件
+		e.rt.enqueueAccountPublish(AccountEvent{
+			accountID: accountID,
+			symbol:    req.Symbol,
+			kind:      AccountEventTypeBalance,
+			balance:   &after,
+		})
+		// 持仓事件
+		e.rt.enqueueAccountPublish(AccountEvent{
+			accountID: accountID,
+			symbol:    req.Symbol,
+			kind:      AccountEventTypePosition,
+			position:  &after.Slot,
+		})
+	}
+	return res
+}
 
-	if onNew != nil {
-		onNew(*order)
+// doPlaceOrder runs the matching/ledger path; e.mu must be held.
+func (e *Engine) doPlaceOrder(o *Order, ts time.Time) *PlaceOrderResult {
+	accountID := o.AccountID
+
+	if e.rt != nil {
+		e.rt.enqueueAccountPublish(AccountEvent{
+			accountID: o.AccountID,
+			symbol:    o.Symbol,
+			kind:      AccountEventTypeOrder,
+			order:     o,
+		})
 	}
 
-	ins, ok := e.ins[req.Symbol]
+	ins, ok := e.ins[o.Symbol]
 	if !ok {
-		return e.rejectOrder(accountID, &req, orderID, ErrUnknownSymbol.Error(), ts)
+		return e.rejectOrder(o, ErrUnknownSymbol.Error(), ts)
 	}
-	d, ok := e.depths[req.Symbol]
+	d, ok := e.depths[o.Symbol]
 	if !ok || d == nil {
-		return e.rejectOrder(accountID, &req, orderID, ErrNotInitialized.Error(), ts)
+		return e.rejectOrder(o, ErrNotInitialized.Error(), ts)
 	}
-	book := e.getBook(accountID, req.Symbol)
+	book := e.getBook(accountID, o.Symbol)
 
 	mode := e.modeForUnlock(accountID)
-	slot := e.ledger.EnsurePerpSlot(accountID, req.Symbol, mode)
+	slot := e.ledger.EnsurePerpSlot(accountID, o.Symbol, mode)
 	if slot.Mode != mode {
 		// slot existed with different mode — should not happen if SetPerpMode used
 		slot.Mode = mode
@@ -451,190 +465,190 @@ func (e *Engine) placeOrderMuLocked(req PlaceOrderRequest, ts time.Time, onNew P
 
 	if ins.Kind == KindPerp {
 		if mode == PositionModeHedge {
-			if err := e.validateHedgePerp(&req, ins, slot); err != nil {
-				return e.rejectOrder(accountID, &req, orderID, err.Error(), ts)
+			if err := e.validateHedgePerp(o, ins, slot); err != nil {
+				return e.rejectOrder(o, err.Error(), ts)
 			}
 		} else {
 			pos := slot.Net
-			if err := e.validateOneWayPerp(&req, ins, pos); err != nil {
-				return e.rejectOrder(accountID, &req, orderID, err.Error(), ts)
+			if err := e.validateOneWayPerp(o, ins, pos); err != nil {
+				return e.rejectOrder(o, err.Error(), ts)
 			}
 		}
 	}
 
-	qty := FloorToStep(req.Qty, ins.QtyStep)
-	price := req.Price
-	if req.OrderType == OrderTypeLimit {
-		price = FloorToTick(req.Price, ins.PriceTick)
+	qty := FloorToStep(o.QtyOriginal, ins.QtyStep)
+	price := o.Price
+	if o.OrderType == OrderTypeLimit {
+		price = FloorToTick(o.Price, ins.PriceTick)
 	}
-	if err := ins.ValidateOrderParams(price, qty, req.OrderType == OrderTypeLimit); err != nil {
-		return e.rejectOrder(accountID, &req, orderID, err.Error(), ts)
+	if err := ins.ValidateOrderParams(price, qty, o.OrderType == OrderTypeLimit); err != nil {
+		return e.rejectOrder(o, err.Error(), ts)
 	}
 
 	var allFills []Fill
 	var feeSum decimal.Decimal
 	takerBps := ins.TakerFeeBps
-	lev := req.Leverage
+	lev := o.Leverage
 	if lev <= 0 {
 		lev = int32(DefaultSimulateLeverage)
 	}
 
+	now := ts.UTC()
 	switch ins.Kind {
 	case KindSpot:
-		switch req.OrderType {
+		switch o.OrderType {
 		case OrderTypeMarket:
 			ref := midPrice(d)
 			if err := ins.ValidateMarketQty(qty, ref); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now)
+				return e.rejectPlacedOrder(o, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
-			if req.Side == SideBuy {
+			if o.Side == SideBuy {
 				fills, _, notional = SimulateMarketBuy(d, qty)
 			} else {
 				fills, _, notional = SimulateMarketSell(d, qty)
 			}
 			if len(fills) == 0 {
-				order.Status = OrderStatusRejected
-				order.RejectReason = "no liquidity"
-				book.PutOrderRecord(order)
-				return &PlaceOrderResult{Order: *order, Fills: nil, FeePaid: decimal.Zero}
+				o.Status = OrderStatusRejected
+				o.RejectReason = "no liquidity"
+				book.PutOrderRecord(o)
+				return &PlaceOrderResult{Order: *o, Fills: nil, FeePaid: decimal.Zero}
 			}
 			filledQty := totalFilledQty(fills)
 			fee := FeeNotional(notional, takerBps)
-			if req.Side == SideBuy {
+			if o.Side == SideBuy {
 				if err := e.ledger.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
-					return e.rejectPlacedOrder(order, book, err.Error(), now)
+					return e.rejectPlacedOrder(o, book, err.Error(), now)
 				}
 			} else {
 				if err := e.ledger.ApplySpotSell(accountID, ins, fills, fee); err != nil {
-					return e.rejectPlacedOrder(order, book, err.Error(), now)
+					return e.rejectPlacedOrder(o, book, err.Error(), now)
 				}
 			}
 			allFills = fills
 			feeSum = fee
-			fillOrderImmediate(order, fills, notional, filledQty, now)
+			fillOrderImmediate(o, fills, notional, filledQty, now)
 
 		case OrderTypeLimit:
 			if err := ins.ValidateOrderParams(price, qty, true); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now)
+				return e.rejectPlacedOrder(o, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
-			if req.Side == SideBuy {
+			if o.Side == SideBuy {
 				ba, _, okA := d.BestAsk()
 				if okA && !ba.GreaterThan(price) {
-					fills, order.QtyRemaining, notional = SimulateLimitBuy(d, price, qty)
+					fills, o.QtyRemaining, notional = SimulateLimitBuy(d, price, qty)
 				}
 			} else {
 				bb, _, okB := d.BestBid()
 				if okB && !bb.LessThan(price) {
-					fills, order.QtyRemaining, notional = SimulateLimitSell(d, price, qty)
+					fills, o.QtyRemaining, notional = SimulateLimitSell(d, price, qty)
 				}
 			}
 			if len(fills) > 0 {
 				filledQty := totalFilledQty(fills)
 				fee := FeeNotional(notional, takerBps)
-				if req.Side == SideBuy {
+				if o.Side == SideBuy {
 					if err := e.ledger.ApplySpotBuy(accountID, ins, fills, fee); err != nil {
-						return e.rejectPlacedOrder(order, book, err.Error(), now)
+						return e.rejectPlacedOrder(o, book, err.Error(), now)
 					}
 				} else {
 					if err := e.ledger.ApplySpotSell(accountID, ins, fills, fee); err != nil {
-						return e.rejectPlacedOrder(order, book, err.Error(), now)
+						return e.rejectPlacedOrder(o, book, err.Error(), now)
 					}
 				}
 				allFills = append(allFills, fills...)
 				feeSum = feeSum.Add(fee)
-				partialFillOrder(order, fills, notional, filledQty, now)
+				partialFillOrder(o, fills, notional, filledQty, now)
 			}
-			if order.QtyRemaining.Sign() > 0 {
-				book.AddResting(order)
+			if o.QtyRemaining.Sign() > 0 {
+				book.AddResting(o)
 			} else if len(fills) > 0 {
-				order.Status = OrderStatusFilled
+				o.Status = OrderStatusFilled
 			} else {
-				book.AddResting(order)
+				book.AddResting(o)
 			}
 		}
 
 	case KindPerp:
-		switch req.OrderType {
+		switch o.OrderType {
 		case OrderTypeMarket:
 			ref := midPrice(d)
 			if err := ins.ValidateMarketQty(qty, ref); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now)
+				return e.rejectPlacedOrder(o, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
-			if req.Side == SideBuy {
+			if o.Side == SideBuy {
 				fills, _, notional = SimulateMarketBuy(d, qty)
 			} else {
 				fills, _, notional = SimulateMarketSell(d, qty)
 			}
 			if len(fills) == 0 {
-				order.Status = OrderStatusRejected
-				order.RejectReason = "no liquidity"
-				book.PutOrderRecord(order)
-				return &PlaceOrderResult{Order: *order, Fills: nil, FeePaid: decimal.Zero}
+				o.Status = OrderStatusRejected
+				o.RejectReason = "no liquidity"
+				book.PutOrderRecord(o)
+				return &PlaceOrderResult{Order: *o, Fills: nil, FeePaid: decimal.Zero}
 			}
 			filledQty := totalFilledQty(fills)
 			fee := FeeNotional(notional, takerBps)
-			if err := e.applyPerpFills(accountID, ins, &req, fills, fee, lev, slot); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now)
+			if err := e.applyPerpFills(accountID, ins, o, fills, fee, lev, slot); err != nil {
+				return e.rejectPlacedOrder(o, book, err.Error(), now)
 			}
 			allFills = fills
 			feeSum = fee
-			fillOrderImmediate(order, fills, notional, filledQty, now)
+			fillOrderImmediate(o, fills, notional, filledQty, now)
 
 		case OrderTypeLimit:
 			if err := ins.ValidateOrderParams(price, qty, true); err != nil {
-				return e.rejectPlacedOrder(order, book, err.Error(), now)
+				return e.rejectPlacedOrder(o, book, err.Error(), now)
 			}
 			var fills []Fill
 			var notional decimal.Decimal
-			if req.Side == SideBuy {
+			if o.Side == SideBuy {
 				ba, _, okA := d.BestAsk()
 				if okA && !ba.GreaterThan(price) {
-					fills, order.QtyRemaining, notional = SimulateLimitBuy(d, price, qty)
+					fills, o.QtyRemaining, notional = SimulateLimitBuy(d, price, qty)
 				}
 			} else {
 				bb, _, okB := d.BestBid()
 				if okB && !bb.LessThan(price) {
-					fills, order.QtyRemaining, notional = SimulateLimitSell(d, price, qty)
+					fills, o.QtyRemaining, notional = SimulateLimitSell(d, price, qty)
 				}
 			}
 			if len(fills) > 0 {
 				filledQty := totalFilledQty(fills)
 				fee := FeeNotional(notional, takerBps)
-				if err := e.applyPerpFills(accountID, ins, &req, fills, fee, lev, slot); err != nil {
-					return e.rejectPlacedOrder(order, book, err.Error(), now)
+				if err := e.applyPerpFills(accountID, ins, o, fills, fee, lev, slot); err != nil {
+					return e.rejectPlacedOrder(o, book, err.Error(), now)
 				}
 				allFills = append(allFills, fills...)
 				feeSum = feeSum.Add(fee)
-				partialFillOrder(order, fills, notional, filledQty, now)
+				partialFillOrder(o, fills, notional, filledQty, now)
 			}
-			if order.QtyRemaining.Sign() > 0 {
-				book.AddResting(order)
+			if o.QtyRemaining.Sign() > 0 {
+				book.AddResting(o)
 			} else if len(fills) > 0 {
-				order.Status = OrderStatusFilled
+				o.Status = OrderStatusFilled
 			} else {
-				book.AddResting(order)
+				book.AddResting(o)
 			}
 		}
 	}
 
-	if order.Status == OrderStatusFilled || order.Status == OrderStatusRejected {
-		book.PutOrderRecord(order)
+	if o.Status == OrderStatusFilled || o.Status == OrderStatusRejected {
+		book.PutOrderRecord(o)
 	}
-	cp := *order
-	return &PlaceOrderResult{Order: cp, Fills: allFills, FeePaid: feeSum}
+	return &PlaceOrderResult{Order: *o, Fills: allFills, FeePaid: feeSum}
 }
 
-func (e *Engine) applyPerpFills(accountID string, ins *Instrument, req *PlaceOrderRequest, fills []Fill, fee decimal.Decimal, lev int32, slot *PerpSlot) error {
+func (e *Engine) applyPerpFills(accountID string, ins *Instrument, o *Order, fills []Fill, fee decimal.Decimal, lev int32, slot *PerpSlot) error {
 	if slot.Mode == PositionModeHedge {
-		isBuy := req.Side == SideBuy
-		opening := HedgeOpen(req.PosSide, isBuy)
-		switch req.PosSide {
+		isBuy := o.Side == SideBuy
+		opening := HedgeOpen(o.PosSide, isBuy)
+		switch o.PosSide {
 		case ctypes.PositionSideLong:
 			if opening {
 				return e.ledger.ApplyHedgeOpenLong(accountID, ins, fills, fee, lev, slot)
@@ -649,33 +663,20 @@ func (e *Engine) applyPerpFills(accountID string, ins *Instrument, req *PlaceOrd
 			return ErrInvalidIntent
 		}
 	}
-	switch req.Intent {
+	switch o.Intent {
 	case IntentOpen:
-		if req.Side == SideBuy {
-			return e.ledger.ApplyPerpOpenLong(accountID, req.Symbol, ins, fills, fee, lev, slot)
+		if o.Side == SideBuy {
+			return e.ledger.ApplyPerpOpenLong(accountID, o.Symbol, ins, fills, fee, lev, slot)
 		}
-		return e.ledger.ApplyPerpOpenShort(accountID, req.Symbol, ins, fills, fee, lev, slot)
+		return e.ledger.ApplyPerpOpenShort(accountID, o.Symbol, ins, fills, fee, lev, slot)
 	case IntentClose:
-		if req.Side == SideSell {
-			return e.ledger.ApplyPerpCloseLong(accountID, req.Symbol, ins, fills, fee, slot)
+		if o.Side == SideSell {
+			return e.ledger.ApplyPerpCloseLong(accountID, o.Symbol, ins, fills, fee, slot)
 		}
-		return e.ledger.ApplyPerpCloseShort(accountID, req.Symbol, ins, fills, fee, slot)
+		return e.ledger.ApplyPerpCloseShort(accountID, o.Symbol, ins, fills, fee, slot)
 	default:
 		return ErrInvalidIntent
 	}
-}
-
-func (e *Engine) applyMakerPerpFills(accountID string, ins *Instrument, o *Order, fills []Fill, fee decimal.Decimal, slot *PerpSlot) error {
-	req := PlaceOrderRequest{
-		AccountID:  accountID,
-		Symbol:     o.Symbol,
-		Side:       o.Side,
-		Intent:     o.Intent,
-		ReduceOnly: o.ReduceOnly,
-		Leverage:   o.Leverage,
-		PosSide:    o.PosSide,
-	}
-	return e.applyPerpFills(accountID, ins, &req, fills, fee, o.Leverage, slot)
 }
 
 func totalFilledQty(fills []Fill) decimal.Decimal {
@@ -758,7 +759,7 @@ func (e *Engine) onDepthUpdatedUnlocked(sym Symbol) ([]MatchEvent, error) {
 					}
 				}
 			case KindPerp:
-				if err := e.applyMakerPerpFills(ev.Order.AccountID, ins, ev.Order, ev.Fills, fee, slot); err != nil {
+				if err := e.applyPerpFills(ev.Order.AccountID, ins, ev.Order, ev.Fills, fee, ev.Order.Leverage, slot); err != nil {
 					return all, err
 				}
 			}
@@ -880,7 +881,7 @@ func (e *Engine) Depth(sym Symbol) (*MarketDepth, bool) {
 func (e *Engine) PlaceLiquidationMarket(req PlaceOrderRequest) *PlaceOrderResult {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.placeOrderMuLocked(req, e.now(), nil)
+	return e.placeOrderMuLocked(req, e.now())
 }
 
 // forceCloseOneWayAtMarkSynthetic closes one-way net at mark without the order book (insurance-style fallback).

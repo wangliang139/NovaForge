@@ -30,38 +30,6 @@ func (c *Connector) buildDiffAndMakerMessages(symbol ctypes.Symbol, events []Mat
 	return out
 }
 
-// publishOrderAcceptedNew emits an order lifecycle message with status NEW right after the engine accepts the order (before matching).
-func (c *Connector) publishOrderAcceptedNew(symbol ctypes.Symbol, o Order) {
-	to := toTypesOrder(c.exchange, &o)
-	to.Symbol = symbol
-	to.Status = ctypes.OrderStatusNew
-	if m := c.newOrderLifecycleMessage(to); m != nil {
-		c.publishAccountMessage(m)
-	}
-}
-
-// publishPlaceOrderOutcome publishes taker outcomes: per-fill trade events, then order lifecycle if there were no fills, then balance/position snapshots.
-func (c *Connector) publishPlaceOrderOutcome(symbol ctypes.Symbol, before, after AccountSnapshot, res *PlaceOrderResult) {
-	if res == nil {
-		return
-	}
-	for _, f := range res.Fills {
-		if m := c.newOrderFillMessage(symbol, res.Order, f); m != nil {
-			c.publishAccountMessage(m)
-		}
-	}
-	if len(res.Fills) == 0 && res.Order.Status != OrderStatusNew {
-		if m := c.newOrderLifecycleMessage(toTypesOrder(c.exchange, &res.Order)); m != nil {
-			c.publishAccountMessage(m)
-		}
-	}
-	for _, m := range c.buildSnapshotDiffMessages(symbol, before, after) {
-		if m != nil {
-			c.publishAccountMessage(m)
-		}
-	}
-}
-
 func (c *Connector) buildSnapshotDiffMessages(symbol ctypes.Symbol, before, after AccountSnapshot) []*ctypes.Message {
 	now := time.Now().UTC()
 	out := make([]*ctypes.Message, 0)
@@ -175,17 +143,6 @@ func (c *Connector) diffHedgeLeg(symbol ctypes.Symbol, side ctypes.PositionSide,
 			},
 		},
 	}, now)}
-}
-
-func (c *Connector) newOrderLifecycleMessage(order *ctypes.Order) *ctypes.Message {
-	if order == nil {
-		return nil
-	}
-	if order.UpdatedTs.IsZero() {
-		order.UpdatedTs = time.Now().UTC()
-	}
-	order.Raw = c.mustEventMetaJSON(order.UpdatedTs)
-	return ctypes.NewMessage(c.exchange, ctypes.StreamSelector{Stream: ctypes.StreamTypeAccountRaw, Account: lo.ToPtr(c.accountID)}, order, order.UpdatedTs)
 }
 
 func (c *Connector) newOrderFillMessage(symbol ctypes.Symbol, od Order, fill Fill) *ctypes.Message {

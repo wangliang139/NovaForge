@@ -135,10 +135,10 @@ func (h *publicStreamHub) supervisor(hubCtx context.Context) {
 		if err != nil {
 			log.Printf("simulate: publicConn.Subscribe failed stream=%s key=%s: %v", h.stream, h.key, err)
 			h.broadcastErr(err)
-			if !sleepOrDonePaper(hubCtx, backoff) {
+			if !sleepOrDone(hubCtx, backoff) {
 				return
 			}
-			backoff = growBackoffPaper(backoff)
+			backoff = growBackoff(backoff)
 			continue
 		}
 		backoff = streamHubInitialBackoff
@@ -152,14 +152,14 @@ func (h *publicStreamHub) supervisor(hubCtx context.Context) {
 			return
 		default:
 		}
-		if !sleepOrDonePaper(hubCtx, backoff) {
+		if !sleepOrDone(hubCtx, backoff) {
 			return
 		}
-		backoff = growBackoffPaper(backoff)
+		backoff = growBackoff(backoff)
 	}
 }
 
-func sleepOrDonePaper(ctx context.Context, d time.Duration) bool {
+func sleepOrDone(ctx context.Context, d time.Duration) bool {
 	select {
 	case <-ctx.Done():
 		return false
@@ -168,7 +168,7 @@ func sleepOrDonePaper(ctx context.Context, d time.Duration) bool {
 	}
 }
 
-func growBackoffPaper(cur time.Duration) time.Duration {
+func growBackoff(cur time.Duration) time.Duration {
 	next := cur * 2
 	if next > streamHubMaxBackoff {
 		return streamHubMaxBackoff
@@ -347,8 +347,8 @@ func (rt *VenueRuntime) dispatchDepthIngest(msg *ctypes.Message) {
 
 	rt.connsMu.RLock()
 	conns := make([]*Connector, 0, len(rt.conns))
-	for c := range rt.conns {
-		conns = append(conns, c)
+	for _, c := range rt.conns {
+		conns = append(conns, c...)
 	}
 	rt.connsMu.RUnlock()
 
@@ -407,8 +407,8 @@ func (rt *VenueRuntime) dispatchMarkPricePayload(mp *ctypes.MarkPrice) {
 
 	rt.connsMu.RLock()
 	conns := make([]*Connector, 0, len(rt.conns))
-	for c := range rt.conns {
-		conns = append(conns, c)
+	for _, c := range rt.conns {
+		conns = append(conns, c...)
 	}
 	rt.connsMu.RUnlock()
 	for _, c := range conns {
@@ -426,8 +426,8 @@ func (rt *VenueRuntime) onSymbolSimReady(sym ctypes.Symbol) {
 
 	rt.connsMu.RLock()
 	conns := make([]*Connector, 0, len(rt.conns))
-	for c := range rt.conns {
-		conns = append(conns, c)
+	for _, c := range rt.conns {
+		conns = append(conns, c...)
 	}
 	rt.connsMu.RUnlock()
 

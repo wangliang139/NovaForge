@@ -21,10 +21,11 @@ func NewLiquidationEngine(eng *Engine) *LiquidationEngine {
 // OnMark attempts liquidation via reduce-only market orders against public depth (Source=LIQUIDATION).
 // If the market order is rejected for lack of liquidity, falls back to synthetic close at mark.
 // Returns one *PlaceOrderResult per liquidation action (may be empty).
-func (l *LiquidationEngine) OnMark(accountID string, sym Symbol, mark decimal.Decimal, onLiquidated func()) []*PlaceOrderResult {
+func (l *LiquidationEngine) OnMark(accountID string, sym Symbol, mark decimal.Decimal) []*PlaceOrderResult {
 	if l == nil || l.eng == nil || !mark.GreaterThan(decimal.Zero) {
 		return nil
 	}
+	onLiquidated := func() {}
 	mode := l.eng.AccountPositionMode(accountID)
 	if mode == PositionModeHedge {
 		var out []*PlaceOrderResult

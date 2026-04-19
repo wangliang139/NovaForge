@@ -2,9 +2,14 @@ package simulate
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
+	"github.com/shopspring/decimal"
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector/binance"
 	"github.com/wangliang139/NovaForge/server/pkg/market/connector/okx"
 	mdtypes "github.com/wangliang139/NovaForge/server/pkg/market/types"
@@ -15,9 +20,8 @@ import (
 const placeOrderQueueCap = 1024
 
 type placeOrderJob struct {
-	c      *Connector
-	symbol ctypes.Symbol
-	req    PlaceOrderRequest
+	c   *Connector
+	req PlaceOrderRequest
 }
 
 // VenueRuntime holds exchange-wide paper state: engine, public feed, stream hubs, liquidation.
@@ -33,7 +37,7 @@ type VenueRuntime struct {
 	streamHubs  map[string]*publicStreamHub
 
 	connsMu sync.RWMutex
-	conns   map[*Connector]struct{}
+	conns   map[string][]*Connector // accountID -> connectors
 
 	// symbolSimReady: symbol.String() -> ensureSymbolInitialized completed for this venue
 	// (instrument + depth sync + streams). Until set, public depth updates do not match
@@ -42,6 +46,9 @@ type VenueRuntime struct {
 	symbolSimReady map[string]struct{}
 
 	placeOrderCh chan placeOrderJob
+
+	accountPublishCh       chan AccountEvent
+	accountPublishQueueCap int
 }
 
 var (
@@ -77,44 +84,77 @@ func getOrCreateVenue(ex ctypes.Exchange) (*VenueRuntime, error) {
 	eng := NewEngine()
 	q := NewQuoteCache()
 	rt := &VenueRuntime{
-		Exchange:   ex,
-		Engine:     eng,
-		Quotes:     q,
-		Mark:       NewMarkIndexService(q),
-		Liq:        NewLiquidationEngine(eng),
-		Public:     pub,
-		streamHubs:     make(map[string]*publicStreamHub),
-		conns:          make(map[*Connector]struct{}),
-		symbolSimReady: make(map[string]struct{}),
-		placeOrderCh:   make(chan placeOrderJob, placeOrderQueueCap),
+		Exchange:         ex,
+		Engine:           eng,
+		Quotes:           q,
+		Mark:             NewMarkIndexService(q),
+		Liq:              NewLiquidationEngine(eng),
+		Public:           pub,
+		streamHubs:       make(map[string]*publicStreamHub),
+		conns:            make(map[string][]*Connector),
+		symbolSimReady:   make(map[string]struct{}),
+		placeOrderCh:     make(chan placeOrderJob, placeOrderQueueCap),
+		accountPublishCh: make(chan AccountEvent, 1024),
 	}
+	eng.WithRuntime(rt)
 	venues[ex] = rt
 	go rt.runPlaceOrderLoop()
+	go rt.runAccountPublishLoop()
 	return rt, nil
+}
+
+func (rt *VenueRuntime) enqueueAccountPublish(event AccountEvent) {
+	select {
+	case rt.accountPublishCh <- event:
+	default:
+		log.Error().Msg("account publish channel is full")
+	}
+}
+
+func (rt *VenueRuntime) runAccountPublishLoop() {
+	for event := range rt.accountPublishCh {
+		aid := accountIDFromAccountEvent(event)
+		msg := rt.accountEventToMessage(event)
+		if msg == nil || aid == "" {
+			continue
+		}
+		rt.connsMu.RLock()
+		conns := rt.conns[aid]
+		rt.connsMu.RUnlock()
+		for _, conn := range conns {
+			conn.publishAccountMessage(msg)
+		}
+	}
 }
 
 func (rt *VenueRuntime) runPlaceOrderLoop() {
 	for job := range rt.placeOrderCh {
 		ctx := context.Background()
-		rt.Engine.PlaceOrder(ctx, job.req,
-			func(o Order) { job.c.publishOrderAcceptedNew(job.symbol, o) },
-			func(before, after AccountSnapshot, res *PlaceOrderResult) {
-				job.c.publishPlaceOrderOutcome(job.symbol, before, after, res)
-			},
-		)
+		rt.Engine.PlaceOrder(ctx, job.req)
 	}
 }
 
 func (rt *VenueRuntime) registerConn(c *Connector) {
 	rt.connsMu.Lock()
 	defer rt.connsMu.Unlock()
-	rt.conns[c] = struct{}{}
+	rt.conns[c.accountID] = append(rt.conns[c.accountID], c)
 }
 
 func (rt *VenueRuntime) unregisterConn(c *Connector) {
 	rt.connsMu.Lock()
 	defer rt.connsMu.Unlock()
-	delete(rt.conns, c)
+	conns := rt.conns[c.accountID]
+	for i, conn := range conns {
+		if conn == c {
+			next := append(conns[:i], conns[i+1:]...)
+			if len(next) == 0 {
+				delete(rt.conns, c.accountID)
+			} else {
+				rt.conns[c.accountID] = next
+			}
+			return
+		}
+	}
 }
 
 // tryMarkSymbolSimReady records that ensureSymbolInitialized finished for sym.
@@ -166,4 +206,158 @@ func (rt *VenueRuntime) getOrCreateStreamHub(sel ctypes.StreamSelector) *publicS
 	h := newPublicStreamHub(rt, sel, key)
 	rt.streamHubs[key] = h
 	return h
+}
+
+func accountIDFromAccountEvent(ev AccountEvent) string {
+	if ev.accountID != "" {
+		return ev.accountID
+	}
+	if ev.order != nil {
+		return ev.order.AccountID
+	}
+	return ""
+}
+
+func simulateAccountEventMeta(accountID string, ts time.Time) string {
+	payload, _ := json.Marshal(map[string]any{
+		"eventId": GenerateCompactID(accountID),
+		"ts":      ts.UnixMilli(),
+		"source":  "simulate",
+	})
+	return string(payload)
+}
+
+func accountSnapshotToBalanceUpdate(eventID string, snap *AccountSnapshot, now time.Time) ctypes.BalanceUpdate {
+	var assets []*ctypes.AssetEvent
+	for k, v := range snap.Bal {
+		b := v
+		assets = append(assets, &ctypes.AssetEvent{
+			WalletType: k.Wallet,
+			Code:       string(k.Asset),
+			Balance:    &b,
+			Locked:     lo.ToPtr(decimal.Zero),
+			UpdatedTs:  now,
+		})
+	}
+	return ctypes.BalanceUpdate{
+		EventID: eventID,
+		Type:    ctypes.UpdateTypeSnapshot,
+		Reason:  ctypes.LedgerReasonSnapshot,
+		Assets:  assets,
+	}
+}
+
+func perpSlotToPositionsUpdate(
+	ex ctypes.Exchange,
+	accountID string,
+	symbol ctypes.Symbol,
+	slot *PerpSlot,
+	mode PositionMode,
+	eventID string,
+	now time.Time,
+) *ctypes.PositionsUpdate {
+	if slot == nil || !symbol.IsValid() {
+		return nil
+	}
+	var positions []*ctypes.Position
+	switch mode {
+	case PositionModeHedge:
+		if !slot.Long.Qty.IsZero() {
+			positions = append(positions, &ctypes.Position{
+				AccountID:     accountID,
+				Exchange:      ex,
+				Symbol:        symbol,
+				Side:          ctypes.PositionSideLong,
+				Amount:        slot.Long.Qty,
+				EntryPrice:    slot.Long.EntryPrice,
+				InitialMargin: slot.Long.UsedMargin,
+				Leverage:      int(slot.Long.Leverage),
+				UpdatedTs:     now,
+			})
+		}
+		if !slot.Short.Qty.IsZero() {
+			positions = append(positions, &ctypes.Position{
+				AccountID:     accountID,
+				Exchange:      ex,
+				Symbol:        symbol,
+				Side:          ctypes.PositionSideShort,
+				Amount:        slot.Short.Qty,
+				EntryPrice:    slot.Short.EntryPrice,
+				InitialMargin: slot.Short.UsedMargin,
+				Leverage:      int(slot.Short.Leverage),
+				UpdatedTs:     now,
+			})
+		}
+	default:
+		side := ctypes.PositionSideLong
+		amount := slot.Net.Qty
+		if amount.Sign() < 0 {
+			side = ctypes.PositionSideShort
+			amount = amount.Abs()
+		}
+		positions = append(positions, &ctypes.Position{
+			AccountID:     accountID,
+			Exchange:      ex,
+			Symbol:        symbol,
+			Side:          side,
+			Amount:        amount,
+			EntryPrice:    slot.Net.EntryPrice,
+			InitialMargin: slot.Net.UsedMargin,
+			Leverage:      int(slot.Net.Leverage),
+			UpdatedTs:     now,
+		})
+	}
+	if len(positions) == 0 {
+		return nil
+	}
+	return &ctypes.PositionsUpdate{
+		EventID:   eventID,
+		Type:      ctypes.UpdateTypeSnapshot,
+		Positions: positions,
+	}
+}
+
+func (rt *VenueRuntime) accountEventToMessage(ev AccountEvent) *ctypes.Message {
+	now := time.Now().UTC()
+	aid := accountIDFromAccountEvent(ev)
+	if aid == "" {
+		return nil
+	}
+	eventID := GenerateCompactID(aid)
+	acctSel := lo.ToPtr(aid)
+	sel := ctypes.StreamSelector{
+		Stream:  ctypes.StreamTypeAccountRaw,
+		Account: acctSel,
+	}
+
+	switch ev.kind {
+	case AccountEventTypeOrder:
+		if ev.order == nil {
+			return nil
+		}
+		co := toTypesOrder(rt.Exchange, ev.order)
+		co.Raw = simulateAccountEventMeta(aid, now)
+		return ctypes.NewMessage(rt.Exchange, sel, co, now)
+
+	case AccountEventTypeBalance:
+		if ev.balance == nil {
+			return nil
+		}
+		up := accountSnapshotToBalanceUpdate(eventID, ev.balance, now)
+		return ctypes.NewMessage(rt.Exchange, sel, up, now)
+
+	case AccountEventTypePosition:
+		if ev.position == nil {
+			return nil
+		}
+		sym := toTypesSymbol(ev.symbol)
+		pu := perpSlotToPositionsUpdate(rt.Exchange, aid, sym, ev.position, ev.position.Mode, eventID, now)
+		if pu == nil {
+			return nil
+		}
+		return ctypes.NewMessage(rt.Exchange, sel, pu, now)
+
+	default:
+		return nil
+	}
 }

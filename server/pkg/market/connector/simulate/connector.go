@@ -414,7 +414,7 @@ func (c *Connector) PlaceOrder(ctx context.Context, input mdtypes.PlaceOrderInpu
 	if req.OrderID == "" {
 		req.OrderID = GenerateCompactID(c.accountID)
 	}
-	job := placeOrderJob{c: c, symbol: input.Symbol, req: req}
+	job := placeOrderJob{c: c, req: req}
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -645,17 +645,7 @@ func (c *Connector) tryLiquidateAfterMark(symbol ctypes.Symbol, mark decimal.Dec
 		return
 	}
 	sym := toPaperSymbol(symbol)
-	before := c.rt.Engine.AccountSnapshot(c.accountID, sym)
-	results := c.rt.Liq.OnMark(c.accountID, sym, mark, nil)
-	snap := before
-	for _, res := range results {
-		if res == nil {
-			continue
-		}
-		after := c.rt.Engine.AccountSnapshot(c.accountID, sym)
-		c.publishPlaceOrderOutcome(symbol, snap, after, res)
-		snap = after
-	}
+	c.rt.Liq.OnMark(c.accountID, sym, mark)
 }
 
 // SeedAccountBalances replaces wallet balances from persisted assets (virtual accounts).
@@ -753,15 +743,7 @@ func (c *Connector) SeedOpenOrders(orders []*ctypes.Order) error {
 		}
 
 		po := orderFromTypes(c, od, rem)
-		var onNew PlaceOrderNewFunc
-		var onComplete PlaceOrderCompleteFunc
-		if od.OrderType == ctypes.OrderTypeMarket {
-			onNew = func(o Order) { c.publishOrderAcceptedNew(od.Symbol, o) }
-			onComplete = func(before, after AccountSnapshot, r *PlaceOrderResult) {
-				c.publishPlaceOrderOutcome(od.Symbol, before, after, r)
-			}
-		}
-		if err := c.rt.Engine.SeedOpenOrder(c.accountID, po, onNew, onComplete); err != nil {
+		if err := c.rt.Engine.SeedOpenOrder(c.accountID, po); err != nil {
 			return err
 		}
 	}
