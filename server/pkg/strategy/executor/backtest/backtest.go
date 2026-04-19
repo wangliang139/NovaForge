@@ -580,6 +580,8 @@ func (e *BacktestExecutor) injectInitialState() error {
 		// 对 FUTURE：先把 QuoteAssetQty 视作 collateral，BaseAssetQty 视作初始仓位 qty（可为负）；
 		// AvgPrice 等更完整字段会在永续合约 todo 中补齐。
 
+		walletType := ctypes.GetWalletType(ex, sym.Type)
+
 		// 发布初始余额事件
 		if baseBal.GreaterThan(decimal.Zero) {
 			baseBalanceSignal := &stypes.BalanceSignal{
@@ -589,13 +591,15 @@ func (e *BacktestExecutor) injectInitialState() error {
 					AccountID: accountIDProvider(ex, sym),
 					Ts:        e.config.StartTime,
 				},
-				WalletType: ctypes.WalletTypeTrade,
+				WalletType: walletType,
 				Asset:      sym.Base,
 				Free:       baseBal,
 				Frozen:     decimal.Zero,
 			}
-			if err := e.bus.Publish(e.ctx, baseBalanceSignal); err != nil {
-				return fmt.Errorf("failed to publish base balance event: %w", err)
+			// 使用 Send 同步分发：Publish 只会进入 timeline 内部队列，在首帧之前不会落地到账户/Portfolio，
+			// 导致 OnInit / sym.GetAsset 读到空余额（Portfolio 未 Init 时还会因 exchange 未绑定而恒为空）。
+			if err := e.bus.Send(e.ctx, baseBalanceSignal); err != nil {
+				return fmt.Errorf("failed to send base balance event: %w", err)
 			}
 
 			// 现货初始持仓需要记录成本价（使用初始价格作为成本价）
@@ -621,8 +625,8 @@ func (e *BacktestExecutor) injectInitialState() error {
 							Fee:     decimal.Zero,
 							Asset:   sym.Base,
 						}
-						if err := e.bus.Publish(e.ctx, initFillSignal); err != nil {
-							return fmt.Errorf("failed to publish initial fill signal: %w", err)
+						if err := e.bus.Send(e.ctx, initFillSignal); err != nil {
+							return fmt.Errorf("failed to send initial fill signal: %w", err)
 						}
 					}
 				}
@@ -636,16 +640,35 @@ func (e *BacktestExecutor) injectInitialState() error {
 					AccountID: accountIDProvider(ex, sym),
 					Ts:        e.config.StartTime,
 				},
-				WalletType: ctypes.WalletTypeTrade,
+				WalletType: walletType,
 				Asset:      sym.Quote,
 				Free:       quoteQty,
 				Frozen:     decimal.Zero,
 			}
-			if err := e.bus.Publish(e.ctx, quoteBalanceSignal); err != nil {
-				return fmt.Errorf("failed to publish quote balance event: %w", err)
+			if err := e.bus.Send(e.ctx, quoteBalanceSignal); err != nil {
+				return fmt.Errorf("failed to send quote balance event: %w", err)
 			}
 		}
 
+	}
+
+	// 与实盘/模拟盘一致：初始化 Portfolio（绑定主交易所、从 AccountEngine 拉快照）。
+	// TradeFacade.GetAsset 走 Portfolio；若不回测 Init，p.exchange 为零值会导致 GetAsset 恒返回空。
+	initEx := e.config.BaseExchange
+	if len(e.config.Symbols) > 0 && e.config.Symbols[0] != nil && e.config.Symbols[0].Exchange != "" {
+		initEx = e.config.Symbols[0].Exchange
+	}
+	symbols := make([]ctypes.Symbol, 0, len(e.config.Symbols))
+	for _, symCfg := range e.config.Symbols {
+		if symCfg == nil {
+			continue
+		}
+		symbols = append(symbols, symCfg.Symbol)
+	}
+	if e.portfolio != nil {
+		if err := e.portfolio.Init(e.ctx, e.accountManager, initEx.String(), initEx, symbols); err != nil {
+			return fmt.Errorf("init portfolio for backtest: %w", err)
+		}
 	}
 
 	return nil
