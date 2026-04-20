@@ -48,6 +48,7 @@ type Connector interface {
 	Balance(ctx context.Context) (*ctypes.Balance, error)
 	Positions(ctx context.Context, mt *ctypes.MarketType) ([]*ctypes.Position, error)
 	SymbolConfig(ctx context.Context, symbol ctypes.Symbol) (*ctypes.SymbolConfig, error)
+	// GetOrders symbol 为 nil 时表示该账户下全部当前挂单（实现因连接器而异）。
 	GetOrders(ctx context.Context, symbol *ctypes.Symbol) ([]*ctypes.Order, error)
 	// GetHisOrders 底层接口参数不统一，且跨接口 limit 不好实现，先注释掉
 	// GetHisOrders(ctx context.Context, symbol ctypes.Symbol, startTs time.Time, endTs time.Time, limit int) ([]*ctypes.Order, error)

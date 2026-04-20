@@ -906,7 +906,6 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
     }
   };
 
-  const now = dayjs();
   const disabledFutureDate = (current: dayjs.Dayjs) => {
     // 禁止选择未来日期（包含今天之后）
     return current && current.isAfter(dayjs(), 'day');

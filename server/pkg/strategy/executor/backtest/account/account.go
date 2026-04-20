@@ -684,24 +684,30 @@ func (a *account) ApplyPosition(ctx context.Context, msg stypes.Signal) error {
 	delete(ledger.Positions, longKey)
 	delete(ledger.Positions, shortKey)
 
-	newQty := a.formatAmount(ps.Qty)
+	// PositionSignal：Qty 为快照规模（非负），方向以 Side 为准；账本空仓仍用负 Amount 与 UpdatePosition 一致
+	mag := a.formatAmount(ps.Qty.Abs())
 	newEntry := ps.EntryPrice
-	if newQty.IsZero() {
+	if mag.IsZero() {
 		return nil
 	}
 
-	if newQty.IsPositive() {
+	side := ps.Side
+	if !side.Valid() {
+		side = ctypes.PositionSideLong
+	}
+	switch side {
+	case ctypes.PositionSideLong:
 		ledger.Positions[longKey] = &ctypes.Position{
 			Symbol:     exSymbol.Symbol,
 			Side:       ctypes.PositionSideLong,
-			Amount:     newQty,
+			Amount:     mag,
 			EntryPrice: newEntry,
 		}
-	} else {
+	case ctypes.PositionSideShort:
 		ledger.Positions[shortKey] = &ctypes.Position{
 			Symbol:     exSymbol.Symbol,
 			Side:       ctypes.PositionSideShort,
-			Amount:     newQty,
+			Amount:     mag.Neg(),
 			EntryPrice: newEntry,
 		}
 	}

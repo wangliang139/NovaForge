@@ -41,6 +41,8 @@ type RiskChecker interface {
 }
 
 type Config struct {
+	MarketEngineEnabled bool `split_words:"true" envconfig:"ENABLE_MARKET_ENGINE" default:"true"`
+
 	AccountConsumerGroup string `split_words:"true" default:"account.consumer.group"`
 	AccountRawMsgTopic   string `split_words:"true" default:"account.raw.msg"`
 	// AccountMessageShardCount account_raw 消费侧分片 worker 数（按账户 id 哈希路由），默认 20。
@@ -108,7 +110,8 @@ func (e *Entity) GetConnector(ctx context.Context, exchange ctypes.Exchange, acc
 		return nil, errors.New(errors.InvalidArgument, fmt.Sprintf("account exchange mismatch: account=%s request=%s", acct.Exchange, exchange))
 	}
 	if acct.AccountType == types.AccountTypeVirtual {
-		conn, err := connector.GetConnector(exchange, nil)
+		apiAccount := mdtypes.NewSimulateApiAccount(acct.ID, acct.Exchange)
+		conn, err := connector.GetConnector(exchange, apiAccount)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +274,13 @@ func (e *Entity) CreateAccount(ctx context.Context, input types.CreateAccountInp
 	if err != nil {
 		return nil, err
 	}
-	return converter.AccountRepo2Types(po), nil
+	out := converter.AccountRepo2Types(po)
+	if out != nil && out.AccountType == ctypes.AccountTypeVirtual && out.Status == ctypes.AccountStatusOnline {
+		go func() {
+			_ = e.syncOneSimulateAccount(context.Background(), out.ID, false)
+		}()
+	}
+	return out, nil
 }
 
 func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountRequest) (*types.Account, error) {
@@ -309,15 +318,9 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 		}
 	}
 
-	key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", input.Exchange)
-	err = e.db.DCache.Invalidate(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-
 	accountType := accountrepo.AccountType(input.AccountType)
 	if !accountType.Valid() {
-		accountType = accountrepo.AccountTypeReal // 默认为真实账户
+		return nil, errors.New(errors.InvalidArgument, "account_type is invalid")
 	}
 	if account.AccountType != accountType {
 		return nil, errors.New(errors.InvalidArgument, "account_type cannot be changed")
@@ -365,23 +368,48 @@ func (e *Entity) UpdateAccount(ctx context.Context, input types.UpdateAccountReq
 	if err := validateAccountParentMultiInvariant(account.AccountType, account.ParentAccountID, multiBotMode); err != nil {
 		return nil, err
 	}
-	po, err := e.db.AccountRepo.Update(ctx, accountrepo.UpdateParams{
-		ID:           input.ID,
-		Exchange:     ex,
-		Name:         input.Name,
-		ApiKey:       input.ApiKey,
-		ApiSecret:    input.ApiSecret,
-		Passphrase:   input.Passphrase,
-		Algorithm:    algo,
-		Tags:         input.Tags,
-		Status:       sts,
-		AccountType:  accountType,
-		MultiBotMode: multiBotMode,
-	}, &input.ID, &input.Name, &ex)
+	acctForLock := converter.AccountRepo2Types(account)
+	if acctForLock == nil {
+		return nil, errors.New(errors.NotFound, "account not found")
+	}
+	lockIDs, err := e.AccountWriteLockIDsForTradingAccountChain(ctx, acctForLock)
 	if err != nil {
 		return nil, err
 	}
-	return converter.AccountRepo2Types(po), nil
+	var out *types.Account
+	err = e.WithSortedAccountWrites(ctx, lockIDs, func(ctx context.Context) error {
+		key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", input.Exchange)
+		if err := e.db.DCache.Invalidate(ctx, key); err != nil {
+			return err
+		}
+		po, err := e.db.AccountRepo.Update(ctx, accountrepo.UpdateParams{
+			ID:           input.ID,
+			Exchange:     ex,
+			Name:         input.Name,
+			ApiKey:       input.ApiKey,
+			ApiSecret:    input.ApiSecret,
+			Passphrase:   input.Passphrase,
+			Algorithm:    algo,
+			Tags:         input.Tags,
+			Status:       sts,
+			AccountType:  accountType,
+			MultiBotMode: multiBotMode,
+		}, &input.ID, &input.Name, &ex)
+		if err != nil {
+			return err
+		}
+		out = converter.AccountRepo2Types(po)
+		if out != nil && out.AccountType == ctypes.AccountTypeVirtual {
+			go func() {
+				_ = e.syncOneSimulateAccount(context.Background(), out.ID, out.Status == ctypes.AccountStatusOffline)
+			}()
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (e *Entity) UpdateAccountStatus(ctx context.Context, id string, status types.AccountStatus) (*types.Account, error) {
@@ -398,11 +426,6 @@ func (e *Entity) UpdateAccountStatus(ctx context.Context, id string, status type
 	}
 	if account == nil {
 		return nil, errors.New(errors.NotFound, "account not found")
-	}
-
-	key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", account.Exchange)
-	if err = e.db.DCache.Invalidate(ctx, key); err != nil {
-		return nil, err
 	}
 
 	algo := accountrepo.Algorithm(account.Algorithm)
@@ -423,22 +446,47 @@ func (e *Entity) UpdateAccountStatus(ctx context.Context, id string, status type
 		accountType = accountrepo.AccountTypeReal
 	}
 
-	po, err := e.db.AccountRepo.Update(ctx, accountrepo.UpdateParams{
-		ID:          account.ID,
-		Exchange:    ex,
-		Name:        account.Name,
-		ApiKey:      account.ApiKey,
-		ApiSecret:   account.ApiSecret,
-		Passphrase:  account.Passphrase,
-		Algorithm:   algo,
-		Tags:        account.Tags,
-		Status:      sts,
-		AccountType: accountType,
-	}, &account.ID, &account.Name, &ex)
+	acctForLock := converter.AccountRepo2Types(account)
+	if acctForLock == nil {
+		return nil, errors.New(errors.NotFound, "account not found")
+	}
+	lockIDs, err := e.AccountWriteLockIDsForTradingAccountChain(ctx, acctForLock)
 	if err != nil {
 		return nil, err
 	}
-	return converter.AccountRepo2Types(po), nil
+	var out *types.Account
+	err = e.WithSortedAccountWrites(ctx, lockIDs, func(ctx context.Context) error {
+		key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", account.Exchange)
+		if err := e.db.DCache.Invalidate(ctx, key); err != nil {
+			return err
+		}
+		po, err := e.db.AccountRepo.Update(ctx, accountrepo.UpdateParams{
+			ID:          account.ID,
+			Exchange:    ex,
+			Name:        account.Name,
+			ApiKey:      account.ApiKey,
+			ApiSecret:   account.ApiSecret,
+			Passphrase:  account.Passphrase,
+			Algorithm:   algo,
+			Tags:        account.Tags,
+			Status:      sts,
+			AccountType: accountType,
+		}, &account.ID, &account.Name, &ex)
+		if err != nil {
+			return err
+		}
+		out = converter.AccountRepo2Types(po)
+		if out != nil && out.AccountType == ctypes.AccountTypeVirtual {
+			go func() {
+				_ = e.syncOneSimulateAccount(context.Background(), out.ID, out.Status == ctypes.AccountStatusOffline)
+			}()
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // DeleteAccount performs logical delete for an account by id.
@@ -447,27 +495,49 @@ func (e *Entity) DeleteAccount(ctx context.Context, id string) error {
 		return errors.New(errors.InvalidArgument, "id is invalid")
 	}
 
-	// invalidate default accounts cache for all exchanges (simple strategy)
-	for _, ex := range []accountrepo.Exchange{
-		accountrepo.ExchangeBinance,
-		accountrepo.ExchangeOkx,
-		accountrepo.ExchangeBinanceTest,
-		accountrepo.ExchangeOkxTest,
-	} {
-		key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", ex)
-		if err := e.db.DCache.Invalidate(ctx, key); err != nil {
-			return err
-		}
-	}
-
-	count, err := e.db.AccountRepo.DeleteAccount(ctx, id)
+	account, err := e.db.AccountRepo.GetById(ctx, id)
 	if err != nil {
 		return err
 	}
-	if count == 0 {
+	if account == nil {
 		return errors.New(errors.NotFound, "account not found")
 	}
-	return nil
+	acctForLock := converter.AccountRepo2Types(account)
+	if acctForLock == nil {
+		return errors.New(errors.NotFound, "account not found")
+	}
+	lockIDs, err := e.AccountWriteLockIDsForTradingAccountChain(ctx, acctForLock)
+	if err != nil {
+		return err
+	}
+	return e.WithSortedAccountWrites(ctx, lockIDs, func(ctx context.Context) error {
+		if account.AccountType == accountrepo.AccountTypeVirtual {
+			if err := e.syncOneSimulateAccount(ctx, id, true); err != nil {
+				return err
+			}
+		}
+		// invalidate default accounts cache for all exchanges (simple strategy)
+		for _, ex := range []accountrepo.Exchange{
+			accountrepo.ExchangeBinance,
+			accountrepo.ExchangeOkx,
+			accountrepo.ExchangeBinanceTest,
+			accountrepo.ExchangeOkxTest,
+		} {
+			key := fmt.Sprintf("accountrepo:QueryDefaultAccounts:%s", ex)
+			if err := e.db.DCache.Invalidate(ctx, key); err != nil {
+				return err
+			}
+		}
+
+		count, err := e.db.AccountRepo.DeleteAccount(ctx, id)
+		if err != nil {
+			return err
+		}
+		if count == 0 {
+			return errors.New(errors.NotFound, "account not found")
+		}
+		return nil
+	})
 }
 
 func (e *Entity) QueryAccountsCount(ctx context.Context, id *string, exchange *ctypes.Exchange, name *string, tags []string, status *types.AccountStatus, accountType *types.AccountType, createdAtStart, createdAtEnd *int64) (int64, error) {

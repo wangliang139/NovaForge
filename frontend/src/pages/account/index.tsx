@@ -129,7 +129,7 @@ const AccountsComponent: React.FC = () => {
   const renderAccountTypeTag = (accountType: AccountType) => {
     const typeMap: Record<string, { text: string; color: string }> = {
       [AccountType.Real]: { text: '真实账户', color: 'blue' },
-      [AccountType.Virtual]: { text: '虚拟账户', color: 'green' },
+      [AccountType.Virtual]: { text: '模拟账户', color: 'green' },
       [AccountType.VirtualSub]: { text: '虚拟子账户', color: 'orange' },
       [AccountType.Unspecified]: { text: '未指定', color: 'default' },
     };

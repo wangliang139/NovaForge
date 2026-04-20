@@ -254,9 +254,6 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 	if acct == nil {
 		return fmt.Errorf("account not found")
 	}
-	if acct.AccountType == types.AccountTypeVirtual {
-		return fmt.Errorf("account type not supported")
-	}
 
 	lockIDs, err := e.AccountWriteLockIDsForTradingAccountChain(ctx, acct)
 	if err != nil {
@@ -272,7 +269,7 @@ func (e *Entity) RefreshSingleAccountSnapshots(ctx context.Context, accountId st
 		}
 
 		switch acct.AccountType {
-		case types.AccountTypeReal:
+		case types.AccountTypeReal, types.AccountTypeVirtual:
 			// 1. 刷新资产快照
 			err = e.refreshAssets(ctx, conn, acct.ID, acct.Exchange)
 			if err != nil {
@@ -409,7 +406,7 @@ func (e *Entity) refreshOrders(ctx context.Context, conn mdtypes.Connector, acct
 		err           error
 	)
 	switch acct.AccountType {
-	case types.AccountTypeReal:
+	case types.AccountTypeReal, types.AccountTypeVirtual:
 		// GetOrders 支持 symbol 传 nil，表示获取当前账户下所有相关订单
 		ordersList, err = conn.GetOrders(ctx, nil)
 	case types.AccountTypeVirtualSub:

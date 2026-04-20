@@ -156,39 +156,26 @@ func strategyParamDefaultTypes2Gql(p stypes.StrategyParam) *string {
 	if p.Default == nil {
 		return nil
 	}
-	switch p.Type {
-	case stypes.StrategyParamTypeString:
-		v, ok := p.Default.(string)
-		if !ok {
-			return nil
-		}
+	if v, ok := p.Default.(string); ok {
 		return &v
-	case stypes.StrategyParamTypeNumber:
-		b, err := sonic.Marshal(p.Default)
-		if err != nil {
-			return nil
-		}
-		return lo.ToPtr(string(b))
-	case stypes.StrategyParamTypeBool:
-		v, ok := p.Default.(bool)
-		if !ok {
-			return nil
-		}
-		return lo.ToPtr(strconv.FormatBool(v))
-	case stypes.StrategyParamTypeObject, stypes.StrategyParamTypeArrayString, stypes.StrategyParamTypeArrayNumber,
-		stypes.StrategyParamTypeArrayBool, stypes.StrategyParamTypeArrayObject:
-		b, err := sonic.Marshal(p.Default)
-		if err != nil {
-			return nil
-		}
-		return lo.ToPtr(string(b))
-	default:
-		b, err := sonic.Marshal(p.Default)
+	}
+	if v, ok := p.Default.(*string); ok {
+		return v
+	}
+	if v, ok := p.Default.(*int); ok {
+		return lo.ToPtr(strconv.Itoa(*v))
+	}
+	if v, ok := p.Default.(*bool); ok {
+		return lo.ToPtr(strconv.FormatBool(*v))
+	}
+	if v, ok := p.Default.(*map[string]any); ok {
+		b, err := sonic.Marshal(v)
 		if err != nil {
 			return nil
 		}
 		return lo.ToPtr(string(b))
 	}
+	return nil
 }
 
 func StrategyParamTypes2Pb(source *stypes.StrategyParam) (*stypes.StrategyParam, error) {

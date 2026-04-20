@@ -618,9 +618,9 @@ func (e BalanceDeltaSignal) MarshalJSON() ([]byte, error) {
 // PositionSignal 持仓快照信号（snapshot）
 //
 // 语义：
-// - Qty: signed net position 的“当前值”（LONG 为正，SHORT 为负）
+// - Qty: 当前持仓数量（非负）；方向由 Side 表达（LONG / SHORT）；Qty=0 表示该方向无仓/已平仓
 // - EntryPrice: 当前持仓均价（Qty=0 时为 0）
-// - Side: 方向提示字段（通常由 Qty 的符号推导得到；当 Qty=0 时可忽略）
+// - Side: 快照对应方向（与 Qty 配套；Qty=0 时可为默认 LONG，下游应以 Qty 为准视为无仓）
 //
 // 说明：
 // - PositionSignal 是强一致链路：下游应当以“覆盖/校准”的方式更新持仓视图，而不是做增量累加。

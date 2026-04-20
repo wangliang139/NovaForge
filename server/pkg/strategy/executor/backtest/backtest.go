@@ -28,7 +28,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api/facade"
-	"github.com/wangliang139/NovaForge/server/pkg/strategy/symbolaccount"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
@@ -71,7 +70,6 @@ type BacktestExecutor struct {
 	orderManager     strategy.OrderEngine             // 订单引擎（账户视角）
 	accountManager   strategy.AccountEngine           // 账户管理器（账户视角）
 	portfolio        *portfolio.Portfolio             // 投资组合（策略视角）
-	symbolAccountMgr *symbolaccount.Manager           // 策略级交易对账户管理器（用于资金隔离）
 
 	// Collectors 和 ResultBuilder
 	collectors    *collectors.Collectors
@@ -143,10 +141,6 @@ func NewBacktestExecutor(
 
 	// 创建 Portfolio
 	portfolio := portfolio.NewPortfolio(eventBus, marketProvider)
-
-	// 创建策略级交易对账户管理器（用于资金隔离）
-	symbolAccountMgr := symbolaccount.NewManager()
-	symbolAccountMgr.Subscribe(eventBus)
 
 	// 创建账户管理器（支持多账户管理）
 	accountManager, err := account.NewAccountManager(eventBus, clock)
@@ -336,7 +330,6 @@ func NewBacktestExecutor(
 		orderManager:     orderManager,
 		accountManager:   accountManager,
 		portfolio:        portfolio,
-		symbolAccountMgr: symbolAccountMgr,
 		marketProvider:   marketProvider,
 		collectors:       collectors,
 		resultBuilder:    resultBuilder,
@@ -476,6 +469,8 @@ func (e *BacktestExecutor) runBacktest() {
 			}
 			if err := e.exchangeGateway.OnMarketSignal(e.ctx, ev.Signal); err != nil {
 				log.Ctx(e.ctx).Err(err).Str("backtest_id", e.btCtx.ID).Msg("failed to send market signal to exchange gateway")
+				e.setRunErr(fmt.Errorf("exchange gateway on market signal: %w", err))
+				return
 			}
 		}
 
@@ -504,6 +499,8 @@ func (e *BacktestExecutor) runBacktest() {
 					Time("timestamp", msg.Ts).
 					Str("signal_type", string(msg.Type())).
 					Msg("failed to process merged frame signal")
+				e.setRunErr(fmt.Errorf("strategy OnSignal: %w", err))
+				return
 			}
 		}
 
@@ -583,6 +580,8 @@ func (e *BacktestExecutor) injectInitialState() error {
 		// 对 FUTURE：先把 QuoteAssetQty 视作 collateral，BaseAssetQty 视作初始仓位 qty（可为负）；
 		// AvgPrice 等更完整字段会在永续合约 todo 中补齐。
 
+		walletType := ctypes.GetWalletType(ex, sym.Type)
+
 		// 发布初始余额事件
 		if baseBal.GreaterThan(decimal.Zero) {
 			baseBalanceSignal := &stypes.BalanceSignal{
@@ -592,13 +591,15 @@ func (e *BacktestExecutor) injectInitialState() error {
 					AccountID: accountIDProvider(ex, sym),
 					Ts:        e.config.StartTime,
 				},
-				WalletType: ctypes.WalletTypeTrade,
+				WalletType: walletType,
 				Asset:      sym.Base,
 				Free:       baseBal,
 				Frozen:     decimal.Zero,
 			}
-			if err := e.bus.Publish(e.ctx, baseBalanceSignal); err != nil {
-				return fmt.Errorf("failed to publish base balance event: %w", err)
+			// 使用 Send 同步分发：Publish 只会进入 timeline 内部队列，在首帧之前不会落地到账户/Portfolio，
+			// 导致 OnInit / sym.GetAsset 读到空余额（Portfolio 未 Init 时还会因 exchange 未绑定而恒为空）。
+			if err := e.bus.Send(e.ctx, baseBalanceSignal); err != nil {
+				return fmt.Errorf("failed to send base balance event: %w", err)
 			}
 
 			// 现货初始持仓需要记录成本价（使用初始价格作为成本价）
@@ -624,8 +625,8 @@ func (e *BacktestExecutor) injectInitialState() error {
 							Fee:     decimal.Zero,
 							Asset:   sym.Base,
 						}
-						if err := e.bus.Publish(e.ctx, initFillSignal); err != nil {
-							return fmt.Errorf("failed to publish initial fill signal: %w", err)
+						if err := e.bus.Send(e.ctx, initFillSignal); err != nil {
+							return fmt.Errorf("failed to send initial fill signal: %w", err)
 						}
 					}
 				}
@@ -639,16 +640,35 @@ func (e *BacktestExecutor) injectInitialState() error {
 					AccountID: accountIDProvider(ex, sym),
 					Ts:        e.config.StartTime,
 				},
-				WalletType: ctypes.WalletTypeTrade,
+				WalletType: walletType,
 				Asset:      sym.Quote,
 				Free:       quoteQty,
 				Frozen:     decimal.Zero,
 			}
-			if err := e.bus.Publish(e.ctx, quoteBalanceSignal); err != nil {
-				return fmt.Errorf("failed to publish quote balance event: %w", err)
+			if err := e.bus.Send(e.ctx, quoteBalanceSignal); err != nil {
+				return fmt.Errorf("failed to send quote balance event: %w", err)
 			}
 		}
 
+	}
+
+	// 与实盘/模拟盘一致：初始化 Portfolio（绑定主交易所、从 AccountEngine 拉快照）。
+	// TradeFacade.GetAsset 走 Portfolio；若不回测 Init，p.exchange 为零值会导致 GetAsset 恒返回空。
+	initEx := e.config.BaseExchange
+	if len(e.config.Symbols) > 0 && e.config.Symbols[0] != nil && e.config.Symbols[0].Exchange != "" {
+		initEx = e.config.Symbols[0].Exchange
+	}
+	symbols := make([]ctypes.Symbol, 0, len(e.config.Symbols))
+	for _, symCfg := range e.config.Symbols {
+		if symCfg == nil {
+			continue
+		}
+		symbols = append(symbols, symCfg.Symbol)
+	}
+	if e.portfolio != nil {
+		if err := e.portfolio.Init(e.ctx, e.accountManager, initEx.String(), initEx, symbols); err != nil {
+			return fmt.Errorf("init portfolio for backtest: %w", err)
+		}
 	}
 
 	return nil
@@ -657,11 +677,6 @@ func (e *BacktestExecutor) injectInitialState() error {
 // Done 返回回测完成信号
 func (e *BacktestExecutor) Done() <-chan struct{} {
 	return e.done
-}
-
-// GetSymbolAccountManager 获取策略级交易对账户管理器（用于测试）
-func (e *BacktestExecutor) GetSymbolAccountManager() *symbolaccount.Manager {
-	return e.symbolAccountMgr
 }
 
 // Stop 停止回测
@@ -675,6 +690,14 @@ func (e *BacktestExecutor) Stop(ctx context.Context) error {
 	if e.cancel != nil {
 		e.cancel()
 	}
+
+	// 等待 runBacktest 退出后再释放 gateway / JS，避免与回测 goroutine 交叉关闭
+	select {
+	case <-e.done:
+	case <-time.After(30 * time.Second):
+		log.Ctx(ctx).Warn().Str("backtest_id", e.btCtx.ID).Msg("backtest stop wait timed out")
+	}
+
 	if e.exchangeGateway != nil {
 		e.exchangeGateway.Stop()
 	}
@@ -729,6 +752,14 @@ func (e *BacktestExecutor) getRunErr() error {
 	return e.runErr
 }
 
+// equityLedgerKey 回测账本按「账户 + 市场类型 + 资产」聚合，与 executor/backtest/account 一致；
+// 同一账户下多个交易对共享同一条 USDT/BTC 余额，净值累加时每个池子只能计入一次。
+type equityLedgerKey struct {
+	AccountID  string
+	MarketType ctypes.MarketType
+	Asset      string
+}
+
 // CalculateEquityPoint 计算权益点
 func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.EquityPoint, error) {
 	equityPoint := &stypes.EquityPoint{
@@ -737,61 +768,117 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 		Symbols:       make([]stypes.SymbolEquityPoint, 0, len(e.config.Symbols)),
 	}
 
+	seenLedgerBalance := make(map[equityLedgerKey]struct{})
+
+	// 将账户资产余额只归因到第一次遇到的配置标的，避免跨 symbol 重复计入净值。
+	consumeLedgerQty := func(accountID string, mt ctypes.MarketType, asset string, qty decimal.Decimal) decimal.Decimal {
+		if qty.IsZero() {
+			return decimal.Zero
+		}
+		k := equityLedgerKey{AccountID: accountID, MarketType: mt, Asset: asset}
+		if _, ok := seenLedgerBalance[k]; ok {
+			return decimal.Zero
+		}
+		seenLedgerBalance[k] = struct{}{}
+		return qty
+	}
+
+	futureMarkPrice := func(ex ctypes.Exchange, sym ctypes.Symbol, fallback decimal.Decimal) decimal.Decimal {
+		mark, err := e.marketProvider.GetMarkPrice(ctx, ex, sym)
+		if err == nil && mark.GreaterThan(decimal.Zero) {
+			return mark
+		}
+		last, err := e.marketProvider.GetLastPrice(ctx, ex, sym)
+		if err == nil && last.GreaterThan(decimal.Zero) {
+			return last
+		}
+		if fallback.GreaterThan(decimal.Zero) {
+			return fallback
+		}
+		return decimal.Zero
+	}
+
 	// 遍历所有配置的标的，计算每个标的的权益
 	for _, symCfg := range e.config.Symbols {
 		exSymbol := ctypes.NewExSymbol(symCfg.Exchange, symCfg.Symbol)
 
-		// 从 symbolAccountMgr 获取该交易对的余额（避免跨交易对重复计价同一资产）
+		aid := accountIDProvider(symCfg.Exchange, symCfg.Symbol)
+		if aid == nil || *aid == "" {
+			return nil, fmt.Errorf("account id required for equity: %s", exSymbol.String())
+		}
+
+		baseBo, err := e.accountManager.GetAsset(ctx, *aid, symCfg.Symbol, exSymbol.GetBase())
+		if err != nil {
+			return nil, fmt.Errorf("get base asset for %s: %w", exSymbol.String(), err)
+		}
+		quoteBo, err := e.accountManager.GetAsset(ctx, *aid, symCfg.Symbol, exSymbol.GetQuote())
+		if err != nil {
+			return nil, fmt.Errorf("get quote asset for %s: %w", exSymbol.String(), err)
+		}
+
 		var baseQty, quoteQty decimal.Decimal
-		baseFree, baseFrozen := e.symbolAccountMgr.GetBalance(exSymbol, exSymbol.GetBase())
-		baseQty = baseFree.Add(baseFrozen)
-		quoteFree, quoteFrozen := e.symbolAccountMgr.GetBalance(exSymbol, exSymbol.GetQuote())
-		quoteQty = quoteFree.Add(quoteFrozen)
+		if baseBo != nil {
+			baseQty = baseBo.Balance
+		}
+		if quoteBo != nil {
+			quoteQty = quoteBo.Balance
+		}
 
 		var symbolEquity stypes.SymbolEquityPoint
 		var baseNetValue, quoteNetValue decimal.Decimal
 
 		if exSymbol.GetType() == ctypes.MarketTypeFuture {
-			// FUTURE: 先计算该 symbol 自身货币下的账户权益
-			// 获取标记价格
-			mark, err := e.marketProvider.GetMarkPrice(ctx, exSymbol.Exchange, exSymbol.Symbol)
-			if err != nil {
-				// 如果获取失败，尝试使用 lastPrice
-				mark, err = e.marketProvider.GetLastPrice(ctx, exSymbol.Exchange, exSymbol.Symbol)
-				if err != nil {
-					// 如果获取失败，使用 0（避免阻塞）
-					mark = decimal.Zero
-				}
-			}
-
-			// 从 portfolio 获取持仓信息
+			// FUTURE: 账户权益 = 共享保证金池（按资产去重）+ 各腿未实现盈亏（线性 USDT 本位）
 			positions, err := e.portfolio.GetPositions(symCfg.Exchange, &symCfg.Symbol)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get positions for %s: %w", exSymbol.String(), err)
 			}
 
-			var posQty, avgPx decimal.Decimal
-			if len(positions) > 0 && positions[0] != nil {
-				pos := positions[0]
-				// 根据持仓方向确定数量（正数表示多头，负数表示空头）
-				if pos.Side == ctypes.PositionSideLong {
-					posQty = pos.Amount
-				} else {
-					posQty = pos.Amount.Neg()
+			var refAvg decimal.Decimal
+			for _, pos := range positions {
+				if pos != nil && pos.EntryPrice.GreaterThan(decimal.Zero) {
+					refAvg = pos.EntryPrice
+					break
 				}
-				avgPx = pos.EntryPrice
 			}
 
-			// 计算未实现盈亏
-			unrealized := decimal.Zero
-			if !posQty.IsZero() && !avgPx.IsZero() && !mark.IsZero() {
-				unrealized = mark.Sub(avgPx).Mul(posQty)
+			mark := futureMarkPrice(exSymbol.Exchange, exSymbol.Symbol, refAvg)
+
+			var unrealized decimal.Decimal
+			var netPosQty decimal.Decimal
+			var displayAvgPx decimal.Decimal
+
+			for _, pos := range positions {
+				if pos == nil {
+					continue
+				}
+				var posQty decimal.Decimal
+				switch pos.Side {
+				case ctypes.PositionSideLong:
+					posQty = pos.Amount
+				case ctypes.PositionSideShort:
+					posQty = pos.Amount.Neg()
+				default:
+					posQty = pos.Amount
+				}
+				if posQty.IsZero() {
+					continue
+				}
+				netPosQty = netPosQty.Add(posQty)
+				if displayAvgPx.IsZero() && pos.EntryPrice.GreaterThan(decimal.Zero) {
+					displayAvgPx = pos.EntryPrice
+				}
+				avgPx := pos.EntryPrice
+				if !posQty.IsZero() && !avgPx.IsZero() && !mark.IsZero() {
+					unrealized = unrealized.Add(mark.Sub(avgPx).Mul(posQty))
+				}
 			}
 
-			// 权益 = 保证金余额 + 未实现盈亏
-			equityInCollateral := quoteQty.Add(unrealized)
+			quoteQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetQuote(), quoteQty)
 
-			// 将 collateral 换算到 BaseCurrency
+			// 权益 = 已归因保证金 + 未实现盈亏（不包含合约名义本金；名义仅通过 mark/均价差体现在 unrealized）
+			equityInCollateral := quoteQtyAttrib.Add(unrealized)
+
 			quotePrice, err := e.marketProvider.GetPriceInBaseCurrency(ctx, exSymbol.GetQuote(), e.config.BaseCurrency)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get quote price for %s: %w", exSymbol.GetQuote(), err)
@@ -804,17 +891,20 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				ExSymbol:      exSymbol,
 				BaseNetValue:  baseNetValue,
 				QuoteNetValue: quoteNetValue,
-				BaseQty:       posQty,
+				BaseQty:       netPosQty,
 				QuoteQty:      equityInCollateral,
-				PosQty:        posQty,
-				AvgPx:         avgPx,
+				PosQty:        netPosQty,
+				AvgPx:         displayAvgPx,
 			}
 		} else {
 			// SPOT: baseQty * basePriceInBase + quoteQty * quotePriceInBase
 			// 优化：如果数量为零，跳过价格查询
 			var basePrice, quotePrice decimal.Decimal
 
-			if !baseQty.IsZero() {
+			baseQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetBase(), baseQty)
+			quoteQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetQuote(), quoteQty)
+
+			if !baseQtyAttrib.IsZero() {
 				var err error
 				basePrice, err = e.marketProvider.GetPriceInBaseCurrency(ctx, exSymbol.GetBase(), e.config.BaseCurrency)
 				if err != nil {
@@ -824,7 +914,7 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				basePrice = decimal.Zero
 			}
 
-			if !quoteQty.IsZero() {
+			if !quoteQtyAttrib.IsZero() {
 				var err error
 				quotePrice, err = e.marketProvider.GetPriceInBaseCurrency(ctx, exSymbol.GetQuote(), e.config.BaseCurrency)
 				if err != nil {
@@ -834,21 +924,21 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				quotePrice = decimal.Zero
 			}
 
-			baseNetValue = baseQty.Mul(basePrice)
-			quoteNetValue = quoteQty.Mul(quotePrice)
+			baseNetValue = baseQtyAttrib.Mul(basePrice)
+			quoteNetValue = quoteQtyAttrib.Mul(quotePrice)
 
 			symbolEquity = stypes.SymbolEquityPoint{
 				ExSymbol:      exSymbol,
 				BaseNetValue:  baseNetValue,
 				QuoteNetValue: quoteNetValue,
-				BaseQty:       baseQty,
-				QuoteQty:      quoteQty,
+				BaseQty:       baseQtyAttrib,
+				QuoteQty:      quoteQtyAttrib,
 				PosQty:        decimal.Zero,
 				AvgPx:         decimal.Zero,
 			}
 		}
 
-		// 累加总权益（使用 symbolAccount 后，每个资产只在其对应的 symbol 下计入一次，不会跨 symbol 重复）
+		// 累加总权益（共享资产池已通过 consumeLedgerQty 去重）
 		equityPoint.TotalNetValue = equityPoint.TotalNetValue.Add(baseNetValue).Add(quoteNetValue)
 		equityPoint.Symbols = append(equityPoint.Symbols, symbolEquity)
 	}

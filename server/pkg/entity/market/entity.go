@@ -2,8 +2,6 @@ package market
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/redis/go-redis/v9"
@@ -14,13 +12,12 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/market/metrics"
 	"github.com/wangliang139/NovaForge/server/pkg/market/pubsub"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
-	accountrepo "github.com/wangliang139/NovaForge/server/pkg/repos/account"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
 
 type Config struct {
-	Enabled bool `split_words:"true" default:"true"`
+	Enabled bool `split_words:"true" envconfig:"ENABLE_MARKET_ENGINE" default:"true"`
 
 	EnableRedisPublisher bool   `split_words:"true" default:"true"`
 	RedisStreamTopic     string `split_words:"true" envconfig:"REDIS_STREAM_TOPIC" default:"md.all.msg"`
@@ -115,58 +112,7 @@ func (e *Entity) Start(ctx context.Context) error {
 		return nil
 	}
 	e.engine.Start(ctx)
-
-	go func() {
-		e.autoSubscribeAccountStreams(ctx)
-	}()
 	return nil
-}
-
-// autoSubscribeAccountStreams 按 DB 中 online 账户补漏订阅 account stream（在缓存续订之后执行）。
-func (e *Entity) autoSubscribeAccountStreams(ctx context.Context) {
-	accountList, err := e.db.AccountRepo.ListAccounts(ctx, accountrepo.AccountStatusOnline)
-	if err != nil {
-		logger.Ctx(ctx).Err(err).Msg("failed to query online accounts for auto subscription")
-		return
-	}
-	if len(accountList) == 0 {
-		logger.Ctx(ctx).Info().Msg("no online accounts found for auto subscription")
-		return
-	}
-	logger.Ctx(ctx).Info().Int("count", len(accountList)).Msg("starting auto subscription for online accounts")
-	wg := sync.WaitGroup{}
-	for _, acc := range accountList {
-		if acc.AccountType != accountrepo.AccountTypeReal {
-			continue
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			accountID := acc.ID
-			selector := ctypes.StreamSelector{
-				Stream:  ctypes.StreamTypeAccountRaw,
-				Account: &accountID,
-			}
-			exchange, err := ctypes.ParseExchange(string(acc.Exchange))
-			if err != nil {
-				panic(err)
-			}
-			for i := 0; i < 3; i++ {
-				_, err = e.EnsureSubscription(ctx, exchange, selector)
-				if err == nil {
-					break
-				}
-				logger.Ctx(ctx).Err(err).Str("account_id", acc.ID).Str("exchange", exchange.String()).Str("account_name", acc.Name).Msg("failed to subscribe account stream")
-				time.Sleep(time.Duration(time.Second) * time.Duration(i*3))
-			}
-			if err != nil {
-				panic(err)
-			}
-			logger.Ctx(ctx).Info().Str("account_id", acc.ID).Str("exchange", exchange.String()).Str("account_name", acc.Name).Msg("successfully subscribed account stream")
-		}()
-	}
-	wg.Wait()
-	logger.Ctx(ctx).Info().Int("count", len(accountList)).Msg("completed subscription for online accounts")
 }
 
 func (e *Entity) Stop(ctx context.Context) error {

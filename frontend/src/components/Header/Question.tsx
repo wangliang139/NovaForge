@@ -10,7 +10,7 @@ export const Question = ({ height }: { height: number }) => {
         height: height || 26,
       }}
       onClick={() => {
-        window.open('https://pro.ant.design/docs/getting-started');
+        window.open('https://github.com/wangliang139/NovaForge');
       }}
     >
       <QuestionCircleOutlined />

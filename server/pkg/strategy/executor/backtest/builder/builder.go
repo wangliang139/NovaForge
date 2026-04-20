@@ -98,9 +98,6 @@ func (b *ResultBuilder) BuildResult(
 		winRate = float64(winTrades) / float64(winTrades+lossTrades)
 	}
 
-	_allOrders, err := b.orderEngine.GetAllOrders(ctx, "")
-	_ = _allOrders
-
 	// 6. 获取所有订单（从 OrderCollector，包含所有已完结订单）
 	allOrders := b.collectors.Order.GetAllOrders()
 

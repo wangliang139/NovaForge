@@ -83,13 +83,13 @@ func (r *mutationResolver) CreateAccount(ctx context.Context, input model.Mutati
 	if !ok {
 		return nil, mowerror.New(mowerror.PermissionDenied, "unauthorized")
 	}
-	// 前端只能创建真实账户（不允许创建虚拟账户）
-	if input.AccountType != nil && *input.AccountType != model.AccountTypeReal {
-		return nil, mowerror.New(mowerror.InvalidArgument, "accountType is invalid")
-	}
 	algo := ctypes.AuthAlgorithmHmac
 	if input.Algorithm != nil {
 		algo = ctypes.AuthAlgorithm(*input.Algorithm)
+	}
+	acctType := ctypes.AccountTypeReal
+	if input.AccountType != nil && *input.AccountType != model.AccountTypeUnspecified {
+		acctType = ctypes.AccountType(*input.AccountType)
 	}
 	acc, err := r.AccountSvc.CreateAccount(ctx, ctypes.CreateAccountInput{
 		Name:         input.Name,
@@ -100,7 +100,7 @@ func (r *mutationResolver) CreateAccount(ctx context.Context, input model.Mutati
 		Tags:         input.Tags,
 		Status:       ctypes.AccountStatusOffline,
 		Algorithm:    algo,
-		AccountType:  ctypes.AccountTypeReal,
+		AccountType:  acctType,
 		MultiBotMode: input.MultiBotMode,
 	})
 	if err != nil {
@@ -787,6 +787,8 @@ func (r *Resolver) Mutation() action.MutationResolver { return &mutationResolver
 // Query returns action.QueryResolver implementation.
 func (r *Resolver) Query() action.QueryResolver { return &queryResolver{r} }
 
-type accountResolver struct{ *Resolver }
-type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }
+type (
+	accountResolver  struct{ *Resolver }
+	mutationResolver struct{ *Resolver }
+	queryResolver    struct{ *Resolver }
+)

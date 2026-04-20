@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
         padding: 10,
       }}
     >
-      <Typography.Text>@ Powered by Ant Desgin</Typography.Text>
+      <Typography.Text>@ Powered by NovaForge</Typography.Text>
     </Row>
   );
 };

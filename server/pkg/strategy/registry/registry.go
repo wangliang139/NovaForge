@@ -12,7 +12,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/executor/live"
-	"github.com/wangliang139/NovaForge/server/pkg/strategy/executor/paper"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/pubsub"
@@ -221,21 +220,7 @@ func (r *ExecutorRegistry) newExecutor(bot *stypes.Bot, stg *stypes.Strategy) (s
 		return nil, fmt.Errorf("failed to parse base exchange: %w", err)
 	}
 	switch bot.Mode {
-	case stypes.BotModePaper:
-		cfg := paper.PaperExecutorConfig{
-			DB:           r.db,
-			ChClient:     r.chClient,
-			Bot:          bot,
-			Strategy:     stg,
-			BaseCurrency: r.cfg.BaseCurrency,
-			BaseExchange: baseExchange,
-		}
-		exec, err := paper.NewPaperExecutor(cfg, r.marketProvider, r.accountEngine, r.orderEngine)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create paper executor: %w", err)
-		}
-		return exec, nil
-	case stypes.BotModeLive:
+	case stypes.BotModePaper, stypes.BotModeLive:
 		cfg := live.LiveExecutorConfig{
 			DB:           r.db,
 			ChClient:     r.chClient,

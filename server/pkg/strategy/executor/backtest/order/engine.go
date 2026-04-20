@@ -298,28 +298,16 @@ func (m *orderEngine) normalizeIntent(ctx context.Context, intent *stypes.OrderP
 		intent.Price = &px
 	}
 
-	// 4. 数量解析：Quantity 与 QuoteQty 只能二选一
-	if intent.Quantity != nil && intent.QuoteQty != nil {
-		return nil, fmt.Errorf("quantity and quoteQty cannot be provided together")
+	// 4. 数量解析：Quantity 与 QuoteQty 只能二选一，如果同时提供以 intent.Quantity 为准
+	if intent.Quantity != nil && intent.Quantity.GreaterThan(decimal.Zero) && intent.QuoteQty != nil && intent.QuoteQty.GreaterThan(decimal.Zero) {
+		intent.QuoteQty = nil
 	}
 
 	var qty decimal.Decimal
-	if intent.Quantity != nil {
+	if intent.Quantity != nil && intent.Quantity.GreaterThan(decimal.Zero) {
 		qty = *intent.Quantity
-		if qty.LessThanOrEqual(decimal.Zero) {
-			return nil, fmt.Errorf("invalid quantity")
-		}
-		// 使用 LotSize 归一化数量
-		qty = misc.NormalizeBaseAssetQty(qty, intent.OrderType, marketInfo)
-		if qty.IsZero() {
-			return nil, fmt.Errorf("quantity adjusted to zero")
-		}
-		intent.Quantity = &qty
-	} else if intent.QuoteQty != nil {
+	} else if intent.QuoteQty != nil && intent.QuoteQty.GreaterThan(decimal.Zero) {
 		quoteQty := *intent.QuoteQty
-		if quoteQty.LessThanOrEqual(decimal.Zero) {
-			return nil, fmt.Errorf("invalid quote quantity")
-		}
 		// 按市价将报价资产数量转换为基础资产数量
 		px := decimal.Zero
 		if intent.OrderType == ctypes.OrderTypeLimit {
@@ -333,11 +321,22 @@ func (m *orderEngine) normalizeIntent(ctx context.Context, intent *stypes.OrderP
 				return nil, fmt.Errorf("last price is zero")
 			}
 		}
-		intent.Quantity = lo.ToPtr(quoteQty.Div(px))
+		qty = quoteQty.Div(px)
 		intent.QuoteQty = nil
 	} else {
 		return nil, fmt.Errorf("quantity or quoteQty required")
 	}
+
+	if qty.LessThanOrEqual(decimal.Zero) {
+		return nil, fmt.Errorf("invalid quantity")
+	}
+
+	// 使用 LotSize 归一化数量
+	qty = misc.NormalizeBaseAssetQty(qty, intent.OrderType, marketInfo)
+	if qty.IsZero() {
+		return nil, fmt.Errorf("quantity adjusted to zero")
+	}
+	intent.Quantity = &qty
 
 	// 5. 使用市场过滤器做最终校验
 	if err := misc.ValidateMarketFilters(marketInfo, intent.OrderType, intent.Price, *intent.Quantity, 0); err != nil {
@@ -586,7 +585,8 @@ func isOrderFinal(status ctypes.OrderStatus) bool {
 	}
 }
 
-// AllOrders 返回所有未完结订单（只保留 NEW、PENDING、PARTIAL_DONE 状态的订单）
+// GetAllOrders 返回引擎 map 中的订单克隆。完结订单在生命周期处理中已从 map 删除，
+// 故此处等价于当前尚未完结的订单；完整历史订单由 OrderCollector 持有。
 func (m *orderEngine) GetAllOrders(ctx context.Context, accountID string) ([]*ctypes.Order, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -595,10 +595,7 @@ func (m *orderEngine) GetAllOrders(ctx context.Context, accountID string) ([]*ct
 		if order == nil {
 			continue
 		}
-		// 只返回未完结订单
-		if !isOrderFinal(order.Status) {
-			out = append(out, order.Clone())
-		}
+		out = append(out, order.Clone())
 	}
 	return out, nil
 }

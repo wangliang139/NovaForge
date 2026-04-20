@@ -119,9 +119,12 @@ func (s *Service) CreateAccount(ctx context.Context, input types.CreateAccountIn
 		return nil, errors.New(errors.InvalidArgument, "virtual_sub accounts cannot be created via this API")
 	}
 
-	// 虚拟账户不需要校验 apikey/apiSecret
+	// 模拟账户不需要校验 apikey/apiSecret
 	if input.AccountType == types.AccountTypeVirtual {
-		// 虚拟账户可以为空，设置默认值
+		if lo.FromPtr(input.MultiBotMode) {
+			return nil, errors.New(errors.InvalidArgument, "virtual account does not support multi_bot_mode")
+		}
+		// 模拟账户可以为空，设置默认值
 		input.ApiKey = ""
 		input.ApiSecret = ""
 		input.Passphrase = ""
@@ -182,9 +185,12 @@ func (s *Service) UpdateAccount(ctx context.Context, request *types.UpdateAccoun
 	// 更新不允许改账户类型；客户端未传 GraphQL account_type 时常误默认为 real，与库内类型对齐
 	request.AccountType = existingMeta.AccountType
 
-	// 虚拟账户 / 虚拟子账户：不向交易所校验密钥；子账户仅允许改名等约束在 entity 层校验
+	// 模拟账户 / 虚拟子账户：不向交易所校验密钥；子账户仅允许改名等约束在 entity 层校验
 	switch existingMeta.AccountType {
 	case types.AccountTypeVirtual:
+		if lo.FromPtr(request.MultiBotMode) {
+			return nil, errors.New(errors.InvalidArgument, "virtual account does not support multi_bot_mode")
+		}
 		if len(request.ApiKey) == 0 {
 			request.ApiKey = ""
 		}

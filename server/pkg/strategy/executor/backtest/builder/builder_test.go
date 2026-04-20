@@ -115,7 +115,15 @@ func (m *mockMarketProvider) GetMarket(ctx context.Context, exchange ctypes.Exch
 }
 
 func (m *mockMarketProvider) GetPriceInBaseCurrency(ctx context.Context, asset string, quote string) (decimal.Decimal, error) {
-	return decimal.Zero, nil
+	if m.prices != nil {
+		if p, ok := m.prices[asset]; ok {
+			return p, nil
+		}
+	}
+	if asset != "" && asset == quote {
+		return decimal.NewFromInt(1), nil
+	}
+	return decimal.NewFromInt(1), nil
 }
 
 func (m *mockMarketProvider) GetLastPrice(ctx context.Context, exchange ctypes.Exchange, symbol ctypes.Symbol) (decimal.Decimal, error) {

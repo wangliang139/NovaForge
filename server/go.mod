@@ -22,6 +22,7 @@ require (
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jackc/pgx/v5 v5.8.0
+	github.com/joho/godotenv v1.5.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/modelcontextprotocol/go-sdk v1.4.1
@@ -33,6 +34,7 @@ require (
 	github.com/rs/zerolog v1.34.0
 	github.com/samber/lo v1.53.0
 	github.com/shopspring/decimal v1.4.0
+	github.com/stretchr/testify v1.11.1
 	github.com/stumble/dcache v0.4.0
 	github.com/stumble/wpgx v0.4.8
 	github.com/tiktoken-go/tokenizer v0.7.0
@@ -61,10 +63,11 @@ require (
 )
 
 require (
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/miekg/dns v1.1.62 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.7.0 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/wangliang139/mow/dns v0.0.0-20241112041056-673cdf316618 // indirect
@@ -93,6 +96,7 @@ require (
 	github.com/coocood/freecache v1.2.4 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/emirpasic/gods v1.18.1
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect

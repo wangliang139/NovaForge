@@ -16,6 +16,7 @@ import {
   CreateBotInput,
   IsMarketSignal,
   ParamType,
+  queryBots,
   queryStrategies,
   SignalScope,
   SignalTypeOptions,
@@ -25,8 +26,8 @@ import {
   updateBot,
   UpdateBotInput,
 } from '@/services/gateway/strategy';
-import { getWalletTypeLabel } from '@/utils/marketTag';
 import { getExchangeLogo, getExchangeTitle, parseSymbol } from '@/utils/market';
+import { getWalletTypeLabel } from '@/utils/marketTag';
 import {
   DeleteOutlined,
   InfoCircleOutlined,
@@ -118,6 +119,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [occupiedAccountIds, setOccupiedAccountIds] = useState<Set<string>>(new Set());
   const [exchangeSymbols, setExchangeSymbols] = useState<
     Record<string, { label: string; value: string }[]>
   >({});
@@ -132,6 +134,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       if (!isEdit) {
         form.setFieldsValue({
           mode: BotMode.Live,
+          paperAccountSource: 'existing',
           exchange: 'binance',
           symbols: [],
           initialAssets: [{ ...EMPTY_BOT_INITIAL_ASSET_ROW }],
@@ -245,6 +248,10 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   // 监听 symbols 变化，更新信号绑定结构
   const symbolsValue = Form.useWatch('symbols', form);
   const modeValue = Form.useWatch('mode', form);
+  const paperAccountSource = Form.useWatch('paperAccountSource', form) as
+    | 'existing'
+    | 'new'
+    | undefined;
   const accountIdWatch = Form.useWatch('accountId', form);
   const needsLiveSubAllocation =
     modeValue === BotMode.Live &&
@@ -408,11 +415,20 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   const walletTypeOptions = getAllowedWalletTypes(exchangeValue).map((value) => {
     return { value, label: getWalletTypeLabel(value) };
   });
+
+  const isAccountOccupiedByOtherBot = (accountId: string) => {
+    if (!accountId) return false;
+    if (!occupiedAccountIds.has(accountId)) return false;
+    return !(isEdit && bot && String(bot.accountId) === String(accountId));
+  };
+
   // 实盘：可选 real 账户；模拟盘：仅支持 virtual 账户
   const liveAccountOptions = accounts
     .filter(
       (acc) =>
-        acc.accountType === AccountType.Real && (!exchangeValue || acc.exchange === exchangeValue),
+        acc.accountType === AccountType.Real &&
+        (!exchangeValue || acc.exchange === exchangeValue) &&
+        (acc.multiBotMode || !isAccountOccupiedByOtherBot(String(acc.id))),
     )
     .map((acc) => ({
       value: acc.id,
@@ -478,7 +494,8 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     .filter(
       (acc) =>
         acc.accountType === AccountType.Virtual &&
-        (!exchangeValue || acc.exchange === exchangeValue),
+        (!exchangeValue || acc.exchange === exchangeValue) &&
+        !isAccountOccupiedByOtherBot(String(acc.id)),
     )
     .map((acc) => ({
       label: `${acc.name} (${getExchangeTitle(acc.exchange)})`,
@@ -504,12 +521,23 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   useEffect(() => {
     const accountId = form.getFieldValue('accountId');
     if (!accountId) return;
-    const opts = modeValue === BotMode.Live ? liveAccountOptions : paperAccountOptions;
+    const opts =
+      modeValue === BotMode.Live
+        ? liveAccountOptions
+        : paperAccountSource === 'existing'
+          ? paperAccountOptions
+          : [];
     const allowed = opts.some((o) => o.value === accountId);
     if (!allowed) {
       form.setFieldsValue({ accountId: undefined });
     }
-  }, [modeValue, liveAccountOptions, paperAccountOptions]);
+  }, [modeValue, paperAccountSource, liveAccountOptions, paperAccountOptions]);
+
+  useEffect(() => {
+    if (modeValue === BotMode.Paper && paperAccountSource === 'new') {
+      form.setFieldsValue({ accountId: undefined });
+    }
+  }, [modeValue, paperAccountSource, form]);
 
   useEffect(() => {
     if (!symbolsValue || symbolsValue.length === 0 || !selectedStrategy || !exchangeValue) {
@@ -597,8 +625,17 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
   const loadAccounts = async () => {
     setLoadingAccounts(true);
     try {
-      const result = await queryAccounts({ current: 1, pageSize: 1000 });
+      const [result, botsResult] = await Promise.all([
+        queryAccounts({ current: 1, pageSize: 1000 }),
+        queryBots({ current: 1, pageSize: 2000 }),
+      ]);
       setAccounts(result?.list || []);
+      const occupied = new Set<string>();
+      (botsResult?.list || []).forEach((b: Bot) => {
+        const id = String(b?.accountId || '').trim();
+        if (id) occupied.add(id);
+      });
+      setOccupiedAccountIds(occupied);
       if (isEdit && bot) {
         form.setFieldsValue({ accountId: bot.accountId });
       }
@@ -670,11 +707,13 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     );
     const liveMulti = values.mode === BotMode.Live && !!accountForSubmit?.multiBotMode;
 
-    if (values.mode === BotMode.Paper || liveMulti) {
+    const createNewPaperAccount =
+      values.mode === BotMode.Paper && (values.paperAccountSource || 'existing') === 'new';
+    if (createNewPaperAccount || liveMulti) {
       const initialAssets = pickInitialAssets();
       if (!initialAssets.length) {
         message.error(
-          values.mode === BotMode.Paper
+          createNewPaperAccount
             ? '模拟盘需要配置初始资产'
             : '多 Bot 共享父账户需配置子账户初始资产',
         );
@@ -767,13 +806,17 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       return false;
     }
 
-    // 实盘：需选真实/测试网账户；模拟盘：需选虚拟账户
-    if (!values.accountId) {
-      message.error(
-        values.mode === BotMode.Live
-          ? '实盘模式下必须选择交易账户（真实或测试网）'
-          : '模拟盘模式下必须选择交易账户（仅支持虚拟账户）',
-      );
+    // 实盘：需选真实/测试网账户；模拟盘：需选模拟账户
+    if (values.mode === BotMode.Live && !values.accountId) {
+      message.error('实盘模式下必须选择交易账户（真实或测试网）');
+      return false;
+    }
+    if (
+      values.mode === BotMode.Paper &&
+      (values.paperAccountSource || 'existing') === 'existing' &&
+      !values.accountId
+    ) {
+      message.error('模拟盘（已有账户）必须选择交易账户（仅支持模拟账户）');
       return false;
     }
 
@@ -785,7 +828,10 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       mode: values.mode,
       exchange: values.exchange,
       symbols: values.symbols,
-      accountId: values.accountId || '',
+      accountId:
+        values.mode === BotMode.Paper && (values.paperAccountSource || 'existing') === 'new'
+          ? ''
+          : values.accountId || '',
       config: configStr || '{}',
     };
 
@@ -1128,7 +1174,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
             fieldProps={{
               showSearch: true,
               loading: loadingAccounts,
-              placeholder: '请选择真实或测试网账户',
+              placeholder: '请选择未占用单Bot账户或多Bot账户',
               filterOption: (input, option) => {
                 const id = String(option?.value ?? '');
                 const acc = accounts.find((a) => a.id === id);
@@ -1142,16 +1188,31 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
 
         {modeValue === BotMode.Paper && (
           <ProFormSelect
+            name="paperAccountSource"
+            label="模拟账户来源"
+            width={220}
+            disabled={isEdit}
+            initialValue="existing"
+            options={[
+              { label: '选择已有模拟账户', value: 'existing' },
+              { label: '新建模拟账户', value: 'new' },
+            ]}
+            rules={[{ required: true, message: '请选择模拟账户来源' }]}
+          />
+        )}
+
+        {modeValue === BotMode.Paper && (paperAccountSource || 'existing') === 'existing' && (
+          <ProFormSelect
             name="accountId"
             label="交易账户"
             width={300}
             disabled={isEdit}
-            rules={[{ required: true, message: '请选择交易账户（模拟盘仅支持虚拟账户）' }]}
+            rules={[{ required: true, message: '请选择交易账户（模拟盘仅支持模拟账户）' }]}
             options={paperAccountOptions}
             fieldProps={{
               showSearch: true,
               loading: loadingAccounts,
-              placeholder: '请选择虚拟账户',
+              placeholder: '请选择未被占用的模拟账户',
               filterOption: (input, option) =>
                 ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase()),
             }}
@@ -1181,7 +1242,9 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           </Card>
         )}
 
-        {(modeValue === BotMode.Paper || needsLiveSubAllocation) && (
+        {((modeValue === BotMode.Paper &&
+          (isEdit || (paperAccountSource || 'existing') === 'new')) ||
+          needsLiveSubAllocation) && (
           <ProForm.Item
             label={needsLiveSubAllocation ? '子账户初始资产（实盘共享）' : '初始资产配置'}
             required

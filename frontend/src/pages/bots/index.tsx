@@ -9,6 +9,7 @@ import {
   stopBot,
   upgradeBot,
 } from '@/services/gateway/strategy';
+import { AccountType, deleteAccount, queryAccount } from '@/services/gateway/account';
 import { getExchangeTitle } from '@/utils/market';
 import { history } from '@@/exports';
 import {
@@ -22,7 +23,7 @@ import {
 } from '@ant-design/icons';
 import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
 import { Outlet, useMatch } from '@umijs/max';
-import { Button, Dropdown, message, Modal, Space, Tag, Typography } from 'antd';
+import { Button, Checkbox, Dropdown, message, Modal, Space, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { MenuInfo } from 'rc-menu/es/interface';
 import React, { useRef, useState } from 'react';
@@ -84,22 +85,60 @@ const BotsComponent: React.FC = () => {
         }
         break;
       case 'delete':
-        Modal.confirm({
-          title: '确认删除',
-          content: `确定要删除 Bot「${row.name}」吗？此操作不可恢复。`,
-          okText: '删除',
-          okType: 'danger',
-          cancelText: '取消',
-          onOk: async () => {
-            const deleteResp = await deleteBot(row.id);
-            if (deleteResp.errors?.length) {
-              message.error(deleteResp.errors[0]?.message || '删除失败');
-              return;
-            }
-            message.success('Bot 已删除');
-            actionRef.current?.reload();
-          },
-        });
+        {
+          let accountType: AccountType | undefined;
+          try {
+            const accountRes = await queryAccount(row.accountId);
+            accountType = accountRes?.list?.[0]?.accountType;
+          } catch (_) {
+            // ignore account query failure, keep delete bot flow available.
+          }
+          const canCascadeDeleteAccount =
+            accountType === AccountType.Virtual || accountType === AccountType.VirtualSub;
+          let deleteRelatedAccount = false;
+
+          Modal.confirm({
+            title: '确认删除',
+            content: (
+              <Space direction="vertical" size={12}>
+                <span>{`确定要删除 Bot「${row.name}」吗？此操作不可恢复。`}</span>
+                {canCascadeDeleteAccount && (
+                  <Checkbox
+                    onChange={(e) => {
+                      deleteRelatedAccount = e.target.checked;
+                    }}
+                  >
+                    同时删除关联模拟账户/虚拟子账户
+                  </Checkbox>
+                )}
+              </Space>
+            ),
+            okText: '删除',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: async () => {
+              const deleteResp = await deleteBot(row.id);
+              if (deleteResp.errors?.length) {
+                message.error(deleteResp.errors[0]?.message || '删除失败');
+                return;
+              }
+
+              if (deleteRelatedAccount && canCascadeDeleteAccount) {
+                const accountDeleteResp = await deleteAccount(row.accountId);
+                if (accountDeleteResp.errors?.length) {
+                  message.warning(
+                    `Bot 已删除，但关联账户删除失败：${accountDeleteResp.errors[0]?.message || 'unknown error'}`,
+                  );
+                  actionRef.current?.reload();
+                  return;
+                }
+              }
+
+              message.success('Bot 已删除');
+              actionRef.current?.reload();
+            },
+          });
+        }
         break;
       case 'detail':
         history.push(`/bot/${row.id}`);

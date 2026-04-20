@@ -658,24 +658,40 @@ func (s *Service) CreateBot(ctx context.Context, req *stypes.CreateBotRequest) (
 			accountID = sub.ID
 		}
 	} else {
-		assets, err := parseInitialAssets(config)
-		if err != nil {
-			return nil, err
+		if accountID != "" {
+			acct, err := entity.Account.GetAccount(ctx, accountID)
+			if err != nil {
+				return nil, err
+			}
+			if acct == nil {
+				return nil, errors.New(errors.NotFound, "account not found")
+			}
+			if acct.Exchange != exSrv {
+				return nil, errors.New(errors.InvalidArgument, "account exchange mismatch")
+			}
+			if acct.AccountType != ctypes.AccountTypeVirtual && acct.AccountType != ctypes.AccountTypeVirtualSub {
+				return nil, errors.New(errors.InvalidArgument, "paper bot must bind to a virtual or virtual_sub account")
+			}
+		} else {
+			assets, err := parseInitialAssets(config)
+			if err != nil {
+				return nil, err
+			}
+			if len(assets) == 0 {
+				return nil, errors.New(errors.InvalidArgument, "initial assets is required when creating a new paper account")
+			}
+			paper, err := s.accountSvc.CreateAccount(ctx, ctypes.CreateAccountInput{
+				Name:          fmt.Sprintf("paper-%s-%s", req.Name, time.Now().Format("20060102150405")),
+				Exchange:      exSrv,
+				AccountType:   ctypes.AccountTypeVirtual,
+				Algorithm:     ctypes.AuthAlgorithmNone,
+				InitialAssets: assets,
+			})
+			if err != nil {
+				return nil, err
+			}
+			accountID = paper.ID
 		}
-		if len(assets) == 0 {
-			return nil, errors.New(errors.InvalidArgument, "initial assets is required for paper mode")
-		}
-		paper, err := s.accountSvc.CreateAccount(ctx, ctypes.CreateAccountInput{
-			Name:          fmt.Sprintf("paper-%s-%s", req.Name, time.Now().Format("20060102150405")),
-			Exchange:      exSrv,
-			AccountType:   ctypes.AccountTypeVirtual,
-			Algorithm:     ctypes.AuthAlgorithmNone,
-			InitialAssets: assets,
-		})
-		if err != nil {
-			return nil, err
-		}
-		accountID = paper.ID
 	}
 
 	input := &stypes.CreateBotInput{
