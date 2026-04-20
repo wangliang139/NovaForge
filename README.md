@@ -2,7 +2,7 @@
 
 面向个人或单机部署的 **Web3 多交易所交易与管理平台**：同一进程内提供 GraphQL API、策略运行时、行情与交易对接，配套 React 管理界面。
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Source%20Available-orange.svg)](LICENSE)
 
 ## 目录
 
@@ -177,7 +177,7 @@ cd frontend && pnpm install && pnpm run build
 
 ## 许可证
 
-本项目基于 [Apache License 2.0](LICENSE) 发布。
+本项目采用 [NovaForge Source Available License 1.0](LICENSE) 发布：允许非商业场景下使用、修改与分发；商业使用需另行获得书面授权（见 [LICENSE-COMMERCIAL.md](LICENSE-COMMERCIAL.md)）。
 
 ## 免责声明
 
