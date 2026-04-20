@@ -752,12 +752,50 @@ func (e *BacktestExecutor) getRunErr() error {
 	return e.runErr
 }
 
+// equityLedgerKey 回测账本按「账户 + 市场类型 + 资产」聚合，与 executor/backtest/account 一致；
+// 同一账户下多个交易对共享同一条 USDT/BTC 余额，净值累加时每个池子只能计入一次。
+type equityLedgerKey struct {
+	AccountID  string
+	MarketType ctypes.MarketType
+	Asset      string
+}
+
 // CalculateEquityPoint 计算权益点
 func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.EquityPoint, error) {
 	equityPoint := &stypes.EquityPoint{
 		Ts:            e.clock.Now(),
 		TotalNetValue: decimal.Zero,
 		Symbols:       make([]stypes.SymbolEquityPoint, 0, len(e.config.Symbols)),
+	}
+
+	seenLedgerBalance := make(map[equityLedgerKey]struct{})
+
+	// 将账户资产余额只归因到第一次遇到的配置标的，避免跨 symbol 重复计入净值。
+	consumeLedgerQty := func(accountID string, mt ctypes.MarketType, asset string, qty decimal.Decimal) decimal.Decimal {
+		if qty.IsZero() {
+			return decimal.Zero
+		}
+		k := equityLedgerKey{AccountID: accountID, MarketType: mt, Asset: asset}
+		if _, ok := seenLedgerBalance[k]; ok {
+			return decimal.Zero
+		}
+		seenLedgerBalance[k] = struct{}{}
+		return qty
+	}
+
+	futureMarkPrice := func(ex ctypes.Exchange, sym ctypes.Symbol, fallback decimal.Decimal) decimal.Decimal {
+		mark, err := e.marketProvider.GetMarkPrice(ctx, ex, sym)
+		if err == nil && mark.GreaterThan(decimal.Zero) {
+			return mark
+		}
+		last, err := e.marketProvider.GetLastPrice(ctx, ex, sym)
+		if err == nil && last.GreaterThan(decimal.Zero) {
+			return last
+		}
+		if fallback.GreaterThan(decimal.Zero) {
+			return fallback
+		}
+		return decimal.Zero
 	}
 
 	// 遍历所有配置的标的，计算每个标的的权益
@@ -790,46 +828,57 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 		var baseNetValue, quoteNetValue decimal.Decimal
 
 		if exSymbol.GetType() == ctypes.MarketTypeFuture {
-			// FUTURE: 先计算该 symbol 自身货币下的账户权益
-			// 获取标记价格
-			mark, err := e.marketProvider.GetMarkPrice(ctx, exSymbol.Exchange, exSymbol.Symbol)
-			if err != nil {
-				// 如果获取失败，尝试使用 lastPrice
-				mark, err = e.marketProvider.GetLastPrice(ctx, exSymbol.Exchange, exSymbol.Symbol)
-				if err != nil {
-					// 如果获取失败，使用 0（避免阻塞）
-					mark = decimal.Zero
-				}
-			}
-
-			// 从 portfolio 获取持仓信息
+			// FUTURE: 账户权益 = 共享保证金池（按资产去重）+ 各腿未实现盈亏（线性 USDT 本位）
 			positions, err := e.portfolio.GetPositions(symCfg.Exchange, &symCfg.Symbol)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get positions for %s: %w", exSymbol.String(), err)
 			}
 
-			var posQty, avgPx decimal.Decimal
-			if len(positions) > 0 && positions[0] != nil {
-				pos := positions[0]
-				// 根据持仓方向确定数量（正数表示多头，负数表示空头）
-				if pos.Side == ctypes.PositionSideLong {
-					posQty = pos.Amount
-				} else {
-					posQty = pos.Amount.Neg()
+			var refAvg decimal.Decimal
+			for _, pos := range positions {
+				if pos != nil && pos.EntryPrice.GreaterThan(decimal.Zero) {
+					refAvg = pos.EntryPrice
+					break
 				}
-				avgPx = pos.EntryPrice
 			}
 
-			// 计算未实现盈亏
-			unrealized := decimal.Zero
-			if !posQty.IsZero() && !avgPx.IsZero() && !mark.IsZero() {
-				unrealized = mark.Sub(avgPx).Mul(posQty)
+			mark := futureMarkPrice(exSymbol.Exchange, exSymbol.Symbol, refAvg)
+
+			var unrealized decimal.Decimal
+			var netPosQty decimal.Decimal
+			var displayAvgPx decimal.Decimal
+
+			for _, pos := range positions {
+				if pos == nil {
+					continue
+				}
+				var posQty decimal.Decimal
+				switch pos.Side {
+				case ctypes.PositionSideLong:
+					posQty = pos.Amount
+				case ctypes.PositionSideShort:
+					posQty = pos.Amount.Neg()
+				default:
+					posQty = pos.Amount
+				}
+				if posQty.IsZero() {
+					continue
+				}
+				netPosQty = netPosQty.Add(posQty)
+				if displayAvgPx.IsZero() && pos.EntryPrice.GreaterThan(decimal.Zero) {
+					displayAvgPx = pos.EntryPrice
+				}
+				avgPx := pos.EntryPrice
+				if !posQty.IsZero() && !avgPx.IsZero() && !mark.IsZero() {
+					unrealized = unrealized.Add(mark.Sub(avgPx).Mul(posQty))
+				}
 			}
 
-			// 权益 = 保证金余额 + 未实现盈亏
-			equityInCollateral := quoteQty.Add(unrealized)
+			quoteQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetQuote(), quoteQty)
 
-			// 将 collateral 换算到 BaseCurrency
+			// 权益 = 已归因保证金 + 未实现盈亏（不包含合约名义本金；名义仅通过 mark/均价差体现在 unrealized）
+			equityInCollateral := quoteQtyAttrib.Add(unrealized)
+
 			quotePrice, err := e.marketProvider.GetPriceInBaseCurrency(ctx, exSymbol.GetQuote(), e.config.BaseCurrency)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get quote price for %s: %w", exSymbol.GetQuote(), err)
@@ -842,17 +891,20 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				ExSymbol:      exSymbol,
 				BaseNetValue:  baseNetValue,
 				QuoteNetValue: quoteNetValue,
-				BaseQty:       posQty,
+				BaseQty:       netPosQty,
 				QuoteQty:      equityInCollateral,
-				PosQty:        posQty,
-				AvgPx:         avgPx,
+				PosQty:        netPosQty,
+				AvgPx:         displayAvgPx,
 			}
 		} else {
 			// SPOT: baseQty * basePriceInBase + quoteQty * quotePriceInBase
 			// 优化：如果数量为零，跳过价格查询
 			var basePrice, quotePrice decimal.Decimal
 
-			if !baseQty.IsZero() {
+			baseQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetBase(), baseQty)
+			quoteQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetQuote(), quoteQty)
+
+			if !baseQtyAttrib.IsZero() {
 				var err error
 				basePrice, err = e.marketProvider.GetPriceInBaseCurrency(ctx, exSymbol.GetBase(), e.config.BaseCurrency)
 				if err != nil {
@@ -862,7 +914,7 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				basePrice = decimal.Zero
 			}
 
-			if !quoteQty.IsZero() {
+			if !quoteQtyAttrib.IsZero() {
 				var err error
 				quotePrice, err = e.marketProvider.GetPriceInBaseCurrency(ctx, exSymbol.GetQuote(), e.config.BaseCurrency)
 				if err != nil {
@@ -872,21 +924,21 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				quotePrice = decimal.Zero
 			}
 
-			baseNetValue = baseQty.Mul(basePrice)
-			quoteNetValue = quoteQty.Mul(quotePrice)
+			baseNetValue = baseQtyAttrib.Mul(basePrice)
+			quoteNetValue = quoteQtyAttrib.Mul(quotePrice)
 
 			symbolEquity = stypes.SymbolEquityPoint{
 				ExSymbol:      exSymbol,
 				BaseNetValue:  baseNetValue,
 				QuoteNetValue: quoteNetValue,
-				BaseQty:       baseQty,
-				QuoteQty:      quoteQty,
+				BaseQty:       baseQtyAttrib,
+				QuoteQty:      quoteQtyAttrib,
 				PosQty:        decimal.Zero,
 				AvgPx:         decimal.Zero,
 			}
 		}
 
-		// 累加总权益（使用 symbolAccount 后，每个资产只在其对应的 symbol 下计入一次，不会跨 symbol 重复）
+		// 累加总权益（共享资产池已通过 consumeLedgerQty 去重）
 		equityPoint.TotalNetValue = equityPoint.TotalNetValue.Add(baseNetValue).Add(quoteNetValue)
 		equityPoint.Symbols = append(equityPoint.Symbols, symbolEquity)
 	}

@@ -2,6 +2,7 @@ import defaultAvatar from '@/assets/image/avatar.png';
 import bgLayout from '@/assets/image/bg-layout.png';
 import { AvatarDropdown, Footer, Question } from '@/components';
 import { NewsTicker } from '@/components/Header/NewsTicker';
+import SidebarFooter from '@/components/SidebarFooter';
 import { BgColorsOutlined, BookOutlined, MoonOutlined, SunOutlined, SyncOutlined } from '@ant-design/icons';
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import { SettingDrawer } from '@ant-design/pro-components';
@@ -210,6 +211,19 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     footerRender: () => {
       if (history.location.pathname.startsWith('/chat')) return null;
       return <Footer />;
+    },
+    menuFooterRender: (props) => {
+      return (
+        <div
+          style={{
+            minHeight: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <SidebarFooter collapsed={props?.collapsed} />
+        </div>
+      );
     },
     bgLayoutImgList: [
       {
