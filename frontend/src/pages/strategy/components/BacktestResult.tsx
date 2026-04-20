@@ -1,5 +1,5 @@
+import OrdersTable from '@/components/Market/OrdersTable';
 import { queryKline } from '@/pages/exchange/service';
-import { Order } from '@/services/gateway/account';
 import { Kline } from '@/services/gateway/market';
 import {
   ConsoleLog,
@@ -236,96 +236,6 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
     },
   ];
 
-  const orderColumns: ColumnsType<Order> = [
-    {
-      title: '订单ID',
-      dataIndex: 'orderId',
-      width: 200,
-    },
-    {
-      title: '交易所',
-      dataIndex: 'exchange',
-      width: 150,
-    },
-    {
-      title: '交易对',
-      dataIndex: 'symbol',
-      width: 150,
-    },
-    {
-      title: '方向',
-      dataIndex: 'isBuy',
-      width: 80,
-      render: (isBuy?: boolean) => (
-        <Tag color={isBuy ? 'green' : 'red'}>{isBuy ? '买入' : '卖出'}</Tag>
-      ),
-    },
-    {
-      title: '订单类型',
-      dataIndex: 'orderType',
-      width: 100,
-    },
-    {
-      title: '价格',
-      dataIndex: 'price',
-      width: 120,
-      render: (price?: string) => (price ? parseFloat(price).toFixed(defaultPrecision) : '-'),
-    },
-    {
-      title: '数量',
-      dataIndex: 'originalQty',
-      width: 120,
-      render: (qty?: string) => (qty ? parseFloat(qty).toFixed(defaultPrecision) : '-'),
-    },
-    {
-      title: '已成交数量',
-      dataIndex: 'executedQty',
-      width: 120,
-      render: (qty?: string) => (qty ? parseFloat(qty).toFixed(defaultPrecision) : '-'),
-    },
-    {
-      title: '平均价格',
-      dataIndex: 'avgPrice',
-      width: 120,
-      render: (price?: string) => (price ? parseFloat(price).toFixed(defaultPrecision) : '-'),
-    },
-    {
-      title: '金额',
-      dataIndex: 'amount',
-      width: 150,
-      render: (_: string, record?: Order) => {
-        const qtyNum = Number(record?.executedQty);
-        const priceNum = Number(record?.avgPrice || record?.price);
-        if (!Number.isFinite(qtyNum) || !Number.isFinite(priceNum)) return '-';
-        return safeFixed(qtyNum * priceNum);
-      },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      render: (status?: string) => {
-        const colorMap: Record<string, string> = {
-          NEW: 'blue',
-          PARTIALLY_FILLED: 'orange',
-          FILLED: 'green',
-          CANCELED: 'default',
-          REJECTED: 'red',
-        };
-        return <Tag color={colorMap[status || ''] || 'default'}>{status || '-'}</Tag>;
-      },
-    },
-    {
-      title: '时间',
-      dataIndex: 'createdTs',
-      width: 180,
-      sorter: (a, b) => (a.createdTs ?? 0) - (b.createdTs ?? 0),
-      defaultSortOrder: 'ascend',
-      sortDirections: ['ascend', 'descend'],
-      render: (ts?: number) => (ts ? dayjs(ts).format('YYYY-MM-DD HH:mm:ss.SSS') : '-'),
-    },
-  ];
-
   const calcFee = (fill?: Fill): { fee: number; asset: string } | undefined => {
     if (!fill) return undefined;
     const feeNum = Number(fill.fee);
@@ -528,8 +438,9 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
       symbol: meta.symbol,
       exchange: meta.exchange,
       interval,
-      startTime: value.startTime,
-      endTime: value.endTime,
+      // RunBacktest 返回的 startTime/endTime 为 Unix 秒；Kline 接口与后端 GetHisKlines 使用毫秒
+      startTime: toMsIfSeconds(value.startTime),
+      endTime: toMsIfSeconds(value.endTime),
       limit: maxKlineBars,
     })
       .then((res: any) => {
@@ -917,12 +828,13 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
           key: 'orders',
           label: '订单记录',
           children: (
-            <Table
-              columns={orderColumns}
+            <OrdersTable
               dataSource={value.data.orders || []}
-              rowKey={(record, index) => record.orderId || `order-${index}`}
               pagination={{ pageSize: 50 }}
-              scroll={{ x: 'max-content', y: 400 }}
+              scrollY={400}
+              pricePrecision={defaultPrecision}
+              volumePrecision={defaultPrecision}
+              showConditionsColumn={false}
             />
           ),
         },

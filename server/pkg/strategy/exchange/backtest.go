@@ -8,7 +8,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	bridge "github.com/wangliang139/NovaForge/server/pkg/strategy/exchange/bridge"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/exchange/matching"
@@ -16,6 +15,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // BacktestGateway 是策略内部与撮合引擎之间的桥梁：
@@ -526,11 +526,6 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 		}
 		g.mu.Unlock()
 
-		side := ctypes.PositionSideLong
-		if newQty.IsNegative() {
-			side = ctypes.PositionSideShort
-		}
-
 		if err := g.bus.Publish(ctx, &stypes.PositionSignal{
 			BaseSignal: stypes.BaseSignal{
 				Exchange:  &ex,
@@ -538,7 +533,7 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 				AccountID: &accountID,
 				Ts:        ts,
 			},
-			Side:       side,
+			Side:       e.Side,
 			Qty:        abs(newQty),
 			EntryPrice: newEntry,
 		}); err != nil {

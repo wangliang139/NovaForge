@@ -69,7 +69,7 @@ func (m *strategyManager) CreateStrategy(ctx context.Context, req *stypes.Create
 	if err != nil {
 		return nil, fmt.Errorf("invalid signals: %w", err)
 	}
-	version := getStrategyVersion(id, req.Code, paramsHash, sigHash)
+	version := getStrategyVersion(id, req.Code, -1, paramsHash, sigHash)
 
 	// check if strategy already exists
 	existingStrategy, err := m.db.StrategyRepo.GetByName(ctx, req.Name)
@@ -160,7 +160,7 @@ func (m *strategyManager) UpdateStrategy(ctx context.Context, req *stypes.Update
 		}
 
 		snapshotUpdated := false
-		version := getStrategyVersion(req.Id, req.Code, paramsHash, sigHash)
+		version := getStrategyVersion(req.Id, req.Code, snapshotPo.ParentID, paramsHash, sigHash)
 		if version != snapshotPo.Version {
 			snapshotUpdated = true
 
@@ -175,7 +175,7 @@ func (m *strategyManager) UpdateStrategy(ctx context.Context, req *stypes.Update
 
 			// 创建新版本
 			createdAt := time.Now()
-			newVersion := getStrategyVersion(req.Id, req.Code, paramsHash, sigHash)
+			newVersion := getStrategyVersion(req.Id, req.Code, snapshotPo.ID, paramsHash, sigHash)
 			snapshotPo, err = m.db.SnapshotRepo.WithTx(tx).CreateSnapshot(ctx, snapshot.CreateSnapshotParams{
 				StrategyID: req.Id,
 				ParentID:   snapshotPo.ID,
@@ -440,8 +440,8 @@ func (m *strategyManager) InactiveStrategy(ctx context.Context, id string) error
 	return err
 }
 
-func getStrategyVersion(id string, code string, paramsVersion string, sigHash string) string {
-	raw := fmt.Sprintf("%s:%s:%s:%s", id, code, paramsVersion, sigHash)
+func getStrategyVersion(id string, code string, parentId int32, paramsVersion string, sigHash string) string {
+	raw := fmt.Sprintf("%s:%s:%d:%s:%s", id, code, parentId, paramsVersion, sigHash)
 	hash := sha256.Sum256([]byte(raw))
 	v := hex.EncodeToString(hash[:])
 	return v[:8]
