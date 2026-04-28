@@ -300,8 +300,8 @@ github.com/vmihailenco/msgpack/v5 v5.4.1 h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IU
 github.com/vmihailenco/msgpack/v5 v5.4.1/go.mod h1:GaZTsDaehaPpQVyxrf5mtQlH+pc21PIudVV/E3rRQok=
 github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
 github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
-github.com/wangliang139/go-binance/v2 v2.8.17 h1:RWFmJ9VdZsEbbnViMPycOIve6KbVzqLBxD9QiiAX+7k=
-github.com/wangliang139/go-binance/v2 v2.8.17/go.mod h1:RvH/zzBGoWHML7y9bmWfJUwV1YKIQCF8idM93NHMVhM=
+github.com/wangliang139/go-binance/v2 v2.8.18 h1:MZjQQPjO+aE5rMJ2woYSeHWlHaaaR3qxlFaS/Veeu9Q=
+github.com/wangliang139/go-binance/v2 v2.8.18/go.mod h1:RvH/zzBGoWHML7y9bmWfJUwV1YKIQCF8idM93NHMVhM=
 github.com/wangliang139/mow/database/cache v0.0.0-20260225012344-ae8a98a539fb h1:epE0h1rgAly+irZyQROkmg0+93WjgzwKo8t/GlLSELI=
 github.com/wangliang139/mow/database/cache v0.0.0-20260225012344-ae8a98a539fb/go.mod h1:Ydq9vR1MIKwLWXTnvsr2It0lcuHXmgJ3e9uhp0yDFIA=
 github.com/wangliang139/mow/database/wpgx v0.0.0-20260225012344-ae8a98a539fb h1:qf6DVjaiGrH4YmvH5grnQCYQ7CzXUcStLKjxOcN+4FA=
