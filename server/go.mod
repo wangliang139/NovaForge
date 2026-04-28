@@ -4,7 +4,7 @@ go 1.25.8
 
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda
 
-replace github.com/adshao/go-binance/v2 => github.com/wangliang139/go-binance/v2 v2.8.17
+replace github.com/adshao/go-binance/v2 => github.com/wangliang139/go-binance/v2 v2.8.18
 
 require (
 	github.com/99designs/gqlgen v0.17.88
