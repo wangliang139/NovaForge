@@ -753,6 +753,7 @@ const BotDetailPage: React.FC = () => {
                       allowDataOverflow
                     />
                     <RechartsTooltip
+                      labelStyle={{ color: '#d89614' }}
                       formatter={(value: number) => Number(value).toFixed(2)}
                       labelFormatter={(_label, payload) => {
                         const ts = payload?.[0]?.payload?.ts as number | undefined;
