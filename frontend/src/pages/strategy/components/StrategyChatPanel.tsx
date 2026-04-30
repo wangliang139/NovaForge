@@ -1,26 +1,125 @@
-import { generateStrategy, GenerateStrategyResponse } from '@/services/gateway/strategy';
-import { ClearOutlined, RobotOutlined, SendOutlined, UserOutlined } from '@ant-design/icons';
-import { Button, Empty, Input, message, Spin, Tooltip, Typography } from 'antd';
+import { openUnifiedChatStream } from '@/pages/chat/service';
+import type { ChatDeltaEvent } from '@/pages/chat/types';
+import { SignalDefinition, SignalScope, SignalType, Strategy, StrategyParam } from '@/services/gateway/strategy';
+import { ClearOutlined, RobotOutlined, SendOutlined, StopOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, Empty, Input, message, Spin, theme, Tooltip, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeHighlight from 'rehype-highlight';
+import remarkGfm from 'remark-gfm';
+import '@/pages/chat/index.less';
 
 type ChatMsg = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: number;
+  applied?: boolean;
+};
+
+export type StrategyPatch = {
+  name: string;
+  description: string;
+  code: string;
+  params: StrategyParam[];
+  signals: SignalDefinition[];
 };
 
 type StrategyChatPanelProps = {
-  code: string;
-  readonly?: boolean;
-  onApplyCode: (code: string) => void;
+  getCurrentStrategy: () => Partial<Strategy>;
+  onApplyStrategy: (strategy: StrategyPatch) => void;
 };
 
-const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChatPanelProps) => {
+const sanitizeStreamText = (text?: string) => {
+  if (!text) {
+    return '';
+  }
+  return text
+    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\u001b[@-_]/g, '')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
+};
+
+const normalizeStrategyPatch = (raw: any): StrategyPatch | undefined => {
+  let payload = raw;
+  if (typeof payload === 'string') {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      return undefined;
+    }
+  }
+
+  const strategy = payload?.strategy && typeof payload.strategy === 'object' ? payload.strategy : payload;
+  if (!strategy || typeof strategy !== 'object') {
+    return undefined;
+  }
+
+  const name = typeof strategy.name === 'string' ? strategy.name.trim() : '';
+  const description = typeof strategy.description === 'string' ? strategy.description.trim() : '';
+  const code = typeof strategy.code === 'string' ? strategy.code : '';
+  if (!name || !description || !code.trim()) {
+    return undefined;
+  }
+
+  const params = (Array.isArray(strategy.params) ? strategy.params : []).map((item: any) => ({
+    name: item?.name || '',
+    description: item?.description || '',
+    type: item?.type,
+    required: !!item?.required,
+    default: item?.default,
+  })) as StrategyParam[];
+
+  const signals = (Array.isArray(strategy.signals) ? strategy.signals : []).map((item: any, index: number) => ({
+    id: item?.id || `${index + 1}`,
+    type: item?.type as SignalType,
+    scope: (item?.scope || SignalScope.Strategy) as SignalScope,
+    exchange: item?.exchange,
+    symbol: item?.symbol,
+    props: typeof item?.props === 'string' ? item.props : item?.props ? JSON.stringify(item.props) : undefined,
+  })) as SignalDefinition[];
+
+  return {
+    name,
+    description,
+    code,
+    params,
+    signals,
+  };
+};
+
+const buildStrategyPrompt = (userQuery: string, currentStrategy: Partial<Strategy>) => {
+  return `你正在 NovaForge 策略详情页中协助用户分析和修改当前策略。
+
+当前策略 JSON：
+\`\`\`json
+${JSON.stringify(currentStrategy, null, 2)}
+\`\`\`
+
+用户需求：
+${userQuery}
+
+处理规则：
+1. 如果用户只是询问、解释或分析策略，请直接回答。
+2. 如果用户要求修改策略，请调用工具 skill.generate_strategy，并把 query 设置为用户需求，把 current_strategy 设置为上面的当前策略 JSON。
+3. 工具返回新策略后，前端会自动应用名称、描述、参数、信号和代码。`;
+};
+
+const StrategyChatPanel = ({ getCurrentStrategy, onApplyStrategy }: StrategyChatPanelProps) => {
+  const { token } = theme.useToken();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [sessionId, setSessionId] = useState<string>();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController>();
+  const appliedEventIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     if (messages.length > 0 || generating) {
@@ -31,13 +130,20 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
     }
   }, [messages, generating]);
 
+  const patchAssistantMessage = (assistantId: string, updater: (msg: ChatMsg) => ChatMsg) => {
+    setMessages((prev) => prev.map((msg) => (msg.id === assistantId ? updater(msg) : msg)));
+  };
+
   const handleSend = async () => {
-    if (readonly) return;
     const trimmed = input.trim();
     if (!trimmed) {
-      message.warning('请输入调整需求');
+      message.warning('请输入问题或调整需求');
       return;
     }
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     const userMsg: ChatMsg = {
       id: `u_${Date.now()}`,
@@ -45,29 +151,108 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
       content: trimmed,
       createdAt: Date.now(),
     };
+    const assistantId = `a_${Date.now()}`;
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [
+      ...prev,
+      userMsg,
+      {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+      },
+    ]);
     setInput('');
     setGenerating(true);
 
-    const query = `以下是当前策略代码：\n\`\`\`javascript\n${code}\n\`\`\`\n\n请根据以下需求进行调整：${trimmed}`;
-
     try {
-      const resp = (await generateStrategy({ query })) as GenerateStrategyResponse | undefined;
-      if (!resp?.content) throw new Error('未生成有效代码');
+      await openUnifiedChatStream(
+        {
+          ...(sessionId ? { sessionId } : {}),
+          content: buildStrategyPrompt(trimmed, getCurrentStrategy()),
+        },
+        async (event: ChatDeltaEvent) => {
+          if (event.type === 'ready') {
+            const sid = (event.delta?.sessionId as string) || event.sessionId;
+            if (sid) {
+              setSessionId(sid);
+            }
+            return;
+          }
 
-      const aiMsg: ChatMsg = {
-        id: `a_${Date.now()}`,
-        role: 'assistant',
-        content: resp.content,
-        createdAt: Date.now(),
-      };
-      setMessages((prev) => [...prev, aiMsg]);
+          if (event.type === 'text' || event.type === 'code') {
+            const text = sanitizeStreamText(event.delta?.text || '');
+            if (!text) {
+              return;
+            }
+            patchAssistantMessage(assistantId, (msg) => ({
+              ...msg,
+              content: event.delta?.append ? `${msg.content}${text}` : `${msg.content}${msg.content ? '\n' : ''}${text}`,
+            }));
+            return;
+          }
+
+          if (event.type === 'tool_call') {
+            const toolName = event.delta?.toolName || event.delta?.tool_name;
+            if (toolName === 'skill.generate_strategy') {
+              patchAssistantMessage(assistantId, (msg) =>
+                msg.content
+                  ? msg
+                  : {
+                      ...msg,
+                      content: '正在根据当前策略生成修改方案...',
+                    },
+              );
+            }
+            return;
+          }
+
+          if (event.type === 'tool_result') {
+            if (appliedEventIdsRef.current.has(event.id)) {
+              return;
+            }
+            const patch = normalizeStrategyPatch(event.delta?.result);
+            if (!patch) {
+              return;
+            }
+            appliedEventIdsRef.current.add(event.id);
+            onApplyStrategy(patch);
+            patchAssistantMessage(assistantId, (msg) => ({
+              ...msg,
+              content: `${msg.content || '已生成策略修改。'}\n\n已自动应用到当前策略表单。`,
+              applied: true,
+            }));
+            message.success('AI 修改已自动应用');
+            return;
+          }
+
+          if (event.type === 'error') {
+            throw new Error(event.delta?.message || 'AI 生成失败');
+          }
+        },
+        controller.signal,
+      );
     } catch (err: any) {
-      message.error(err?.message || 'AI 生成失败，请稍后重试');
+      if (err?.name !== 'AbortError') {
+        message.error(err?.message || 'AI 生成失败，请稍后重试');
+        patchAssistantMessage(assistantId, (msg) =>
+          msg.content
+            ? msg
+            : {
+                ...msg,
+                content: '生成失败，请稍后重试。',
+              },
+        );
+      }
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleStop = () => {
+    abortRef.current?.abort();
+    setGenerating(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -77,17 +262,20 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
   };
 
   const handleClear = () => {
+    abortRef.current?.abort();
     setMessages([]);
     setInput('');
+    setSessionId(undefined);
+    appliedEventIdsRef.current.clear();
+    setGenerating(false);
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
       <div
         style={{
           padding: '6px 10px',
-          borderBottom: '1px solid #f0f0f0',
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -108,17 +296,16 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
         </Tooltip>
       </div>
 
-      {/* Messages */}
       <div ref={messagesContainerRef} style={{ flex: 1, overflow: 'auto', padding: '10px 10px 4px' }}>
         {messages.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                描述你对策略的调整需求，AI 将基于当前代码生成新版本
+                询问策略问题，或描述调整需求；AI 将基于当前策略自动修改表单
               </Typography.Text>
             }
-            style={{ margin: '32px 0' }}
+            style={{ margin: '56px 0' }}
           />
         ) : (
           messages.map((msg) => (
@@ -127,8 +314,8 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, alignItems: 'flex-start' }}>
                   <div
                     style={{
-                      background: '#1677ff',
-                      color: '#fff',
+                      background: token.colorPrimary,
+                      color: token.colorTextLightSolid,
                       padding: '6px 10px',
                       borderRadius: '12px 12px 2px 12px',
                       maxWidth: '85%',
@@ -139,44 +326,50 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
                   >
                     {msg.content}
                   </div>
-                  <UserOutlined style={{ color: '#1677ff', marginTop: 6, flexShrink: 0 }} />
+                  <UserOutlined style={{ color: token.colorPrimary, marginTop: 6, flexShrink: 0 }} />
                 </div>
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'flex-start', gap: 6, alignItems: 'flex-start' }}>
-                  <RobotOutlined style={{ color: '#722ed1', marginTop: 6, flexShrink: 0 }} />
+                  <RobotOutlined style={{ color: token.colorPrimary, marginTop: 6, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        background: '#f6f8fa',
-                        border: '1px solid #e8e8e8',
+                        background: token.colorBgContainer,
+                        border: `1px solid ${token.colorBorderSecondary}`,
                         borderRadius: '2px 10px 10px 10px',
                         overflow: 'hidden',
                       }}
                     >
-                      <pre
+                      <div
+                        className="chat-markdown-body"
                         style={{
-                          margin: 0,
                           padding: '8px 10px',
-                          fontSize: 12,
+                          color: token.colorText,
+                          background: token.colorBgContainer,
                           overflow: 'auto',
                           maxHeight: 200,
-                          fontFamily: 'monospace',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-all',
                         }}
                       >
-                        {msg.content}
-                      </pre>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          rehypePlugins={[rehypeHighlight]}
+                          components={{
+                            table: ({ children, ...props }) => (
+                              <div className="chat-markdown-table-wrap">
+                                <table {...props}>{children}</table>
+                              </div>
+                            ),
+                          }}
+                        >
+                          {msg.content || '...'}
+                        </ReactMarkdown>
+                      </div>
                     </div>
-                    <Button
-                      size="small"
-                      type="primary"
-                      style={{ marginTop: 6 }}
-                      onClick={() => onApplyCode(msg.content)}
-                      disabled={readonly}
-                    >
-                      应用到编辑器
-                    </Button>
+                    {msg.applied && (
+                      <Typography.Text type="success" style={{ display: 'block', marginTop: 6, fontSize: 12 }}>
+                        已自动应用
+                      </Typography.Text>
+                    )}
                   </div>
                 </div>
               )}
@@ -185,7 +378,7 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
         )}
         {generating && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <RobotOutlined style={{ color: '#722ed1' }} />
+            <RobotOutlined style={{ color: token.colorPrimary }} />
             <Spin size="small" />
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               生成中...
@@ -194,34 +387,56 @@ const StrategyChatPanel = ({ code, readonly = false, onApplyCode }: StrategyChat
         )}
       </div>
 
-      {/* Input area */}
       <div
         style={{
           padding: '8px 10px',
-          borderTop: '1px solid #f0f0f0',
+          borderTop: `1px solid ${token.colorBorderSecondary}`,
           flexShrink: 0,
         }}
       >
-        <Input.TextArea
-          rows={3}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="描述调整需求... (Ctrl+Enter 发送)"
-          disabled={generating || readonly}
-          style={{ resize: 'none', fontSize: 13 }}
-        />
-        <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            type="primary"
-            icon={<SendOutlined />}
-            loading={generating}
-            onClick={handleSend}
-            disabled={readonly}
-            size="small"
-          >
-            发送
-          </Button>
+        <div style={{ position: 'relative' }}>
+          <Input.TextArea
+            rows={3}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="询问或描述调整需求... (Ctrl+Enter 发送)"
+            disabled={generating}
+            style={{
+              resize: 'none',
+              fontSize: 13,
+              paddingRight: 74,
+              paddingBottom: 34,
+            }}
+          />
+          {generating ? (
+            <Button
+              icon={<StopOutlined />}
+              onClick={handleStop}
+              size="small"
+              style={{
+                position: 'absolute',
+                right: 8,
+                bottom: 8,
+              }}
+            >
+              停止
+            </Button>
+          ) : (
+            <Button
+              type="primary"
+              icon={<SendOutlined />}
+              onClick={handleSend}
+              size="small"
+              style={{
+                position: 'absolute',
+                right: 8,
+                bottom: 8,
+              }}
+            >
+              发送
+            </Button>
+          )}
         </div>
       </div>
     </div>

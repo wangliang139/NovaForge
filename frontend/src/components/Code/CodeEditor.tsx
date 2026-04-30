@@ -26,7 +26,7 @@ export type CodeEditorProps = {
 
 const defaultStyle: React.CSSProperties = {
   fontFamily: '"Fira Code", monospace',
-  fontSize: 14,
+  fontSize: 12,
   borderRadius: 6,
 };
 

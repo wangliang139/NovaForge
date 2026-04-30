@@ -50,7 +50,7 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import ParamModal from './ParamModal';
 import SignalModal from './SignalModal';
-import StrategyChatPanel from './StrategyChatPanel';
+import StrategyChatPanel, { StrategyPatch } from './StrategyChatPanel';
 
 type StrategyFormProps = {
   mode?: 'new' | 'edit' | 'readonly';
@@ -135,6 +135,43 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
     form.setFieldsValue({ code: value });
     // 代码变化时通知策略变化
     setTimeout(() => notifyStrategyChange(), 0);
+  };
+
+  const getCurrentStrategySnapshot = (): Partial<Strategy> => {
+    const formData = form.getFieldsValue();
+    return {
+      id: value?.id || '',
+      name: formData.name || '',
+      description: formData.description || '',
+      code,
+      version: value?.version || '1',
+      status: value?.status,
+      params: params as StrategyParam[],
+      signals: signals as SignalDefinition[],
+      createdAt: value?.createdAt || 0,
+      updatedAt: value?.updatedAt || 0,
+    };
+  };
+
+  const handleApplyStrategyPatch = (patch: StrategyPatch) => {
+    setCode(patch.code);
+    setParams(patch.params);
+    setSignals(patch.signals);
+    form.setFieldsValue({
+      name: patch.name,
+      description: patch.description,
+      code: patch.code,
+      params: patch.params,
+      signals: patch.signals,
+    });
+    onStrategyChange?.({
+      ...getCurrentStrategySnapshot(),
+      name: patch.name,
+      description: patch.description,
+      code: patch.code,
+      params: patch.params,
+      signals: patch.signals,
+    });
   };
 
   const onParamsChange = (newParams: StrategyParam[]) => {
@@ -357,36 +394,37 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
               </div>
 
               {/* Toggle button */}
-              <div
-                style={{
-                  width: 20,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: token.colorFillQuaternary,
-                  borderLeft: `1px solid ${token.colorBorderSecondary}`,
-                  borderRight: chatPanelVisible ? `1px solid ${token.colorBorderSecondary}` : undefined,
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  flexShrink: 0,
-                }}
-                onClick={() => setChatPanelVisible((v) => !v)}
-              >
-                {chatPanelVisible ? (
-                  <RightOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
-                ) : (
-                  <LeftOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
-                )}
-              </div>
+              {!readonly && (
+                <div
+                  style={{
+                    width: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: token.colorFillQuaternary,
+                    borderLeft: `1px solid ${token.colorBorderSecondary}`,
+                    borderRight: chatPanelVisible ? `1px solid ${token.colorBorderSecondary}` : undefined,
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    flexShrink: 0,
+                  }}
+                  onClick={() => setChatPanelVisible((v) => !v)}
+                >
+                  {chatPanelVisible ? (
+                    <RightOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
+                  ) : (
+                    <LeftOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
+                  )}
+                </div>
+              )}
 
               {/* Chat panel */}
-              {chatPanelVisible && (
+              {!readonly && chatPanelVisible && (
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <StrategyChatPanel
-                    code={code}
-                    readonly={readonly}
-                    onApplyCode={handleCodeChange}
+                    getCurrentStrategy={getCurrentStrategySnapshot}
+                    onApplyStrategy={handleApplyStrategyPatch}
                   />
                 </div>
               )}
