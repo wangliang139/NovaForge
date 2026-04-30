@@ -1,8 +1,6 @@
 import { CodeEditor } from '@/components';
 import { EditIndicator } from '@/global.types';
 import {
-  generateStrategy,
-  GenerateStrategyResponse,
   SignalDefinition,
   Strategy,
   StrategyParam,
@@ -15,8 +13,9 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
   ExpandOutlined,
-  OpenAIOutlined,
+  LeftOutlined,
   PlusOutlined,
+  RightOutlined,
 } from '@ant-design/icons';
 import type { ProColumns } from '@ant-design/pro-components';
 import {
@@ -40,6 +39,7 @@ import {
   Segmented,
   Space,
   Tag,
+  theme,
   Tooltip,
   Typography,
 } from 'antd';
@@ -50,6 +50,7 @@ import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import ParamModal from './ParamModal';
 import SignalModal from './SignalModal';
+import StrategyChatPanel from './StrategyChatPanel';
 
 type StrategyFormProps = {
   mode?: 'new' | 'edit' | 'readonly';
@@ -80,13 +81,11 @@ function onSignal(signal) {
 
 const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref) => {
   const { mode, value, onFinish, onStrategyChange, hideSubmitter = false } = props;
-  const { TextArea } = Input;
+  const { token } = theme.useToken();
   const [form] = Form.useForm();
   const [code, setCode] = useState(DefaultCode);
   const [codeFullscreenOpen, setCodeFullscreenOpen] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [aiGenerating, setAiGenerating] = useState(false);
+  const [chatPanelVisible, setChatPanelVisible] = useState(true);
   const [params, setParams] = useState<readonly StrategyParam[]>([]);
   const [signals, setSignals] = useState<readonly SignalDefinition[]>([]);
   const [editTab, setEditTab] = useState<string>('code');
@@ -106,8 +105,6 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
   const readonly = mode === 'readonly';
   const isEditMode = mode === 'edit' || mode === 'new';
   const isSyncingFromValueRef = useRef(false);
-
-  console.log('mode', mode);
 
   // 构建策略对象并通知父组件
   const notifyStrategyChange = () => {
@@ -240,31 +237,6 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
     return true;
   };
 
-  const handleAIGenerate = async () => {
-    const prompt = aiPrompt.trim();
-    if (!prompt) {
-      message.warning('请先输入 AI 生成意图');
-      return;
-    }
-    setAiGenerating(true);
-    try {
-      const resp = (await generateStrategy({ query: prompt })) as
-        | GenerateStrategyResponse
-        | undefined;
-      if (!resp?.content) {
-        throw new Error('未生成有效代码');
-      }
-      handleCodeChange(resp.content);
-      message.success('AI 代码已覆盖到编辑器');
-      setAiModalOpen(false);
-      setAiPrompt('');
-    } catch (error: any) {
-      message.error(error?.message || 'AI 生成失败，请稍后重试');
-    } finally {
-      setAiGenerating(false);
-    }
-  };
-
   return (
     <>
       <ProForm form={form} labelAlign="right" onFinish={handleFinish} submitter={false}>
@@ -323,33 +295,18 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
                 }}
               />
               <div hidden={editTab !== 'code'}>
-                <Space size={8}>
-                  <Button
-                    type="primary"
-                    icon={<OpenAIOutlined />}
-                    loading={aiGenerating}
-                    disabled={readonly}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setAiModalOpen(true);
-                    }}
-                  >
-                    AI生成
-                  </Button>
-                  <Button
-                    type="default"
-                    icon={<ExpandOutlined />}
-                    disabled={readonly}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setCodeFullscreenOpen(true);
-                    }}
-                  >
-                    全屏
-                  </Button>
-                </Space>
+                <Button
+                  type="default"
+                  icon={<ExpandOutlined />}
+                  disabled={readonly}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setCodeFullscreenOpen(true);
+                  }}
+                >
+                  全屏
+                </Button>
               </div>
             </Row>
           }
@@ -387,14 +344,52 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
             </Row>
           )}
           {editTab === 'code' && (
-            <div style={{ position: 'relative' }}>
-              <CodeEditor
-                language="javascript"
-                height="400px"
-                value={code}
-                readonly={readonly}
-                onChange={handleCodeChange}
-              />
+            <div style={{ display: 'flex', height: 400 }}>
+              {/* Code editor */}
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                <CodeEditor
+                  language="javascript"
+                  height="400px"
+                  value={code}
+                  readonly={readonly}
+                  onChange={handleCodeChange}
+                />
+              </div>
+
+              {/* Toggle button */}
+              <div
+                style={{
+                  width: 20,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: token.colorFillQuaternary,
+                  borderLeft: `1px solid ${token.colorBorderSecondary}`,
+                  borderRight: chatPanelVisible ? `1px solid ${token.colorBorderSecondary}` : undefined,
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  flexShrink: 0,
+                }}
+                onClick={() => setChatPanelVisible((v) => !v)}
+              >
+                {chatPanelVisible ? (
+                  <RightOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
+                ) : (
+                  <LeftOutlined style={{ fontSize: 10, color: token.colorTextTertiary }} />
+                )}
+              </div>
+
+              {/* Chat panel */}
+              {chatPanelVisible && (
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <StrategyChatPanel
+                    code={code}
+                    readonly={readonly}
+                    onApplyCode={handleCodeChange}
+                  />
+                </div>
+              )}
             </div>
           )}
         </Card>
@@ -667,30 +662,6 @@ const StrategyForm = forwardRef<StrategyFormRef, StrategyFormProps>((props, ref)
           />
         </ProForm.Item>
       </ProForm>
-
-      <Modal
-        title="AI 生成策略代码"
-        open={aiModalOpen}
-        confirmLoading={aiGenerating}
-        onOk={handleAIGenerate}
-        okText="生成"
-        cancelText={null}
-        onCancel={() => {
-          if (aiGenerating) {
-            return;
-          }
-          setAiModalOpen(false);
-        }}
-        destroyOnHidden
-      >
-        <TextArea
-          rows={6}
-          value={aiPrompt}
-          onChange={(e) => setAiPrompt(e.target.value)}
-          placeholder="描述你希望 AI 生成的策略逻辑、交易对、周期、风控规则等"
-          disabled={aiGenerating}
-        />
-      </Modal>
 
       <Modal
         open={codeFullscreenOpen}
