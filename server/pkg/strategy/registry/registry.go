@@ -625,7 +625,7 @@ func (r *ExecutorRegistry) removeBotSubscriptions(ctx context.Context, botID int
 }
 
 func (r *ExecutorRegistry) removeBotStream(_ context.Context, botID int32, streamKey string) {
-	var needCancel bool
+	var streamCancel context.CancelFunc
 
 	r.mu.Lock()
 	if bots, ok := r.streamBots[streamKey]; ok {
@@ -634,7 +634,7 @@ func (r *ExecutorRegistry) removeBotStream(_ context.Context, botID int32, strea
 			delete(r.streamBots, streamKey)
 			if sub, exists := r.streamSubscriptions[streamKey]; exists {
 				if sub.streamCancel != nil {
-					needCancel = true
+					streamCancel = sub.streamCancel
 				}
 			}
 			delete(r.streamSubscriptions, streamKey)
@@ -655,12 +655,8 @@ func (r *ExecutorRegistry) removeBotStream(_ context.Context, botID int32, strea
 	if r.dispatcher != nil {
 		r.dispatcher.UnregisterStreamHandler(streamKey, botID)
 	}
-	if needCancel {
-		r.mu.Lock()
-		if sub, ok := r.streamSubscriptions[streamKey]; ok && sub.streamCancel != nil {
-			sub.streamCancel()
-		}
-		r.mu.Unlock()
+	if streamCancel != nil {
+		streamCancel()
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/rs/zerolog/log"
 	"github.com/wangliang139/NovaForge/server/pkg/internal/encrypt"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
@@ -26,6 +27,7 @@ func BuildHandle(ctx context.Context, out chan *ctypes.Message, errCh chan error
 	var once sync.Once
 	stop := func() {
 		once.Do(func() {
+			log.Info().Msg("stop stream")
 			cancel()
 			if stopC != nil {
 				close(stopC)
