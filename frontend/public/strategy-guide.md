@@ -2,8 +2,8 @@
 
 欢迎使用 **NovaForge** 交易策略能力！本手册将帮助您使用 JavaScript 创建和管理自定义交易策略。
 
-> **版本**: v1.0  
-> **更新日期**: 2026-02-17
+> **版本**: v1.1  
+> **更新日期**: 2026-05-03 
 
 ---
 
@@ -53,6 +53,7 @@
   - params - 策略参数
   - console - 日志输出
   - time - 时间工具
+  - ai - 大模型调用
   - indicator - 技术指标
 - 5.3 [symbols 数组](#53-symbols-数组)
 - 5.4 [交易对 API（SymbolHandle）](#54-交易对-apisymbolhandle)
@@ -68,7 +69,6 @@
   - decimal.js - 高精度数值计算
   - lodash - 实用工具库
   - moment - 时间处理库
-  - ta (indicator) - 技术指标库
 - 5.7 [安全限制](#57-安全限制)
 
 ### 6. [开发您的第一个策略](#6-开发您的第一个策略)
@@ -98,9 +98,8 @@
 - 9.5 [使用定时器](#95-使用定时器)
 - 9.6 [使用 lodash 优化数据处理](#96-使用-lodash-优化数据处理)
 - 9.7 [使用 moment 实现时间策略](#97-使用-moment-实现时间策略)
-- 9.8 [使用 ta 计算技术指标](#98-使用-ta-计算技术指标)
-- 9.9 [组合使用：智能数据分析策略](#99-组合使用智能数据分析策略)
-- 9.10 [完整实战案例：马丁格尔合约策略](#910-完整实战案例马丁格尔合约策略)
+- 9.8 [组合使用：智能数据分析策略](#98-组合使用智能数据分析策略)
+- 9.9 [完整实战案例：马丁格尔合约策略](#99-完整实战案例马丁格尔合约策略)
   - 策略概述
   - 策略参数
   - 完整代码
@@ -135,7 +134,7 @@ const Decimal = require("decimal.js");
 
 function onSignal(signal) {
   // 只处理K线信号
-  if (signal.type !== 'kline') return;
+  if (signal.type !== 'KLINE') return;
   if (!signal.isClosed) return;  // 只处理已完成的K线
   
   const price = new Decimal(signal.close);
@@ -165,14 +164,14 @@ function onSignal(signal) {
   if (price.gt(ma5) && !hasPosition) {
     // 价格上穿均线且无仓位，买入
     sym.Buy({
-      type: "market",
+      type: "MARKET",
       amount: "100"  // 买入100 USDT
     });
     console.log("买入信号 - 价格:", price.toString(), "MA5:", ma5.toString());
   } else if (price.lt(ma5) && hasPosition) {
     // 价格下穿均线且有仓位，卖出
     sym.Sell({
-      type: "market",
+      type: "MARKET",
       amount: positions[0].amount
     });
     console.log("卖出信号 - 价格:", price.toString(), "MA5:", ma5.toString());
@@ -256,12 +255,12 @@ sequenceDiagram
 **使用示例**：
 ```javascript
 // 访问生产环境交易所
-const binance = WithSymbol("binance", "BTC/USDT:SPOT");
-const okx = WithSymbol("okx", "ETH/USDT:FUTURE");
+const binance = WithSymbol("binance", "BTCUSDT:SPOT");
+const okx = WithSymbol("okx", "ETHUSDT:FUTURE");
 
 // 访问测试环境（用于开发调试）
-const binanceTest = WithSymbol("binance_test", "BTC/USDT:SPOT");
-const okxTest = WithSymbol("okx_test", "ETH/USDT:FUTURE");
+const binanceTest = WithSymbol("binance_test", "BTCUSDT:SPOT");
+const okxTest = WithSymbol("okx_test", "ETHUSDT:FUTURE");
 ```
 
 #### 支持的市场类型
@@ -382,10 +381,10 @@ stateDiagram-v2
 {
   // 基础字段（所有信号都有）
   id: "uuid",                    // 信号唯一标识
-  type: "kline",                 // 信号类型（大写）
+  type: "KLINE",                 // 信号类型（大写）
   kind: "kline",                 // 信号种类（小写，更细粒度）
   exchange: "binance",           // 交易所
-  symbol: "BTC/USDT:FUTURE",            // 交易对
+  symbol: "BTCUSDT",            // 交易对
   ts: 1234567890000,            // 时间戳（毫秒）
   accountId: "account_id",      // 账户ID（账户相关信号才有）
   topic: "topic_name",          // 主题（可选）
@@ -403,10 +402,10 @@ stateDiagram-v2
 
 ```javascript
 {
-  type: "kline",
+  type: "KLINE",
   kind: "kline",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   ts: 1234567890000,
   
   // K线特定字段
@@ -424,7 +423,7 @@ stateDiagram-v2
 **使用示例**：
 ```javascript
 function onSignal(signal) {
-  if (signal.type === 'kline') {
+  if (signal.type === 'KLINE') {
     console.log("K线收盘:", signal.close);
     console.log("周期:", signal.interval);
     console.log("是否完成:", signal.isClosed);
@@ -443,10 +442,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "ticker",
+  type: "TICKER",
   kind: "ticker",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   ts: 1234567890000,
   
   // Ticker特定字段
@@ -459,10 +458,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "depth",
+  type: "DEPTH",
   kind: "depth",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   ts: 1234567890000,
   
   // 深度特定字段
@@ -482,7 +481,7 @@ function onSignal(signal) {
 **使用示例**：
 ```javascript
 function onSignal(signal) {
-  if (signal.type === 'depth') {
+  if (signal.type === 'DEPTH') {
     const Decimal = require("decimal.js");
     const orderBook = signal.orderBook;
     const bestBid = orderBook.bids[0];  // 买一价
@@ -500,10 +499,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "trade",
+  type: "TRADE",
   kind: "trade",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   ts: 1234567890000,
   
   // 成交特定字段
@@ -518,10 +517,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "mark_price",
+  type: "MARK_PRICE",
   kind: "mark_price",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   ts: 1234567890000,
   
   // 标记价格特定字段
@@ -538,10 +537,10 @@ function onSignal(signal) {
 **订单生命周期信号**（kind: "order_lifecycle"）：
 ```javascript
 {
-  type: "order",
+  type: "ORDER",
   kind: "order_lifecycle",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   accountId: "account_id",
   ts: 1234567890000,
   
@@ -556,10 +555,10 @@ function onSignal(signal) {
 **订单快照信号**（kind: "order_snapshot"）：
 ```javascript
 {
-  type: "order",
+  type: "ORDER",
   kind: "order_snapshot",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   accountId: "account_id",
   ts: 1234567890000,
   
@@ -583,7 +582,7 @@ function onSignal(signal) {
 **使用示例**：
 ```javascript
 function onSignal(signal) {
-  if (signal.type === 'order') {
+  if (signal.type === 'ORDER') {
     if (signal.kind === 'order_lifecycle') {
       console.log("订单状态变化:", signal.orderId, signal.status);
       
@@ -604,10 +603,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "fill",
+  type: "FILL",
   kind: "fill",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   accountId: "account_id",
   ts: 1234567890000,
   
@@ -626,7 +625,7 @@ function onSignal(signal) {
 **使用示例**：
 ```javascript
 function onSignal(signal) {
-  if (signal.type === 'fill') {
+  if (signal.type === 'FILL') {
     console.log("订单成交:", signal.orderId);
     console.log("方向:", signal.isBuy ? "买入" : "卖出");
     console.log("成交价:", signal.price, "数量:", signal.qty);
@@ -649,7 +648,7 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "balance",
+  type: "BALANCE",
   kind: "balance_changed",
   exchange: "binance",
   accountId: "account_id",
@@ -668,7 +667,7 @@ function onSignal(signal) {
 const Decimal = require("decimal.js");
 
 function onSignal(signal) {
-  if (signal.type === 'balance') {
+  if (signal.type === 'BALANCE') {
     const freeChange = new Decimal(signal.free);
     const frozenChange = new Decimal(signal.frozen);
     
@@ -693,10 +692,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "position",
+  type: "POSITION",
   kind: "position_changed",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   accountId: "account_id",
   ts: 1234567890000,
   
@@ -712,7 +711,7 @@ function onSignal(signal) {
 const Decimal = require("decimal.js");
 
 function onSignal(signal) {
-  if (signal.type === 'position') {
+  if (signal.type === 'POSITION') {
     const qty = new Decimal(signal.qty);
     
     if (qty.eq(0)) {
@@ -741,10 +740,10 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "leverage",
+  type: "LEVERAGE",
   kind: "leverage_changed",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   accountId: "account_id",
   ts: 1234567890000,
   
@@ -760,10 +759,10 @@ function onSignal(signal) {
 **资金费结算**（kind: "funding_settlement"）：
 ```javascript
 {
-  type: "risk",
+  type: "RISK",
   kind: "funding_settlement",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   accountId: "account_id",
   ts: 1234567890000,
   
@@ -778,10 +777,10 @@ function onSignal(signal) {
 **资金费率**（kind: "funding_rate"）：
 ```javascript
 {
-  type: "risk",
+  type: "RISK",
   kind: "funding_rate",
   exchange: "binance",
-  symbol: "BTC/USDT:FUTURE",
+  symbol: "BTCUSDT",
   ts: 1234567890000,
   
   // 资金费率特定字段
@@ -795,7 +794,7 @@ function onSignal(signal) {
 
 ```javascript
 {
-  type: "timer",
+  type: "TIMER",
   kind: "timer",
   ts: 1234567890000,
   
@@ -807,7 +806,7 @@ function onSignal(signal) {
 **使用示例**：
 ```javascript
 function onSignal(signal) {
-  if (signal.type === 'timer') {
+  if (signal.type === 'TIMER') {
     console.log("定时器触发:", new Date(signal.ts));
     
     // 执行定期任务
@@ -825,7 +824,7 @@ function onSignal(signal) {
 {
   "signals": [
     {
-      "type": "kline",
+      "type": "KLINE",
       "scope": "symbol",
       "exchange": "binance",
       "symbol": "BTC/USDT:SPOT",
@@ -834,7 +833,7 @@ function onSignal(signal) {
       }
     },
     {
-      "type": "kline",
+      "type": "KLINE",
       "scope": "symbol",
       "exchange": "binance",
       "symbol": "ETH/USDT:FUTURE",
@@ -843,7 +842,7 @@ function onSignal(signal) {
       }
     },
     {
-      "type": "timer",
+      "type": "TIMER",
       "scope": "strategy",
       "props": {
         "interval": "5m"
@@ -884,11 +883,11 @@ function onSignal(signal) {
   console.log("收到信号 - 类型:", signal.type, "种类:", signal.kind);
   
   // 根据信号类型处理
-  if (signal.type === 'kline') {
+  if (signal.type === 'KLINE') {
     handleKline(signal);
-  } else if (signal.type === 'order') {
+  } else if (signal.type === 'ORDER') {
     handleOrder(signal);
-  } else if (signal.type === 'fill') {
+  } else if (signal.type === 'FILL') {
     handleFill(signal);
   }
 }
@@ -997,6 +996,130 @@ function onSignal(signal) {
 }
 ```
 
+#### ai（大模型调用）
+
+`ai.complete(options)` 用于在策略中调用后端受控的大模型网关，适合让模型对当前行情、仓位、账户状态和策略约束生成交易建议。
+
+> **重要**：`ai.complete` 只返回模型建议，不会直接下单。策略代码必须自行判断置信度、风险约束和仓位限制，再通过 `SymbolHandle.Buy()` / `SymbolHandle.Sell()` 执行交易。
+
+**语法**：
+```javascript
+const decision = ai.complete(options)
+```
+
+**参数**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|-----|------|------|------|
+| `prompt` | string | 与 `messages` 二选一 | 用户提示词。适合把行情、仓位、约束序列化成 JSON 字符串传入 |
+| `messages` | array | 与 `prompt` 二选一 | Chat messages，元素格式为 `{ role, content }`，`role` 支持 `system`、`user`、`assistant` |
+| `model` | string | 否 | 模型名称。未传时使用系统默认模型配置 |
+| `json` | boolean | 否 | 为 `true` 时要求模型返回 JSON，并把 `result` 解析成对象 |
+| `responseFormat` | string | 否 | 当前支持 `"json_object"`，等价于 `json: true` |
+| `timeoutMs` | number | 否 | 本次 AI 调用超时（毫秒），不能超过 Bot 运行时配置的 `maxAITimeoutMs` |
+
+**返回值**：
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `result` | string 或 object | 模型结果。`json: true` 时为解析后的 JSON 对象，否则为文本 |
+| `text` | string | 模型返回的原始文本 |
+| `json` | object | `json: true` 时的解析对象，和 `result` 相同 |
+| `model` | string | 实际使用的模型 |
+| `duration` | number | 调用耗时（毫秒） |
+| `usage` | object | Token 使用统计（如 provider 返回） |
+
+**基础示例：AI 生成交易建议**
+
+```javascript
+function onSignal(signal) {
+  if (signal.type !== 'TIMER') return;
+
+  const sym = symbols[0];
+  const ticker = sym.GetTicker();
+  const positions = sym.GetPositions();
+  const account = sym.GetAccount();
+
+  const decision = ai.complete({
+    model: params.aiModel,      // 可选：不填则使用系统默认模型
+    json: true,
+    timeoutMs: 15000,
+    prompt: JSON.stringify({
+      task: "Return a trading decision as JSON.",
+      schema: {
+        action: "buy | sell | hold",
+        confidence: "0.0 - 1.0",
+        reason: "string"
+      },
+      market: {
+        exchange: sym.exchange,
+        symbol: sym.symbol,
+        ticker: ticker
+      },
+      account: account,
+      positions: positions,
+      constraints: {
+        allowedActions: ["buy", "sell", "hold"],
+        orderAmount: params.orderAmount || "50",
+        minConfidence: params.minConfidence || 0.8
+      }
+    })
+  });
+
+  console.log("AI 决策:", JSON.stringify(decision.result));
+
+  if (decision.result.action === "buy" && decision.result.confidence >= (params.minConfidence || 0.8)) {
+    sym.Buy({
+      type: "MARKET",
+      amount: params.orderAmount || "50"
+    });
+  }
+}
+```
+
+**messages 示例：分离 system / user 提示词**
+
+```javascript
+const decision = ai.complete({
+  json: true,
+  timeoutMs: 10000,
+  messages: [
+    {
+      role: "system",
+      content: "You are a conservative crypto trading assistant. Only return JSON."
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        symbol: signal.symbol,
+        ticker: symbols[0].GetTicker(),
+        instruction: "Choose buy, sell, or hold."
+      })
+    }
+  ]
+});
+```
+
+**超时与 Bot runtime 配置**：
+
+创建或修改 Bot 时可以在运行时配置中设置：
+
+```json
+{
+  "runtime": {
+    "signalTimeoutMs": 30000,
+    "aiTimeoutMs": 15000,
+    "maxAITimeoutMs": 30000
+  }
+}
+```
+
+- `signalTimeoutMs`：单次 `onInit` / `onSignal` 的最大执行时间。
+- `aiTimeoutMs`：`ai.complete` 未指定 `timeoutMs` 时使用的默认 AI 超时。
+- `maxAITimeoutMs`：策略可在 `ai.complete({ timeoutMs })` 中指定的最大 AI 超时。
+
+> **建议**：`signalTimeoutMs` 应大于或等于 `maxAITimeoutMs`，并预留行情查询、JSON 解析和交易判断的时间。高频行情信号不建议每条都调用 AI，优先使用 `TIMER` 信号或通过 `SymbolHandle.Get()` / `SymbolHandle.Set()` 记录上次调用时间来节流。
+
 #### indicator（技术指标）
 
 计算技术指标：
@@ -1012,7 +1135,7 @@ function onSignal(signal) {
 
 ```javascript
 function onSignal(signal) {
-  if (signal.type !== 'kline') return;
+  if (signal.type !== 'KLINE') return;
   
   var sym = WithSymbol(signal.exchange, signal.symbol);
   
@@ -1056,7 +1179,7 @@ function calculateSMA(prices, period) {
 }
 
 function onSignal(signal) {
-  if (signal.type !== 'kline') return;
+  if (signal.type !== 'KLINE') return;
   
   var sym = WithSymbol(signal.exchange, signal.symbol);
   const klines = sym.GetKlines("1h", 100);
@@ -1199,12 +1322,12 @@ function onSignal(signal) {
 
 | 字段 | 类型 | 必需 | 说明 |
 |-----|------|------|------|
-| `type` | string | 否 | 订单类型："market"（市价，默认）, "limit"（限价） |
-| `price` | number | 限价必需 | 限价单价格 |
-| `side` | string | 合约必需 | 仓位方向："LONG"（做多）, "SHORT"（做空）；现货默认为 "LONG" |
-| `quantity` | number | 否 | 下单数量（quantity/quoteQty 必填一个） |
-| `quoteQty` | number | 否 | 下单金额（quantity/quoteQty 必填一个） |
+| `type` | string | 否 | 订单类型："MARKET"（市价，默认）, "LIMIT"（限价） |
+| `price` | string/number | 限价必需 | 限价单价格 |
+| `amount` | string/number | 是 | 下单数量（现货）或张数（合约） |
+| `side` | string | 合约必需 | 仓位方向："LONG"（做多）, "SHORT"（做空） |
 | `reduceOnly` | boolean | 否 | 只减仓（合约专用） |
+| `positionSide` | string | 否 | 持仓方向（双向持仓模式） |
 
 ```javascript
 function onSignal(signal) {
@@ -1214,62 +1337,60 @@ function onSignal(signal) {
     return;
   }
   
-  // 现货市价金额买入
+  // 现货市价买入
   const order1 = sym.Buy({
-    type: "market",
-    side: "LONG",
-    quoteQty: "100"  // 按 quote 买入100个
+    type: "MARKET",
+    amount: "100"  // 买入100 USDT
   });
   console.log("订单ID:", order1.id);
   
-  // 现货限价数量买入
+  // 现货限价买入
   const order2 = sym.Buy({
-    type: "limit",
-    side: "LONG",
+    type: "LIMIT",
     price: "50000",
-    quantity: "0.001"
+    amount: "0.001"
   });
   
   // 合约做多（市价）
   const order3 = sym.Buy({
-    type: "market",
-    quoteQty: "10",      // 按 quote 买入10个
+    type: "MARKET",
+    amount: "10",      // 10张合约
     side: "LONG"       // 做多
   });
   
   // 合约做多（限价）
   const order4 = sym.Buy({
-    type: "limit",
+    type: "LIMIT",
     price: "50000",
-    quoteQty: "10",
+    amount: "10",
     side: "LONG"
   });
   
   // 现货市价卖出
   const order5 = sym.Sell({
-    type: "market",
-    quantity: "0.001"
+    type: "MARKET",
+    amount: "0.001"
   });
   
   // 现货限价卖出
   const order6 = sym.Sell({
-    type: "limit",
+    type: "LIMIT",
     price: "51000",
-    quantity: "0.001"
+    amount: "0.001"
   });
   
   // 合约平多仓（市价）
   const order7 = sym.Sell({
-    type: "market",
-    quoteQty: "10",
+    type: "MARKET",
+    amount: "10",
     side: "LONG",
     reduceOnly: true   // 只减仓
   });
   
   // 合约做空（市价）
   const order8 = sym.Sell({
-    type: "market",
-    quoteQty: "10",
+    type: "MARKET",
+    amount: "10",
     side: "SHORT"      // 做空
   });
   
@@ -1472,7 +1593,7 @@ function onSignal(signal) {
 const Decimal = require("decimal.js");
 
 function onSignal(signal) {
-  if (signal.type !== 'ticker') return;
+  if (signal.type !== 'TICKER') return;
   
   // 访问不同交易所的同一交易对
   const binanceBtc = WithSymbol("binance", "BTC/USDT:SPOT");
@@ -1496,12 +1617,12 @@ function onSignal(signal) {
     // 在币安卖出，在OKX买入
     const tradeAmount = new Decimal("0.01");
     binanceBtc.Sell({
-      type: "market",
+      type: "MARKET",
       amount: tradeAmount.toString()
     });
     const buyAmount = tradeAmount.mul(okxPrice);
     okxBtc.Buy({
-      type: "market",
+      type: "MARKET",
       amount: buyAmount.toString()
     });
   }
@@ -1511,12 +1632,12 @@ function onSignal(signal) {
     // 在OKX卖出，在币安买入
     const tradeAmount = new Decimal("0.01");
     okxBtc.Sell({
-      type: "market",
+      type: "MARKET",
       amount: tradeAmount.toString()
     });
     const buyAmount = tradeAmount.mul(binancePrice);
     binanceBtc.Buy({
-      type: "market",
+      type: "MARKET",
       amount: buyAmount.toString()
     });
   }
@@ -1613,7 +1734,7 @@ function onInit() {
 **使用示例3：获取批量 Ticker**
 ```javascript
 function onSignal(signal) {
-  if (signal.type !== 'timer') return;
+  if (signal.type !== 'TIMER') return;
   
   const binance = WithExchange("binance");
   
@@ -1634,7 +1755,7 @@ function onSignal(signal) {
 **使用示例4：多交易所监控**
 ```javascript
 function onSignal(signal) {
-  if (signal.type !== 'timer') return;
+  if (signal.type !== 'TIMER') return;
   
   const binance = WithExchange("binance");
   const okx = WithExchange("okx");
@@ -1688,7 +1809,7 @@ function onSignal(signal) {
 const Decimal = require("decimal.js");
 
 function onSignal(signal) {
-  if (signal.type !== 'kline') return;
+  if (signal.type !== 'KLINE') return;
   
   // 创建 Decimal 对象
   var price = new Decimal(signal.close);
@@ -1744,7 +1865,7 @@ function onSignal(signal) {
 const _ = require("lodash");
 
 function onSignal(signal) {
-  if (signal.type !== 'kline') return;
+  if (signal.type !== 'KLINE') return;
   
   var sym = WithSymbol(signal.exchange, signal.symbol);
   const klines = sym.GetKlines("1h", 100);
@@ -1918,94 +2039,28 @@ function onSignal(signal) {
 
 **文档链接**：[moment 官方文档](https://momentjs.com/docs/)
 
-#### indicator - 技术指标库
-
-策略引擎内置了技术指标封装库（基于 technicalindicators），提供数十种常用技术指标，可直接用于 K 线分析。
-
-**引入方式**：
-
-```javascript
-const indicator = require("indicator");
-```
-
-**使用方式**：
-
-```javascript
-const indicator = require("indicator");
-
-function onSignal(signal) {
-  if (signal.type !== 'kline') return;
-  var sym = WithSymbol(signal.exchange, signal.symbol);
-  const klines = sym.GetKlines("1h", 50);
-
-  // 简单指标 - 自动提取 close 字段
-  const sma = indicator.sma({ source: klines, period: 10 });
-  const ema = indicator.ema({ source: klines, period: 12 });
-  const rsi = indicator.rsi({ source: klines, period: 14 });
-
-  // MACD - 返回 { MACD: [], Signal: [], Histogram: [] }
-  const macd = indicator.macd({ source: klines, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 });
-
-  // 需要多字段的指标 - 自动提取 high/low/close
-  const atr = indicator.atr({ source: klines, period: 14 });
-  const bb = indicator.bb({ source: klines, period: 20, stdDev: 2 });
-
-  console.log("SMA(10) 最后值:", sma[sma.length - 1]);
-  console.log("RSI(14) 最后值:", rsi[rsi.length - 1]);
-  if (macd.MACD && macd.MACD.length > 0) {
-      const last = macd.MACD.length - 1;
-      console.log("MACD:", macd.MACD[last], "Signal:", macd.Signal[last], "Histogram:", macd.Histogram[last]);
-  }
-}
-```
-
-**常用指标与入口**：
-
-| 类别 | 指标 | 用法示例 | 说明 |
-|------|------|----------|------|
-| 均线 | SMA | `indicator.sma({source, period})` | 简单移动平均 |
-| | EMA | `indicator.ema({source, period})` | 指数移动平均 |
-| | WMA | `indicator.wma({source, period})` | 加权移动平均 |
-| | WEMA | `indicator.wema({source, period})` | Wilder 平滑均线 |
-| 动量 | RSI | `indicator.rsi({source, period})` | 相对强弱指数 |
-| | MACD | `indicator.macd({source, fastPeriod, slowPeriod, signalPeriod})` | MACD，返回 MACD/Signal/Histogram |
-| | ROC | `indicator.roc({source, period})` | 变动率 |
-| | KST | `indicator.kst({source, ...})` | Know Sure Thing |
-| | Stochastic | `indicator.stochastic({source, period}, {signalPeriod})` | 随机指标 (KD) |
-| | StochRSI | `indicator.stochasticrsi({source, period})` | 随机 RSI |
-| | WilliamsR | `indicator.williamsr({source, period})` | 威廉指标 |
-| 波动 | ATR | `indicator.atr({source, period})` | 真实波幅 |
-| | Bollinger Bands | `indicator.bb({source, period, stdDev})` | 布林带 |
-| | ADX | `indicator.adx({source, period})` | 平均趋向指数 |
-| 成交量 | OBV | `indicator.obv({source})` | 能量潮 |
-| | MFI | `indicator.mfi({source, period})` | 资金流量指数 |
-| | VWAP | `indicator.vwap({source})` | 成交量加权均价 |
-| 工具 | CrossUp | `indicator.crossUp({lineA, lineB})` | 上穿 |
-| | CrossDown | `indicator.crossDown({lineA, lineB})` | 下穿 |
-| | Highest | `indicator.highest({source, period})` | 周期内最高 |
-| | Lowest | `indicator.lowest({source, period})` | 周期内最低 |
-| | SD | `indicator.sd({source, period})` | 标准差 |
-
-更多指标（如 CCI、AO、Keltner、Ichimoku、PSAR、TRIX、ForceIndex 等）用法类似。
-
-**文档链接**：[technicalindicators (npm)](https://www.npmjs.com/package/technicalindicators)、[GitHub](https://github.com/anandanand84/technicalindicators)
-
 ### 5.7 安全限制
 
 为了保护系统安全，JavaScript 运行环境有以下限制：
 
 - ❌ 不能访问文件系统
-- ❌ 不能发起网络请求
+- ❌ 不能直接发起网络请求
 - ❌ 不能使用 `eval()` 或 `Function()` 构造器
 - ❌ 不能访问全局对象（如 `process`、`global`）
 - ❌ 不能使用 `require()` 加载自定义模块
 - ✅ 只能使用提供的 API 和内置库
+- ✅ 可以通过受控的 `ai.complete()` 调用后端大模型网关（不暴露 API Key）
+
+**运行时超时**：
+
+- 单次 `onInit` / `onSignal` 会受到 Bot runtime 的 `signalTimeoutMs` 限制。
+- `ai.complete()` 也有独立超时，默认使用 `runtime.aiTimeoutMs`，并且不能超过 `runtime.maxAITimeoutMs`。
+- 如果 `ai.complete({ timeoutMs })` 设置得过长，或外层 `signalTimeoutMs` 太短，当前信号处理会失败并记录错误。
 
 **支持的内置库**：
 - `decimal.js` - 高精度数值计算
 - `lodash` - 实用工具库
 - `moment` - 时间处理库
-- `indicator` - 技术指标库
 
 ---
 
@@ -2040,7 +2095,7 @@ flowchart LR
   "description": "MA5上穿MA20买入，下穿卖出",
   "signals": [
     {
-      "type": "kline",
+      "type": "KLINE",
       "scope": "symbol",
       "exchange": "binance",
       "symbol": "BTC/USDT:SPOT",
@@ -2069,7 +2124,7 @@ function onInit() {
 
 function onSignal(signal) {
   // 只处理K线信号
-  if (signal.type !== 'kline') {
+  if (signal.type !== 'KLINE') {
     handleAccountSignals(signal);
     return;
   }
@@ -2145,7 +2200,7 @@ function executeBuy(amount) {
   // 市价买入
   console.log("执行买入，金额:", amount, "USDT");
   sym.Buy({
-    type: "market",
+    type: "MARKET",
     amount: amount.toString()
   });
 }
@@ -2169,25 +2224,25 @@ function executeSell() {
   // 市价卖出全部
   console.log("执行卖出，数量:", positions[0].amount);
   sym.Sell({
-    type: "market",
+    type: "MARKET",
     amount: positions[0].amount
   });
 }
 
 function handleAccountSignals(signal) {
   // 处理订单信号
-  if (signal.type === 'order') {
+  if (signal.type === 'ORDER') {
     if (signal.kind === 'order_lifecycle') {
       console.log("订单状态更新:", signal.orderId, signal.status);
     }
   }
   // 处理成交信号
-  else if (signal.type === 'fill') {
+  else if (signal.type === 'FILL') {
     console.log("订单成交:", signal.orderId, "价格:", signal.price, "数量:", signal.qty);
     console.log("手续费:", signal.fee, signal.asset);
   }
   // 处理仓位信号
-  else if (signal.type === 'position') {
+  else if (signal.type === 'POSITION') {
     console.log("仓位变动 - 数量:", signal.qty, "均价:", signal.entryPrice);
   }
 }
@@ -2276,7 +2331,7 @@ function onSignal(signal) {
     ts: signal.ts
   });
   
-  if (signal.type === 'kline') {
+  if (signal.type === 'KLINE') {
     console.debug("K线详情:", {
       interval: signal.interval,
       close: signal.close,
@@ -2307,7 +2362,7 @@ function onSignal(signal) {
               "交易对:", signal.symbol, "时间:", new Date(signal.ts));
   
   // 继续处理信号
-  if (signal.type === 'kline') {
+  if (signal.type === 'KLINE') {
     // ...
   }
 }
@@ -2429,27 +2484,27 @@ function onSignal(signal) {
 ```javascript
 function onSignal(signal) {
   // 市场信号
-  if (signal.type === 'kline') {
+  if (signal.type === 'KLINE') {
     handleKline(signal);
   }
-  else if (signal.type === 'ticker') {
+  else if (signal.type === 'TICKER') {
     handleTicker(signal);
   }
-  else if (signal.type === 'depth') {
+  else if (signal.type === 'DEPTH') {
     handleDepth(signal);
   }
   // 账户信号
-  else if (signal.type === 'fill') {
+  else if (signal.type === 'FILL') {
     handleFill(signal);
   }
-  else if (signal.type === 'position') {
+  else if (signal.type === 'POSITION') {
     handlePosition(signal);
   }
-  else if (signal.type === 'balance') {
+  else if (signal.type === 'BALANCE') {
     handleBalance(signal);
   }
   // 订单信号（需要根据 kind 进一步区分）
-  else if (signal.type === 'order') {
+  else if (signal.type === 'ORDER') {
     if (signal.kind === 'order_lifecycle') {
       handleOrderLifecycle(signal);
     }
@@ -2458,7 +2513,7 @@ function onSignal(signal) {
     }
   }
   // 系统信号
-  else if (signal.type === 'timer') {
+  else if (signal.type === 'TIMER') {
     handleTimer(signal);
   }
 }
@@ -2518,7 +2573,7 @@ function handleTimer(signal) {
 ```javascript
 function onSignal(signal) {
   // 只处理Ticker信号
-  if (signal.type !== 'ticker') return;
+  if (signal.type !== 'TICKER') return;
   
   // 使用 WithSymbol 访问不同交易所的同一交易对
   const Decimal = require("decimal.js");
@@ -2539,11 +2594,11 @@ function onSignal(signal) {
     // 在币安卖出，在OKX买入
     const tradeAmount = new Decimal("0.01");
     binanceBtc.Sell({
-      type: "market",
+      type: "MARKET",
       amount: tradeAmount.toString()
     });
     okxBtc.Buy({
-      type: "market",
+      type: "MARKET",
       amount: tradeAmount.mul(okxPrice).toString()
     });
   }
@@ -2552,11 +2607,11 @@ function onSignal(signal) {
     // 在OKX卖出，在币安买入
     const tradeAmount = new Decimal("0.01");
     okxBtc.Sell({
-      type: "market",
+      type: "MARKET",
       amount: tradeAmount.toString()
     });
     binanceBtc.Buy({
-      type: "market",
+      type: "MARKET",
       amount: tradeAmount.mul(binancePrice).toString()
     });
   }
@@ -2576,14 +2631,14 @@ const takeProfitRatio = new Decimal("0.05");  // 5%止盈
 
 function onSignal(signal) {
   // 处理成交信号，记录入场价
-  if (signal.type === 'fill' && signal.isBuy) {
+  if (signal.type === 'FILL' && signal.isBuy) {
     entryPrice = new Decimal(signal.price);
     console.log("记录入场价:", entryPrice.toString());
     return;
   }
   
   // 处理K线信号，检查止损止盈
-  if (signal.type === 'kline' && signal.isClosed) {
+  if (signal.type === 'KLINE' && signal.isClosed) {
     if (!entryPrice) return;
     
     const currentPrice = new Decimal(signal.close);
@@ -2609,7 +2664,7 @@ function onSignal(signal) {
       const profitPercent = profit.mul(100);
       console.log("触发止损, 亏损:", profitPercent.toFixed(2), "%");
       sym.Sell({
-        type: "market",
+        type: "MARKET",
         amount: positions[0].amount
       });
       entryPrice = null;
@@ -2619,7 +2674,7 @@ function onSignal(signal) {
       const profitPercent = profit.mul(100);
       console.log("触发止盈, 盈利:", profitPercent.toFixed(2), "%");
       sym.Sell({
-        type: "market",
+        type: "MARKET",
         amount: positions[0].amount
       });
       entryPrice = null;
@@ -2669,17 +2724,17 @@ function onSignal(signal) {
   };
   
   // 处理成交信号，更新统计
-  if (signal.type === 'fill') {
+  if (signal.type === 'FILL') {
     updateStatistics(signal);
   }
   
   // 处理仓位信号，更新状态
-  if (signal.type === 'position') {
+  if (signal.type === 'POSITION') {
     updatePositionState(signal);
   }
   
   // 处理K线
-  if (signal.type === 'kline' && signal.isClosed) {
+  if (signal.type === 'KLINE' && signal.isClosed) {
     // 策略逻辑...
   }
 }
@@ -2723,7 +2778,7 @@ function updatePositionState(posSignal) {
 ```javascript
 // 策略定义中添加定时器信号
 // {
-//   "type": "timer",
+//   "type": "TIMER",
 //   "scope": "strategy",
 //   "props": {
 //     "interval": "5m"
@@ -2734,7 +2789,7 @@ const Decimal = require("decimal.js");
 
 function onSignal(signal) {
   // 处理定时器信号
-  if (signal.type === 'timer') {
+  if (signal.type === 'TIMER') {
     console.log("定时检查 - 当前时间:", new Date(signal.ts));
     
     // 遍历所有交易对，检查仓位
@@ -2753,7 +2808,7 @@ function onSignal(signal) {
           if (holdingTime > 3600000) {
             console.log("持仓时间过长，平仓:", sym.symbol);
             sym.Sell({
-              type: "market",
+              type: "MARKET",
               amount: position.amount
             });
           }
@@ -2764,7 +2819,7 @@ function onSignal(signal) {
   }
   
   // 处理其他信号
-  if (signal.type === 'kline' && signal.isClosed) {
+  if (signal.type === 'KLINE' && signal.isClosed) {
     // ... K线处理逻辑 ...
   }
 }
@@ -2779,7 +2834,7 @@ const _ = require("lodash");
 const Decimal = require("decimal.js");
 
 function onSignal(signal) {
-  if (signal.type !== 'kline' || !signal.isClosed) return;
+  if (signal.type !== 'KLINE' || !signal.isClosed) return;
   
   var sym = WithSymbol(signal.exchange, signal.symbol);
   const klines = sym.GetKlines("1h", 100);
@@ -2860,7 +2915,7 @@ const TRADE_SESSIONS = [
 ];
 
 function onSignal(signal) {
-  if (signal.type !== 'kline' || !signal.isClosed) return;
+  if (signal.type !== 'KLINE' || !signal.isClosed) return;
   
   const now = moment();
   const hour = now.hour();
@@ -2914,7 +2969,7 @@ function onSignal(signal) {
         if (holdingHours >= 24) {
           console.log("持仓时间过长，执行止损");
           sym.Sell({
-            type: "market",
+            type: "MARKET",
             amount: positions[0].amount
           });
           sym.Set("entryTime", null);
@@ -2954,45 +3009,7 @@ function onFill(signal) {
 }
 ```
 
-### 9.8 使用 indicator 计算技术指标
-
-使用内置的 `indicator` 库计算 SMA、EMA、RSI、MACD 等：
-
-```javascript
-const indicator = require("indicator");
-
-function onSignal(signal) {
-  if (signal.type !== 'kline' || !signal.isClosed) return;
-
-  var sym = WithSymbol(signal.exchange, signal.symbol);
-  const klines = sym.GetKlines("1h", 50);
-
-  const sma5 = indicator.sma({ source: klines, period: 5 });
-  const sma20 = indicator.sma({ source: klines, period: 20 });
-  const rsi = indicator.rsi({ source: klines, period: 14 });
-
-  const lastSma5 = sma5[sma5.length - 1];
-  const lastSma20 = sma20[sma20.length - 1];
-  const lastRsi = rsi[rsi.length - 1];
-
-  // 金叉：短均线上穿长均线
-  const crossUp = indicator.crossUp({ lineA: sma5, lineB: sma20 });
-  const crossDown = indicator.crossDown({ lineA: sma5, lineB: sma20 });
-
-  if (crossUp && lastRsi < 70) {
-    console.log("金叉且 RSI 未超买，考虑做多");
-    // sym.Buy({ ... });
-  } else if (crossDown && lastRsi > 30) {
-    console.log("死叉且 RSI 未超卖，考虑减仓");
-  }
-
-  console.log("SMA5:", lastSma5, "SMA20:", lastSma20, "RSI:", lastRsi);
-}
-```
-
-更多指标与用法见 [5.6 内置库支持 - ta](#56-内置库支持)。
-
-### 9.9 组合使用：智能数据分析策略
+### 9.8 组合使用：智能数据分析策略
 
 综合使用 lodash、moment 和 decimal.js：
 
@@ -3058,7 +3075,7 @@ function analyzePerformance(sym) {
 }
 
 function onSignal(signal) {
-  if (signal.type === 'timer') {
+  if (signal.type === 'TIMER') {
     const sym = symbols[0];
     const analysis = analyzePerformance(sym);
     
@@ -3072,7 +3089,7 @@ function onSignal(signal) {
 }
 ```
 
-### 9.10 完整实战案例：马丁格尔合约策略
+### 9.9 完整实战案例：马丁格尔合约策略
 
 这是一个完整的合约做空马丁格尔策略示例，展示了如何使用 decimal.js 库进行精确计算、状态管理、风险控制等高级技巧。
 
@@ -3190,8 +3207,8 @@ function onInit() {
 function onSignal(signal) {
   try {
     // 只处理 K 线信号
-    if (signal.type !== "kline") {
-      if (signal.type !== "timer") {
+    if (signal.type !== "KLINE") {
+      if (signal.type !== "TIMER") {
         console.log("收到非K线信号:", signal.type);
       }
       return;
@@ -3555,7 +3572,7 @@ sym.Set("m_coolUntil", nowMs + cooldownMs);
   "description": "震荡下行行情的马丁策略",
   "signals": [
     {
-      "type": "kline",
+      "type": "KLINE",
       "scope": "symbol",
       "exchange": "binance",
       "symbol": "BTC/USDT:FUTURE",
@@ -3655,37 +3672,13 @@ sym.Set("m_coolUntil", nowMs + cooldownMs);
 
 ## 附录 B: 技术指标列表
 
-### 内置 indicator API（简化）
-
 | 指标 | 函数 | 说明 | 参数 |
 |-----|------|------|------|
-| 简单移动平均线 | `indicator.MA(data, period)` | 计算简单均线 | period: 周期 |
-| 指数移动平均线 | `indicator.EMA(data, period)` | 计算指数均线 | period: 周期 |
-| 相对强弱指标 | `indicator.RSI(data, period)` | 计算RSI | period: 周期（通常14） |
-| MACD | `indicator.MACD(data, ...)` | MACD 指标 | 见 API 文档 |
-
-### indicator 内置库
-
-策略中可通过 `const indicator = require("indicator");` 使用技术指标库。常用指标如下。
-
-| 类别 | 指标 | indicator 用法 | 说明 |
-|------|------|----------------|------|
-| 均线 | SMA | `indicator.sma({source, period})` | 简单移动平均 |
-| | EMA | `indicator.ema({source, period})` | 指数移动平均 |
-| | WMA / WEMA | `indicator.wma` / `indicator.wema` | 加权 / Wilder 平滑均线 |
-| 动量 | RSI | `indicator.rsi({source, period})` | 相对强弱指数 |
-| | MACD | `indicator.macd({source, fastPeriod, slowPeriod, signalPeriod})` | MACD（返回 MACD/Signal/Histogram） |
-| | Stochastic | `indicator.stochastic({source, period})` | 随机指标 (KD) |
-| | StochRSI / WilliamsR | `indicator.stochasticrsi` / `indicator.williamsr` | 随机 RSI / 威廉指标 |
-| | ROC / KST | `indicator.roc` / `indicator.kst` | 变动率 / Know Sure Thing |
-| 波动 | ATR | `indicator.atr({source, period})` | 真实波幅 |
-| | 布林带 | `indicator.bb({source, period, stdDev})` | 布林带 |
-| | ADX | `indicator.adx({source, period})` | 平均趋向指数 |
-| 成交量 | OBV / MFI / VWAP | `indicator.obv` / `indicator.mfi` / `indicator.vwap` | 能量潮 / 资金流量 / 成交量加权均价 |
-| 工具 | 上穿/下穿 | `indicator.crossUp({lineA, lineB})` / `indicator.crossDown(...)` | 金叉/死叉判断 |
-| | 最高/最低/标准差 | `indicator.highest` / `indicator.lowest` / `indicator.sd` | 周期内极值与标准差 |
-
-更多指标（CCI、AO、Keltner、Ichimoku、PSAR、TRIX、ForceIndex 等）用法类似。
+| 简单移动平均线 | `indicator.sma(period)` | 计算简单均线 | period: 周期 |
+| 指数移动平均线 | `indicator.ema(period)` | 计算指数均线 | period: 周期 |
+| 相对强弱指标 | `indicator.rsi(period)` | 计算RSI | period: 周期（通常14） |
+| 布林带 | - | 需自定义实现 | 组合使用SMA |
+| MACD | - | 需自定义实现 | 组合使用EMA |
 
 ---
 
@@ -3695,27 +3688,27 @@ sym.Set("m_coolUntil", nowMs + cooldownMs);
 
 ```javascript
 // KLINE - K线
-signal.type === 'kline'
+signal.type === 'KLINE'
 signal.kind === 'kline'
 // 访问：interval, open, high, low, close, volume, openTs, isClosed
 
 // TICKER - Ticker行情
-signal.type === 'ticker'
+signal.type === 'TICKER'
 signal.kind === 'ticker'
 // 访问：price, volume
 
 // DEPTH - 订单簿深度
-signal.type === 'depth'
+signal.type === 'DEPTH'
 signal.kind === 'depth'
 // 访问：orderBook (包含 bids 和 asks)
 
 // TRADE - 市场成交
-signal.type === 'trade'
+signal.type === 'TRADE'
 signal.kind === 'trade'
 // 访问：orderId, qty, price, fee
 
 // MARK_PRICE - 标记价格
-signal.type === 'mark_price'
+signal.type === 'MARK_PRICE'
 signal.kind === 'mark_price'
 // 访问：price
 ```
@@ -3724,7 +3717,7 @@ signal.kind === 'mark_price'
 
 ```javascript
 // ORDER - 订单信号（根据 kind 区分）
-signal.type === 'order'
+signal.type === 'ORDER'
 signal.kind === 'order_lifecycle'     // 生命周期
 // 访问：orderId, status, code, reason
 
@@ -3732,22 +3725,22 @@ signal.kind === 'order_snapshot'      // 快照
 // 访问：orderId, triggerKind, order
 
 // FILL - 订单成交
-signal.type === 'fill'
+signal.type === 'FILL'
 signal.kind === 'fill'
 // 访问：orderId, side, isBuy, qty, price, fee, asset, realizedPnl
 
 // BALANCE - 余额变动（增量）
-signal.type === 'balance'
+signal.type === 'BALANCE'
 signal.kind === 'balance_changed'
 // 访问：walletType, asset, free, frozen
 
 // POSITION - 仓位变动（快照）
-signal.type === 'position'
+signal.type === 'POSITION'
 signal.kind === 'position_changed'
 // 访问：side, qty, entryPrice
 
 // LEVERAGE - 杠杆变更
-signal.type === 'leverage'
+signal.type === 'LEVERAGE'
 signal.kind === 'leverage_changed'
 // 访问：leverage
 ```
@@ -3756,7 +3749,7 @@ signal.kind === 'leverage_changed'
 
 ```javascript
 // RISK - 风控事件（根据 kind 区分）
-signal.type === 'risk'
+signal.type === 'RISK'
 signal.kind === 'funding_settlement'  // 资金费结算
 // 访问：fundingAmount, fundingRate, positionQty, markPrice
 
@@ -3768,7 +3761,7 @@ signal.kind === 'funding_rate'        // 资金费率
 
 ```javascript
 // TIMER - 定时器
-signal.type === 'timer'
+signal.type === 'TIMER'
 signal.kind === 'timer'
 // 访问：time
 ```
@@ -3802,31 +3795,31 @@ function onSignal(signal) {
   console.log("收到信号 - 类型:", signal.type, "种类:", signal.kind);
   
   // 市场信号
-  if (signal.type === 'kline') {
+  if (signal.type === 'KLINE') {
     handleKline(signal);
   }
-  else if (signal.type === 'ticker') {
+  else if (signal.type === 'TICKER') {
     handleTicker(signal);
   }
-  else if (signal.type === 'depth') {
+  else if (signal.type === 'DEPTH') {
     handleDepth(signal);
   }
   // 账户信号
-  else if (signal.type === 'fill') {
+  else if (signal.type === 'FILL') {
     handleFill(signal);
   }
-  else if (signal.type === 'position') {
+  else if (signal.type === 'POSITION') {
     handlePosition(signal);
   }
-  else if (signal.type === 'balance') {
+  else if (signal.type === 'BALANCE') {
     handleBalance(signal);
   }
   // 订单信号
-  else if (signal.type === 'order') {
+  else if (signal.type === 'ORDER') {
     handleOrder(signal);
   }
   // 系统信号
-  else if (signal.type === 'timer') {
+  else if (signal.type === 'TIMER') {
     handleTimer(signal);
   }
 }

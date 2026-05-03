@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/bytedance/sonic"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/misc"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"rogchap.com/v8go"
 )
 
@@ -17,6 +17,7 @@ type Runtime struct {
 	timeAPI     *api.TimeAPI
 	symbolAPI   *api.SymbolAPI
 	exchangeAPI *api.ExchangeAPI
+	aiAPI       *api.AIAPI
 	params      map[string]any
 
 	// Storage 内存存储
@@ -76,6 +77,12 @@ func (r *Runtime) GetStorage() *Storage {
 // WithExchangeAPI 设置 ExchangeAPI
 func (r *Runtime) WithExchangeAPI(exchangeAPI *api.ExchangeAPI) *Runtime {
 	r.exchangeAPI = exchangeAPI
+	return r
+}
+
+// WithAIAPI 设置 AIAPI
+func (r *Runtime) WithAIAPI(aiAPI *api.AIAPI) *Runtime {
+	r.aiAPI = aiAPI
 	return r
 }
 
@@ -164,6 +171,20 @@ func (r *Runtime) Inject(ctx *v8go.Context) error {
 		}
 		global.Set("time", timeVal.Value)
 		if err := protectGlobalProperty(ctx, "time"); err != nil {
+			// 保护失败不影响策略执行，只记录错误
+		}
+	}
+
+	// 注入 ai API
+	if r.aiAPI != nil {
+		aiObj := v8go.NewObjectTemplate(ctx.Isolate())
+		aiObj.Set("complete", v8go.NewFunctionTemplate(ctx.Isolate(), r.aiAPI.Complete))
+		aiVal, err := aiObj.NewInstance(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create ai object: %w", err)
+		}
+		global.Set("ai", aiVal.Value)
+		if err := protectGlobalProperty(ctx, "ai"); err != nil {
 			// 保护失败不影响策略执行，只记录错误
 		}
 	}

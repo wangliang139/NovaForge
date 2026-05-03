@@ -84,6 +84,35 @@ const EMPTY_BOT_INITIAL_ASSET_ROW: BotInitialAssetRow = {
   frozen: '0',
 };
 
+type BotRuntimeConfig = {
+  signalTimeoutMs?: number;
+  aiTimeoutMs?: number;
+  maxAITimeoutMs?: number;
+};
+
+const DEFAULT_BOT_RUNTIME_CONFIG: Required<BotRuntimeConfig> = {
+  signalTimeoutMs: 30000,
+  aiTimeoutMs: 15000,
+  maxAITimeoutMs: 30000,
+};
+
+function coercePositiveInt(value: unknown, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    return fallback;
+  }
+  return Math.floor(n);
+}
+
+function normalizeRuntimeConfig(raw: unknown): Required<BotRuntimeConfig> {
+  const r = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    signalTimeoutMs: coercePositiveInt(r.signalTimeoutMs, DEFAULT_BOT_RUNTIME_CONFIG.signalTimeoutMs),
+    aiTimeoutMs: coercePositiveInt(r.aiTimeoutMs, DEFAULT_BOT_RUNTIME_CONFIG.aiTimeoutMs),
+    maxAITimeoutMs: coercePositiveInt(r.maxAITimeoutMs, DEFAULT_BOT_RUNTIME_CONFIG.maxAITimeoutMs),
+  };
+}
+
 /** 实盘多 Bot 父账户下默认首行（与原先 OKX 类预设一致，可按需再按 exchange 区分） */
 const defaultLiveMultiInitialAssetRows = (exchange?: string): BotInitialAssetRow[] => {
   if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
@@ -138,6 +167,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           exchange: 'binance',
           symbols: [],
           initialAssets: [{ ...EMPTY_BOT_INITIAL_ASSET_ROW }],
+          runtime: { ...DEFAULT_BOT_RUNTIME_CONFIG },
         });
       } else {
         form.resetFields();
@@ -173,6 +203,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
         } catch (e) {
           console.error('Failed to parse bot config:', e);
         }
+        form.setFieldValue('runtime', normalizeRuntimeConfig(config.runtime));
         if (strategy.params && strategy.params.length > 0) {
           const params: Record<string, any> = {};
           strategy.params.forEach((param) => {
@@ -254,6 +285,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     | undefined;
   const accountIdWatch = Form.useWatch('accountId', form);
   const needsLiveSubAllocation =
+    !isEdit &&
     modeValue === BotMode.Live &&
     !!(
       accounts.find((a) => String(a.id) === String(accountIdWatch ?? ''))?.multiBotMode
@@ -519,6 +551,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
 
   // 切换模式时，若当前选中的账户不在该模式允许类型内则清空
   useEffect(() => {
+    if (isEdit) return;
     const accountId = form.getFieldValue('accountId');
     if (!accountId) return;
     const opts =
@@ -531,13 +564,14 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
     if (!allowed) {
       form.setFieldsValue({ accountId: undefined });
     }
-  }, [modeValue, paperAccountSource, liveAccountOptions, paperAccountOptions]);
+  }, [isEdit, modeValue, paperAccountSource, liveAccountOptions, paperAccountOptions]);
 
   useEffect(() => {
+    if (isEdit) return;
     if (modeValue === BotMode.Paper && paperAccountSource === 'new') {
       form.setFieldsValue({ accountId: undefined });
     }
-  }, [modeValue, paperAccountSource, form]);
+  }, [isEdit, modeValue, paperAccountSource, form]);
 
   useEffect(() => {
     if (!symbolsValue || symbolsValue.length === 0 || !selectedStrategy || !exchangeValue) {
@@ -709,7 +743,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
 
     const createNewPaperAccount =
       values.mode === BotMode.Paper && (values.paperAccountSource || 'existing') === 'new';
-    if (createNewPaperAccount || liveMulti) {
+    if (!isEdit && (createNewPaperAccount || liveMulti)) {
       const initialAssets = pickInitialAssets();
       if (!initialAssets.length) {
         message.error(
@@ -735,6 +769,17 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
       configMap.initialAssets = initialAssets;
     }
     configMap.params = values.params;
+
+    const runtime = normalizeRuntimeConfig(values.runtime ?? form.getFieldValue('runtime'));
+    if (runtime.aiTimeoutMs > runtime.maxAITimeoutMs) {
+      message.error('AI 默认超时不能大于 AI 最大超时');
+      return false;
+    }
+    if (runtime.maxAITimeoutMs > runtime.signalTimeoutMs) {
+      message.error('AI 最大超时不能大于单次 Signal 超时');
+      return false;
+    }
+    configMap.runtime = runtime;
 
     // 将 signals 放入 config（仅支持自动）
     try {
@@ -1186,7 +1231,7 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           />
         )}
 
-        {modeValue === BotMode.Paper && (
+        {!isEdit && modeValue === BotMode.Paper && (
           <ProFormSelect
             name="paperAccountSource"
             label="模拟账户来源"
@@ -1242,8 +1287,9 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           </Card>
         )}
 
-        {((modeValue === BotMode.Paper &&
-          (isEdit || (paperAccountSource || 'existing') === 'new')) ||
+        {((!isEdit &&
+          modeValue === BotMode.Paper &&
+          (paperAccountSource || 'existing') === 'new') ||
           needsLiveSubAllocation) && (
           <ProForm.Item
             label={needsLiveSubAllocation ? '子账户初始资产（实盘共享）' : '初始资产配置'}
@@ -1411,6 +1457,78 @@ const BotModal: React.FC<BotModalProps> = ({ open, onOpenChange, onSuccess, bot 
           />
         </ProForm.Item>
       )}
+
+      <ProForm.Item>
+        <Collapse
+          items={[
+            {
+              key: 'runtime',
+              label: '运行时配置',
+              styles: { body: { paddingBottom: 2 } },
+              forceRender: true,
+              children: (
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name={['runtime', 'signalTimeoutMs']}
+                      label="Signal 超时(ms)"
+                      min={1000}
+                      fieldProps={{ precision: 0 }}
+                      tooltip="单次 onInit/onSignal 的最大执行时间，需要覆盖 AI 调用等待时间"
+                      rules={[{ required: true, message: '请输入 Signal 超时' }]}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name={['runtime', 'aiTimeoutMs']}
+                      label="AI 默认超时(ms)"
+                      min={1000}
+                      fieldProps={{ precision: 0 }}
+                      tooltip="策略未在 ai.complete 中指定 timeoutMs 时使用"
+                      rules={[{ required: true, message: '请输入 AI 默认超时' }]}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <ProFormDigit
+                      name={['runtime', 'maxAITimeoutMs']}
+                      label="AI 最大超时(ms)"
+                      min={1000}
+                      fieldProps={{ precision: 0 }}
+                      tooltip="限制策略在 ai.complete 中可指定的最大 timeoutMs"
+                      rules={[
+                        { required: true, message: '请输入 AI 最大超时' },
+                        {
+                          validator: async (_: unknown, value: unknown) => {
+                            const signalTimeoutMs = Number(
+                              form.getFieldValue(['runtime', 'signalTimeoutMs']),
+                            );
+                            const aiTimeoutMs = Number(form.getFieldValue(['runtime', 'aiTimeoutMs']));
+                            const maxAITimeoutMs = Number(value);
+                            if (
+                              Number.isFinite(aiTimeoutMs) &&
+                              Number.isFinite(maxAITimeoutMs) &&
+                              aiTimeoutMs > maxAITimeoutMs
+                            ) {
+                              throw new Error('AI 默认超时不能大于 AI 最大超时');
+                            }
+                            if (
+                              Number.isFinite(signalTimeoutMs) &&
+                              Number.isFinite(maxAITimeoutMs) &&
+                              maxAITimeoutMs > signalTimeoutMs
+                            ) {
+                              throw new Error('AI 最大超时不能大于 Signal 超时');
+                            }
+                          },
+                        },
+                      ]}
+                    />
+                  </Col>
+                </Row>
+              ),
+            },
+          ]}
+        />
+      </ProForm.Item>
 
       {selectedStrategy && selectedStrategy.signals && selectedStrategy.signals.length > 0 && (
         <ProForm.Item>

@@ -15,6 +15,39 @@ const StrategyGuide: React.FC = () => {
   const [error, setError] = useState<string>('');
   const mermaidInitialized = useRef(false);
 
+  const scrollToHash = (hash: string) => {
+    if (!hash) {
+      return;
+    }
+
+    const id = decodeURIComponent(hash.replace(/^#/, ''));
+    const headings = Array.from(
+      document.querySelectorAll<HTMLElement>('h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]'),
+    );
+    const candidates = headings.filter((heading) => {
+      if (heading.id === id) {
+        return true;
+      }
+
+      if (!heading.id.startsWith(`${id}-`)) {
+        return false;
+      }
+
+      return /^\d+$/.test(heading.id.slice(id.length + 1));
+    });
+    const isTocHeading = (heading: HTMLElement) =>
+      Array.from(heading.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')).some((anchor) => {
+        const href = anchor.getAttribute('href');
+
+        return href ? decodeURIComponent(href) === `#${id}` : false;
+      });
+    const element = candidates.find((heading) => !isTocHeading(heading)) ?? document.getElementById(id);
+
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   useEffect(() => {
     // 初始化 mermaid
     if (!mermaidInitialized.current) {
@@ -58,13 +91,7 @@ const StrategyGuide: React.FC = () => {
         // 如果 URL 中有锚点，自动滚动到对应位置
         const hash = window.location.hash;
         if (hash) {
-          const id = hash.slice(1);
-          const element = document.getElementById(id);
-          if (element) {
-            const yOffset = -80;
-            const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-            window.scrollTo({ top: y, behavior: 'smooth' });
-          }
+          scrollToHash(hash);
         }
       }, 100);
     }
@@ -139,17 +166,7 @@ const StrategyGuide: React.FC = () => {
                       href={href}
                       onClick={(e) => {
                         e.preventDefault();
-                        const id = href.slice(1); // 移除 #
-                        const element = document.getElementById(id);
-                        if (element) {
-                          // 平滑滚动到目标位置，考虑固定头部的偏移
-                          const yOffset = -80; // 固定头部高度偏移
-                          const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-                          window.scrollTo({ top: y, behavior: 'smooth' });
-                          
-                          // 更新浏览器地址栏
-                          window.history.pushState(null, '', href);
-                        }
+                        scrollToHash(href);
                       }}
                     >
                       {children}

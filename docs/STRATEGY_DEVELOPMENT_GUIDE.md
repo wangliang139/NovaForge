@@ -2,8 +2,8 @@
 
 欢迎使用 **NovaForge** 交易策略能力！本手册将帮助您使用 JavaScript 创建和管理自定义交易策略。
 
-> **版本**: v1.0  
-> **更新日期**: 2026-02-17
+> **版本**: v1.1
+> **更新日期**: 2026-05-03
 
 ---
 
@@ -53,6 +53,7 @@
   - params - 策略参数
   - console - 日志输出
   - time - 时间工具
+  - ai - 大模型调用
   - indicator - 技术指标
 - 5.3 [symbols 数组](#53-symbols-数组)
 - 5.4 [交易对 API（SymbolHandle）](#54-交易对-apisymbolhandle)
@@ -995,6 +996,130 @@ function onSignal(signal) {
 }
 ```
 
+#### ai（大模型调用）
+
+`ai.complete(options)` 用于在策略中调用后端受控的大模型网关，适合让模型对当前行情、仓位、账户状态和策略约束生成交易建议。
+
+> **重要**：`ai.complete` 只返回模型建议，不会直接下单。策略代码必须自行判断置信度、风险约束和仓位限制，再通过 `SymbolHandle.Buy()` / `SymbolHandle.Sell()` 执行交易。
+
+**语法**：
+```javascript
+const decision = ai.complete(options)
+```
+
+**参数**：
+
+| 字段 | 类型 | 必填 | 说明 |
+|-----|------|------|------|
+| `prompt` | string | 与 `messages` 二选一 | 用户提示词。适合把行情、仓位、约束序列化成 JSON 字符串传入 |
+| `messages` | array | 与 `prompt` 二选一 | Chat messages，元素格式为 `{ role, content }`，`role` 支持 `system`、`user`、`assistant` |
+| `model` | string | 否 | 模型名称。未传时使用系统默认模型配置 |
+| `json` | boolean | 否 | 为 `true` 时要求模型返回 JSON，并把 `result` 解析成对象 |
+| `responseFormat` | string | 否 | 当前支持 `"json_object"`，等价于 `json: true` |
+| `timeoutMs` | number | 否 | 本次 AI 调用超时（毫秒），不能超过 Bot 运行时配置的 `maxAITimeoutMs` |
+
+**返回值**：
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| `result` | string 或 object | 模型结果。`json: true` 时为解析后的 JSON 对象，否则为文本 |
+| `text` | string | 模型返回的原始文本 |
+| `json` | object | `json: true` 时的解析对象，和 `result` 相同 |
+| `model` | string | 实际使用的模型 |
+| `duration` | number | 调用耗时（毫秒） |
+| `usage` | object | Token 使用统计（如 provider 返回） |
+
+**基础示例：AI 生成交易建议**
+
+```javascript
+function onSignal(signal) {
+  if (signal.type !== 'TIMER') return;
+
+  const sym = symbols[0];
+  const ticker = sym.GetTicker();
+  const positions = sym.GetPositions();
+  const account = sym.GetAccount();
+
+  const decision = ai.complete({
+    model: params.aiModel,      // 可选：不填则使用系统默认模型
+    json: true,
+    timeoutMs: 15000,
+    prompt: JSON.stringify({
+      task: "Return a trading decision as JSON.",
+      schema: {
+        action: "buy | sell | hold",
+        confidence: "0.0 - 1.0",
+        reason: "string"
+      },
+      market: {
+        exchange: sym.exchange,
+        symbol: sym.symbol,
+        ticker: ticker
+      },
+      account: account,
+      positions: positions,
+      constraints: {
+        allowedActions: ["buy", "sell", "hold"],
+        orderAmount: params.orderAmount || "50",
+        minConfidence: params.minConfidence || 0.8
+      }
+    })
+  });
+
+  console.log("AI 决策:", JSON.stringify(decision.result));
+
+  if (decision.result.action === "buy" && decision.result.confidence >= (params.minConfidence || 0.8)) {
+    sym.Buy({
+      type: "MARKET",
+      amount: params.orderAmount || "50"
+    });
+  }
+}
+```
+
+**messages 示例：分离 system / user 提示词**
+
+```javascript
+const decision = ai.complete({
+  json: true,
+  timeoutMs: 10000,
+  messages: [
+    {
+      role: "system",
+      content: "You are a conservative crypto trading assistant. Only return JSON."
+    },
+    {
+      role: "user",
+      content: JSON.stringify({
+        symbol: signal.symbol,
+        ticker: symbols[0].GetTicker(),
+        instruction: "Choose buy, sell, or hold."
+      })
+    }
+  ]
+});
+```
+
+**超时与 Bot runtime 配置**：
+
+创建或修改 Bot 时可以在运行时配置中设置：
+
+```json
+{
+  "runtime": {
+    "signalTimeoutMs": 30000,
+    "aiTimeoutMs": 15000,
+    "maxAITimeoutMs": 30000
+  }
+}
+```
+
+- `signalTimeoutMs`：单次 `onInit` / `onSignal` 的最大执行时间。
+- `aiTimeoutMs`：`ai.complete` 未指定 `timeoutMs` 时使用的默认 AI 超时。
+- `maxAITimeoutMs`：策略可在 `ai.complete({ timeoutMs })` 中指定的最大 AI 超时。
+
+> **建议**：`signalTimeoutMs` 应大于或等于 `maxAITimeoutMs`，并预留行情查询、JSON 解析和交易判断的时间。高频行情信号不建议每条都调用 AI，优先使用 `TIMER` 信号或通过 `SymbolHandle.Get()` / `SymbolHandle.Set()` 记录上次调用时间来节流。
+
 #### indicator（技术指标）
 
 计算技术指标：
@@ -1919,11 +2044,18 @@ function onSignal(signal) {
 为了保护系统安全，JavaScript 运行环境有以下限制：
 
 - ❌ 不能访问文件系统
-- ❌ 不能发起网络请求
+- ❌ 不能直接发起网络请求
 - ❌ 不能使用 `eval()` 或 `Function()` 构造器
 - ❌ 不能访问全局对象（如 `process`、`global`）
 - ❌ 不能使用 `require()` 加载自定义模块
 - ✅ 只能使用提供的 API 和内置库
+- ✅ 可以通过受控的 `ai.complete()` 调用后端大模型网关（不暴露 API Key）
+
+**运行时超时**：
+
+- 单次 `onInit` / `onSignal` 会受到 Bot runtime 的 `signalTimeoutMs` 限制。
+- `ai.complete()` 也有独立超时，默认使用 `runtime.aiTimeoutMs`，并且不能超过 `runtime.maxAITimeoutMs`。
+- 如果 `ai.complete({ timeoutMs })` 设置得过长，或外层 `signalTimeoutMs` 太短，当前信号处理会失败并记录错误。
 
 **支持的内置库**：
 - `decimal.js` - 高精度数值计算

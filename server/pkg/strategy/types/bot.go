@@ -61,6 +61,13 @@ type BotConfig struct {
 	Params        map[string]any  `json:"params"`        // 用户提供的策略参数值
 	Signals       []SignalBinding `json:"signals"`       // 信号绑定配置（将合并到 config 中）
 	InitialAssets []ctypes.Asset  `json:"initialAssets"` // 初始资产，用于模拟盘
+	Runtime       RuntimeConfig   `json:"runtime"`       // 宿主运行时配置
+}
+
+type RuntimeConfig struct {
+	SignalTimeoutMs int64 `json:"signalTimeoutMs,omitempty"` // 单次 onInit/onSignal 执行超时
+	AITimeoutMs     int64 `json:"aiTimeoutMs,omitempty"`     // ai.complete 默认超时
+	MaxAITimeoutMs  int64 `json:"maxAITimeoutMs,omitempty"`  // ai.complete 可指定的最大超时
 }
 
 // CreateBotInput 创建Bot请求

@@ -15,6 +15,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/pubsub"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/signal"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
@@ -36,6 +37,7 @@ type ExecutorRegistry struct {
 	marketProvider marketdata.MarketProvider
 	accountEngine  strategy.AccountEngine
 	orderEngine    strategy.OrderEngine
+	aiCompleter    api.AICompleter
 
 	// 运行中的执行器
 	executors map[int32]strategy.Executor // botID -> executor
@@ -70,6 +72,7 @@ func NewExecutorRegistry(
 	accountEngine strategy.AccountEngine,
 	orderEngine strategy.OrderEngine,
 	marketProvider marketdata.MarketProvider,
+	aiCompleter api.AICompleter,
 ) (*ExecutorRegistry, error) {
 	if accountEngine == nil {
 		return nil, fmt.Errorf("account engine is nil")
@@ -110,6 +113,7 @@ func NewExecutorRegistry(
 		accountEngine:       accountEngine,
 		orderEngine:         orderEngine,
 		marketProvider:      marketProvider,
+		aiCompleter:         aiCompleter,
 		starting:            make(map[int32]struct{}),
 		streamSubscriptions: make(map[string]*streamSubscription),
 		streamBots:          make(map[string]map[int32]struct{}),
@@ -229,7 +233,7 @@ func (r *ExecutorRegistry) newExecutor(bot *stypes.Bot, stg *stypes.Strategy) (s
 			BaseCurrency: r.cfg.BaseCurrency,
 			BaseExchange: baseExchange,
 		}
-		exec, err := live.NewLiveExecutor(cfg, r.marketProvider, r.accountEngine, r.orderEngine)
+		exec, err := live.NewLiveExecutor(cfg, r.aiCompleter, r.marketProvider, r.accountEngine, r.orderEngine)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create live executor: %w", err)
 		}

@@ -162,6 +162,7 @@ const PositionSnapshotHistoryModal: React.FC<PositionSnapshotHistoryModalProps> 
                   }
                   return [value, name];
                 }}
+                labelStyle={{ color: '#d89614' }}
                 labelFormatter={(_: unknown, payload: any[]) =>
                   payload?.[0]?.payload?.tsMs != null
                     ? dayjs(payload[0].payload.tsMs).format('YYYY-MM-DD HH:mm:ss')
