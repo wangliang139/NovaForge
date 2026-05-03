@@ -343,8 +343,8 @@ func (r *ExecutorRegistry) ensureBotSubscriptions(ctx context.Context, bot *styp
 		return err
 	}
 
-	// 实盘模式下默认订阅账户级事件
-	if bot.Mode == stypes.BotModeLive && bot.AccountID != "" {
+	// 运行态需要账户事件驱动订单/资产/仓位状态；live 与 paper 都要补订账户级事件。
+	if (bot.Mode == stypes.BotModeLive || bot.Mode == stypes.BotModePaper) && bot.AccountID != "" {
 		accountSelector := ctypes.StreamSelector{
 			Stream:  ctypes.StreamTypeAccount,
 			Account: &bot.AccountID,
@@ -400,12 +400,6 @@ func (r *ExecutorRegistry) buildStreamSelectors(ctx context.Context, bot *stypes
 		if !ok {
 			return nil, fmt.Errorf("signal definition not found: %s", binding.SignalID)
 		}
-		if binding.Exchange == nil || !binding.Exchange.IsValid() {
-			continue
-		}
-		if binding.Symbol == nil || !binding.Symbol.IsValid() {
-			continue
-		}
 
 		streamType, ok := converter.SignalType2StreamType(def.Type)
 		if !ok {
@@ -413,11 +407,20 @@ func (r *ExecutorRegistry) buildStreamSelectors(ctx context.Context, bot *stypes
 			continue
 		}
 
-		exchange := *binding.Exchange
+		exchange := bot.Exchange
+		if binding.Exchange != nil && binding.Exchange.IsValid() {
+			exchange = *binding.Exchange
+		}
+		if !exchange.IsValid() {
+			continue
+		}
 		symbol := binding.Symbol
 
 		selector := ctypes.StreamSelector{Stream: streamType}
-		if symbol != nil {
+		if streamType.IsMarketSignal() {
+			if symbol == nil || !symbol.IsValid() {
+				continue
+			}
 			selector.Symbol = symbol
 		}
 		if streamType == ctypes.StreamTypeKline {

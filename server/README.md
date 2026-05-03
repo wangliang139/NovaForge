@@ -139,16 +139,17 @@ type Exchange interface {
 * 现货：Asset Balance
 * 合约：
 
-  * 双向持仓（Long / Short）
+  * 单向 / 双向持仓（双向时拆分 Long / Short）
   * 全仓保证金
   * 单币种保证金
+  * 不支持逐仓模式
 
 ##### ▪ Margin / PnL / Fee Engine
 
 * 所有结果 **统一折算为 USDT**
 * 核心点：
 
-  * 手续费币种 ≠ 计价币种
+  * 现货手续费不支持使用计价币支付
   * 合约 PnL ≠ 资金变动事件（需拆分）
 
 ##### ▪ Risk Controller
