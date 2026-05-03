@@ -284,11 +284,13 @@ func (a *account) FreezeFunds(ctx context.Context, accountID string, symbol ctyp
 	ledger.Locked = ledger.Locked.Add(amount)
 	ledger.Available = ledger.Available.Sub(amount)
 	ledger.updateAvailable()
+	free := ledger.Available
+	frozen := ledger.Locked
 	a.mu.Unlock()
 
-	// 发送冻结事件（在锁外发送，避免死锁）
+	// 发送冻结后的余额快照（在锁外发送，避免同一账户重复应用 delta）
 	if a.bus != nil {
-		return a.bus.Publish(ctx, &stypes.BalanceDeltaSignal{
+		return a.bus.Publish(ctx, &stypes.BalanceSignal{
 			BaseSignal: stypes.BaseSignal{
 				Exchange:  lo.ToPtr(a.GetExchange()),
 				Symbol:    &symbol,
@@ -297,7 +299,8 @@ func (a *account) FreezeFunds(ctx context.Context, accountID string, symbol ctyp
 			},
 			WalletType: ctypes.WalletTypeTrade,
 			Asset:      asset,
-			Frozen:     amount,
+			Free:       free,
+			Frozen:     frozen,
 		})
 	}
 	return nil
@@ -324,11 +327,13 @@ func (a *account) UnfreezeFunds(ctx context.Context, accountID string, symbol ct
 	ledger.Locked = ledger.Locked.Sub(amount)
 	ledger.Available = ledger.Available.Add(amount)
 	ledger.updateAvailable()
+	free := ledger.Available
+	frozen := ledger.Locked
 	a.mu.Unlock()
 
-	// 发送解冻事件（在锁外发送，避免死锁）
+	// 发送解冻后的余额快照（在锁外发送，避免同一账户重复应用 delta）
 	if a.bus != nil && amount.GreaterThan(decimal.Zero) {
-		err := a.bus.Publish(ctx, &stypes.BalanceDeltaSignal{
+		err := a.bus.Publish(ctx, &stypes.BalanceSignal{
 			BaseSignal: stypes.BaseSignal{
 				Exchange:  lo.ToPtr(a.GetExchange()),
 				Symbol:    &symbol,
@@ -337,7 +342,8 @@ func (a *account) UnfreezeFunds(ctx context.Context, accountID string, symbol ct
 			},
 			WalletType: ctypes.WalletTypeTrade,
 			Asset:      asset,
-			Frozen:     amount,
+			Free:       free,
+			Frozen:     frozen,
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to publish funds unfrozen signal")

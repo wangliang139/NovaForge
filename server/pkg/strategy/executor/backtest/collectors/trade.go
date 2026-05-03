@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // TradeCollector 成交记录收集器
@@ -37,8 +37,8 @@ func (c *TradeCollector) OnFill(fill *stypes.FillSignal, order *ctypes.Order) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var clientOrderID ctypes.OrderId
-	if order != nil {
+	clientOrderID := fill.OrderID
+	if order != nil && order.ClientOrderID != "" {
 		clientOrderID = order.ClientOrderID
 	}
 
@@ -54,6 +54,7 @@ func (c *TradeCollector) OnFill(fill *stypes.FillSignal, order *ctypes.Order) {
 		Price:         fill.Price,
 		Fee:           fill.Fee,
 		Asset:         fill.Asset,
+		FeeInBase:     fill.FeeInBase,
 		RealizedPnl:   realizedPnl,
 		Ts:            fill.Ts,
 	})

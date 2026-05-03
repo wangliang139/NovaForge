@@ -901,6 +901,24 @@ func (m *orderEngine) handleFillEvent(_ context.Context, event *stypes.FillSigna
 	if order.ExecutedQty.GreaterThan(decimal.Zero) {
 		order.AvgPrice = order.ExecutedQuoteQty.Div(order.ExecutedQty)
 	}
+	if !event.Fee.IsZero() {
+		fee := event.Fee
+		if order.Fee != nil {
+			fee = order.Fee.Add(event.Fee)
+		}
+		order.Fee = &fee
+	}
+	if event.Asset != "" {
+		feeAsset := event.Asset
+		order.FeeAsset = &feeAsset
+	}
+	if !event.RealizedPnl.IsZero() {
+		realizedPnl := event.RealizedPnl
+		if order.RealizedPnl != nil {
+			realizedPnl = order.RealizedPnl.Add(event.RealizedPnl)
+		}
+		order.RealizedPnl = &realizedPnl
+	}
 	order.UpdatedTs = event.Ts
 
 	// 更新订单状态（部分成交）

@@ -7,6 +7,7 @@ import (
 	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/logging/store"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // Collectors 收集器集合
@@ -35,13 +36,15 @@ func NewCollectors(consoleLogger *store.BufferStorage, eventBus mb.Bus, orderEng
 	eventBus.Subscribe(func(ctx context.Context, event stypes.Signal) error {
 		if fillEvent, ok := event.(*stypes.FillSignal); ok {
 			// 从 OrderCollector 获取订单信息
+			var matchedOrder *ctypes.Order
 			allOrders := c.Order.GetAllOrders()
 			for _, o := range allOrders {
-				if o != nil && o.OrderID == fillEvent.OrderID {
-					c.Trade.OnFill(fillEvent, o)
+				if o != nil && (o.OrderID == fillEvent.OrderID || o.ClientOrderID == fillEvent.OrderID) {
+					matchedOrder = o
 					break
 				}
 			}
+			c.Trade.OnFill(fillEvent, matchedOrder)
 		}
 		return nil
 	}, int(mb.StageCollectors), mb.NewTypeFilter(stypes.SignalTypeFill))

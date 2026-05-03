@@ -445,7 +445,7 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 	exSymbol := ctypes.NewExSymbol(ex, sym)
 
 	// 计算 BaseCurrency 计价的已实现盈亏和手续费
-	realizedPnlBase, _, err := g.calculatePnLInBaseCurrency(ctx, exSymbol, accountID, e)
+	realizedPnlBase, feeInBase, err := g.calculatePnLInBaseCurrency(ctx, exSymbol, accountID, e)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to calculate PnL in base currency")
 		// 降级：继续处理，但 PnL 字段为 0
@@ -467,6 +467,7 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 		Fee:         e.Fee,
 		Asset:       e.Asset,
 		RealizedPnl: realizedPnlBase,
+		FeeInBase:   feeInBase,
 	})
 	if err != nil {
 		return err

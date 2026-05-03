@@ -665,6 +665,7 @@ type FillSignal struct {
 
 	// 以 BaseCurrency 计价的收益拆分
 	RealizedPnl decimal.Decimal `json:"realizedPnl,omitempty"` // 已实现盈亏（不含手续费/资金费）
+	FeeInBase   decimal.Decimal `json:"feeInBase,omitempty"`   // 手续费折算到 BaseCurrency
 }
 
 func (e FillSignal) GetType() types.SignalType { return types.SignalTypeFill }
