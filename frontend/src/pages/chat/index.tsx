@@ -217,7 +217,7 @@ const StrategySkillResultCard: React.FC<{ strategy: GeneratedStrategyPayload }> 
             key: 'overview',
             label: '策略信息',
             children: (
-              <Descriptions size="small" column={1} bordered>
+              <Descriptions size="small" column={1} labelStyle={{ width: 100 }} bordered>
                 <Descriptions.Item label="策略名称">{strategy.name}</Descriptions.Item>
                 <Descriptions.Item label="策略描述">{strategy.description}</Descriptions.Item>
               </Descriptions>
@@ -916,6 +916,7 @@ export default function ChatPage() {
                 : isActive
                   ? token.colorFillAlter
                   : undefined;
+              const rowTextColor = isActive ? 'var(--ant-color-text)' : 'var(--ant-color-text-secondary)';
               return (
                 <Row
                   key={item.id}
@@ -927,6 +928,7 @@ export default function ChatPage() {
                     margin: '1px 0px 1px 10px',
                     borderRadius: token.borderRadiusLG,
                     background: rowBackground,
+                    color: rowTextColor,
                     transition: 'background 0.2s ease',
                   }}
                   onMouseEnter={() => setHoveredSessionId(item.id)}
@@ -934,7 +936,7 @@ export default function ChatPage() {
                   onClick={() => history.push(`/chat/${item.id}`)}
                 >
                   <Col flex="auto" style={{ minWidth: 0 }}>
-                    <Typography.Text ellipsis={{ tooltip: true }} style={{ color: token.colorTextSecondary }}>
+                    <Typography.Text ellipsis={{ tooltip: true }} style={{ color: rowTextColor }}>
                       {item.title || '未命名会话'}
                     </Typography.Text>
                   </Col>

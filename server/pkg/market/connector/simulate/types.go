@@ -194,6 +194,7 @@ type AccountEvent struct {
 	kind      AccountEventType
 	order     *Order
 	balance   *AccountSnapshot
+	update    *ctypes.BalanceUpdate
 	position  *PerpSlot
 	leverage  *LeverageChange
 }

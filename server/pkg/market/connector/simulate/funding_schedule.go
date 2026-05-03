@@ -147,7 +147,7 @@ func (rt *VenueRuntime) fundingWake() {
 	defer rt.fundingWakeMu.Unlock()
 
 	now := rt.engineNow().UTC()
-	var due []Symbol
+	var due []fundingItem
 
 	rt.fundingMu.Lock()
 	for rt.fundingHeap != nil && rt.fundingHeap.Len() > 0 && !(*rt.fundingHeap)[0].at.After(now) {
@@ -157,12 +157,12 @@ func (rt *VenueRuntime) fundingWake() {
 			continue
 		}
 		delete(rt.fundingNext, it.sym)
-		due = append(due, it.sym)
+		due = append(due, it)
 	}
 	rt.fundingMu.Unlock()
 
-	for _, sym := range due {
-		rt.processFundingTick(sym)
+	for _, it := range due {
+		rt.processFundingTick(it.sym, it.at)
 	}
 
 	rt.fundingMu.Lock()
@@ -171,7 +171,25 @@ func (rt *VenueRuntime) fundingWake() {
 	rt.fundingMu.Unlock()
 }
 
-func (rt *VenueRuntime) processFundingTick(sym Symbol) {
+func fundingSettlementKey(scheduledAt, now time.Time, fr *ctypes.FundingRate) time.Time {
+	if fr != nil && !fr.NextFundingTime.IsZero() && !fr.NextFundingTime.UTC().After(now) {
+		return fr.NextFundingTime.UTC()
+	}
+	return scheduledAt.UTC()
+}
+
+func fundingNextSchedule(now time.Time, fr *ctypes.FundingRate) time.Time {
+	if fr == nil || fr.NextFundingTime.IsZero() {
+		return now.Add(fundingRetryDelay)
+	}
+	next := fr.NextFundingTime.UTC()
+	if !next.After(now) {
+		return now.Add(fundingRetryDelay)
+	}
+	return next
+}
+
+func (rt *VenueRuntime) processFundingTick(sym Symbol, scheduledAt time.Time) {
 	ctx := context.Background()
 	typesSym := toTypesSymbol(sym)
 	fr, err := rt.Public.FundingRate(ctx, typesSym)
@@ -190,14 +208,24 @@ func (rt *VenueRuntime) processFundingTick(sym Symbol) {
 	if q, ok := rt.Quotes.Get(sym); ok && q.Mark.GreaterThan(decimal.Zero) {
 		mark = q.Mark
 	}
-	if rt.Engine != nil {
+	settleAt := fundingSettlementKey(scheduledAt, now, fr)
+	shouldSettle := true
+	rt.fundingMu.Lock()
+	if rt.fundingLast == nil {
+		rt.fundingLast = make(map[Symbol]time.Time)
+	}
+	if last, ok := rt.fundingLast[sym]; ok && last.Equal(settleAt) {
+		shouldSettle = false
+	} else {
+		rt.fundingLast[sym] = settleAt
+	}
+	rt.fundingMu.Unlock()
+
+	if shouldSettle && rt.Engine != nil {
 		rt.Engine.settleFunding(sym, mark, fr.FundingRate)
 	}
 
-	next := fr.NextFundingTime.UTC()
-	if !next.After(now) {
-		next = now.Add(fundingMinTimerDur)
-	}
+	next := fundingNextSchedule(now, fr)
 	rt.fundingMu.Lock()
 	rt.fundingUpsertLocked(sym, next)
 	rt.fundingMu.Unlock()

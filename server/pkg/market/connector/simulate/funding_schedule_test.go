@@ -2,6 +2,7 @@ package simulate
 
 import (
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,25 @@ func TestFundingQuoteWalletDeltaZeroRate(t *testing.T) {
 	require.True(t, fundingQuoteWalletDelta(slot, decimal.NewFromInt(100), decimal.Zero, decimal.NewFromInt(1)).IsZero())
 }
 
-func TestEngineSettleFundingPublishesBalanceOnly(t *testing.T) {
+func TestFundingSettlementKeyUsesStaleExchangeTime(t *testing.T) {
+	now := time.Date(2026, 5, 1, 8, 0, 2, 0, time.UTC)
+	staleFundingTime := time.Date(2026, 5, 1, 8, 0, 0, 0, time.UTC)
+	retryAt := now.Add(fundingRetryDelay)
+	fr := &ctypes.FundingRate{NextFundingTime: staleFundingTime}
+
+	require.True(t, fundingSettlementKey(now, now, fr).Equal(staleFundingTime))
+	require.True(t, fundingSettlementKey(retryAt, retryAt, fr).Equal(staleFundingTime))
+}
+
+func TestFundingNextScheduleRetriesWhenExchangeTimeIsStale(t *testing.T) {
+	now := time.Date(2026, 5, 1, 8, 0, 2, 0, time.UTC)
+	staleFundingTime := time.Date(2026, 5, 1, 8, 0, 0, 0, time.UTC)
+	fr := &ctypes.FundingRate{NextFundingTime: staleFundingTime}
+
+	require.True(t, fundingNextSchedule(now, fr).Equal(now.Add(fundingRetryDelay)))
+}
+
+func TestEngineSettleFundingPublishesFundingFeeIncrement(t *testing.T) {
 	rt := &VenueRuntime{Exchange: ctypes.ExchangeBinance}
 	eng := NewEngine().WithRuntime(rt)
 	_, paper := btcFutureSym()
@@ -62,7 +81,21 @@ func TestEngineSettleFundingPublishesBalanceOnly(t *testing.T) {
 	case ev := <-ch:
 		require.Equal(t, AccountEventTypeBalance, ev.kind)
 		require.Equal(t, "a1", ev.accountID)
-		require.NotNil(t, ev.balance)
+		require.Nil(t, ev.balance)
+		require.NotNil(t, ev.update)
+		require.Equal(t, ctypes.UpdateTypeIncrement, ev.update.Type)
+		require.Equal(t, ctypes.LedgerReasonFundingFee, ev.update.Reason)
+		require.Len(t, ev.update.Assets, 1)
+		require.Equal(t, ctypes.WalletTypeFuture, ev.update.Assets[0].WalletType)
+		require.Equal(t, "USDT", ev.update.Assets[0].Code)
+		require.NotNil(t, ev.update.Assets[0].Balance)
+		require.True(t, ev.update.Assets[0].Balance.Equal(decimal.NewFromInt(-1)))
+
+		msg := rt.accountEventToMessage(ev)
+		require.NotNil(t, msg)
+		require.NotNil(t, msg.BalanceUpdate)
+		require.Equal(t, ctypes.UpdateTypeIncrement, msg.BalanceUpdate.Type)
+		require.Equal(t, ctypes.LedgerReasonFundingFee, msg.BalanceUpdate.Reason)
 	default:
 		t.Fatal("expected balance event")
 	}

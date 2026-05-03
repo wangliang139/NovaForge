@@ -4,6 +4,7 @@ import { json } from '@codemirror/lang-json';
 import CodeMirror, { BasicSetupOptions } from '@uiw/react-codemirror';
 import { Button, message } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import './CodeEditor.less';
 import useStyles from './style.style';
 
 export type CodeEditorProps = {
@@ -25,7 +26,7 @@ export type CodeEditorProps = {
 
 const defaultStyle: React.CSSProperties = {
   fontFamily: '"Fira Code", monospace',
-  fontSize: 14,
+  fontSize: 12,
   borderRadius: 6,
 };
 
@@ -119,8 +120,8 @@ export default function CodeEditor({
         type="text"
         style={{
           position: 'absolute',
-          right: '20px',
-          top: '14px',
+          right: '12px',
+          top: '10px',
           background: 'rgba(255,255,255,0.1)',
           color: '#4096ff',
           cursor: 'pointer',

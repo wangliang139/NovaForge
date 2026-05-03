@@ -56,6 +56,7 @@ type VenueRuntime struct {
 	fundingHeap   *fundingHeap
 	fundingTimer  *time.Timer
 	fundingNext   map[Symbol]time.Time // canonical next fire time per paper symbol (lazy heap eviction)
+	fundingLast   map[Symbol]time.Time // last settled funding time per paper symbol
 }
 
 var (
@@ -401,6 +402,12 @@ func (rt *VenueRuntime) accountEventToMessage(ev AccountEvent) *ctypes.Message {
 		return ctypes.NewMessage(rt.Exchange, sel, co, now)
 
 	case AccountEventTypeBalance:
+		if ev.update != nil {
+			if ev.update.EventID == "" {
+				ev.update.EventID = eventID
+			}
+			return ctypes.NewMessage(rt.Exchange, sel, ev.update, now)
+		}
 		if ev.balance == nil {
 			return nil
 		}

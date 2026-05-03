@@ -1309,7 +1309,7 @@ func fundingQuoteWalletDelta(slot *PerpSlot, mark, rate, mult decimal.Decimal) d
 	}
 }
 
-// settleFunding applies funding to all accounts with a perp slot on sym; publishes balance snapshots only.
+// settleFunding applies funding to all accounts with a perp slot on sym; publishes balance increments.
 func (e *Engine) settleFunding(sym Symbol, mark, rate decimal.Decimal) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -1324,7 +1324,7 @@ func (e *Engine) settleFunding(sym Symbol, mark, rate decimal.Decimal) {
 	wt := ins.WalletType()
 	quote := ins.Quote
 	ids := e.ledger.ListAccountIDs()
-	var changed []string
+	deltas := make(map[string]decimal.Decimal)
 	for _, aid := range ids {
 		st, ok := e.ledger.GetPerpSlot(aid, sym)
 		if !ok {
@@ -1335,18 +1335,30 @@ func (e *Engine) settleFunding(sym Symbol, mark, rate decimal.Decimal) {
 			continue
 		}
 		e.ledger.ApplyQuoteDelta(aid, wt, quote, delta)
-		changed = append(changed, aid)
+		deltas[aid] = delta
 	}
-	if len(changed) == 0 || e.rt == nil {
+	if len(deltas) == 0 || e.rt == nil {
 		return
 	}
-	for _, aid := range changed {
-		after := e.accountSnapshotLocked(aid, sym)
+	now := e.now().UTC()
+	for aid, delta := range deltas {
+		balanceUpdate := &ctypes.BalanceUpdate{
+			Type:   ctypes.UpdateTypeIncrement,
+			Reason: ctypes.LedgerReasonFundingFee,
+			Assets: []*ctypes.AssetEvent{
+				{
+					WalletType: wt,
+					Code:       string(quote),
+					Balance:    &delta,
+					UpdatedTs:  now,
+				},
+			},
+		}
 		e.rt.enqueueAccountPublish(AccountEvent{
 			accountID: aid,
 			symbol:    sym,
 			kind:      AccountEventTypeBalance,
-			balance:   &after,
+			update:    balanceUpdate,
 		})
 	}
 }
