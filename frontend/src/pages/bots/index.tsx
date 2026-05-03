@@ -1,3 +1,4 @@
+import { AccountType, deleteAccount, queryAccount } from '@/services/gateway/account';
 import {
   Bot,
   BotMode,
@@ -9,7 +10,6 @@ import {
   stopBot,
   upgradeBot,
 } from '@/services/gateway/strategy';
-import { AccountType, deleteAccount, queryAccount } from '@/services/gateway/account';
 import { getExchangeTitle } from '@/utils/market';
 import { history } from '@@/exports';
 import {
@@ -219,8 +219,8 @@ const BotsComponent: React.FC = () => {
       filters: true,
       onFilter: true,
       valueEnum: {
-        [BotMode.Paper]: { text: '模拟盘', status: 'Warning' },
         [BotMode.Live]: { text: '实盘', status: 'Processing' },
+        [BotMode.Paper]: { text: '模拟盘', status: 'Warning' },
       },
     },
     {

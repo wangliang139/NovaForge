@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
+	"github.com/wangliang139/NovaForge/server/pkg/internal/zai"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/account"
@@ -19,6 +20,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/order"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/pubsub"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/registry"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api"
 	ss "github.com/wangliang139/NovaForge/server/pkg/strategy/signal"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/signalflow"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/sources"
@@ -70,7 +72,7 @@ type Entity struct {
 	executorRegistry *registry.ExecutorRegistry
 }
 
-func New(db *repos.Entity) (*Entity, error) {
+func New(db *repos.Entity, zaiEngine *zai.Engine) (*Entity, error) {
 	cfg := Config{}
 	if err := envconfig.Process("STRATEGY", &cfg); err != nil {
 		return nil, fmt.Errorf("failed to process config: %w", err)
@@ -143,7 +145,7 @@ func New(db *repos.Entity) (*Entity, error) {
 		SignalAlarmTimeout:    5 * time.Minute,
 		SignalShutdownTimeout: 30 * time.Minute,
 		EnableAlarm:           cfg.EnableAlarm,
-	}, db, dispatcher, accountEngine, orderEngine, marketProvider)
+	}, db, dispatcher, accountEngine, orderEngine, marketProvider, api.NewZaiCompleter(zaiEngine))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create executor registry: %w", err)
 	}

@@ -69,6 +69,14 @@ func ValidateStrategyCode(code string) error {
   if (typeof globalThis.exports === 'undefined') {
     globalThis.exports = globalThis.module.exports;
   }
+
+  if (typeof globalThis.ai === 'undefined') {
+    globalThis.ai = {
+      complete: function () {
+        return { result: "", json: null, model: "", duration: 0 };
+      }
+    };
+  }
 })();
 `
 		_, err := ctx.RunScript(prelude, "prelude.js")

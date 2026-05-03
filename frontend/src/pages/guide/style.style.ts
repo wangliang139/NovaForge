@@ -13,6 +13,9 @@ const useStyles = createStyles(({ token }) => {
       color: token.colorText,
 
       // 标题样式
+      'h1, h2, h3, h4, h5, h6': {
+        scrollMarginTop: '80px',
+      },
       'h1': {
         fontSize: '32px',
         fontWeight: '600',

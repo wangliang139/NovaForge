@@ -1056,8 +1056,8 @@ export type UpdateBotInput = {
 };
 
 export const BotModeOptions = [
-  { label: '模拟盘', value: BotMode.Paper },
   { label: '实盘', value: BotMode.Live },
+  { label: '模拟盘', value: BotMode.Paper },
 ];
 
 const QUERY_BOTS = `

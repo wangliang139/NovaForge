@@ -10,7 +10,6 @@ import (
 	"github.com/bytedance/sonic"
 	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/internal/chsdk"
 	"github.com/wangliang139/NovaForge/server/pkg/repos"
 	"github.com/wangliang139/NovaForge/server/pkg/repos/bot"
@@ -26,6 +25,7 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/runner/api/facade"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/mow/logger"
 )
 
@@ -89,6 +89,7 @@ var _ strategy.Executor = &LiveExecutor{}
 // NewLiveExecutor 创建模拟盘执行器
 func NewLiveExecutor(
 	config LiveExecutorConfig,
+	aiCompleter api.AICompleter,
 	marketProvider marketdata.MarketProvider,
 	accountEngine strategy.AccountEngine,
 	orderEngine strategy.OrderEngine,
@@ -249,6 +250,8 @@ func NewLiveExecutor(
 		marketFacade.GetTickers,
 	)
 
+	runtimeConfig := normalizeRuntimeConfig(config.Bot.Config.Runtime)
+
 	// 创建 Runtime
 	runtime := runner.NewRuntime(consoleAPI, timeAPI).
 		WithParams(config.Bot.Config.Params).
@@ -257,9 +260,17 @@ func NewLiveExecutor(
 		WithSymbols(symbols).
 		WithMode(stypes.RunModeLive).
 		WithStorage(storage)
+	if aiCompleter != nil {
+		runtime = runtime.WithAIAPI(api.NewAIAPI(api.AIAPIConfig{
+			Completer:      aiCompleter,
+			DefaultTimeout: runtimeConfig.aiTimeout,
+			MaxTimeout:     runtimeConfig.maxAITimeout,
+		}))
+	}
 
 	// 创建 JS 引擎
 	sandbox := runner.DefaultSandbox()
+	sandbox.MaxCPU = runtimeConfig.signalTimeout
 	jsEngine, err := runner.NewV8Engine(config.Strategy.Code, sandbox, runtime, logRecorder)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create JS engine: %w", err)
@@ -288,6 +299,33 @@ func NewLiveExecutor(
 	}
 
 	return executor, nil
+}
+
+type normalizedRuntimeConfig struct {
+	signalTimeout time.Duration
+	aiTimeout     time.Duration
+	maxAITimeout  time.Duration
+}
+
+func normalizeRuntimeConfig(cfg stypes.RuntimeConfig) normalizedRuntimeConfig {
+	out := normalizedRuntimeConfig{
+		signalTimeout: runner.DefaultSandbox().MaxCPU,
+		aiTimeout:     15 * time.Second,
+		maxAITimeout:  30 * time.Second,
+	}
+	if cfg.SignalTimeoutMs > 0 {
+		out.signalTimeout = time.Duration(cfg.SignalTimeoutMs) * time.Millisecond
+	}
+	if cfg.AITimeoutMs > 0 {
+		out.aiTimeout = time.Duration(cfg.AITimeoutMs) * time.Millisecond
+	}
+	if cfg.MaxAITimeoutMs > 0 {
+		out.maxAITimeout = time.Duration(cfg.MaxAITimeoutMs) * time.Millisecond
+	}
+	if out.aiTimeout > out.maxAITimeout {
+		out.aiTimeout = out.maxAITimeout
+	}
+	return out
 }
 
 // Start 启动模拟盘执行器

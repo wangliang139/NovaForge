@@ -50,7 +50,7 @@ func Init(
 	Llm = llm.New(db, zaiEngine)
 	Document = document.New(db, cache, zaiEngine, executor, Llm)
 	User = user.New(db)
-	Strategy, err = strategy.New(db)
+	Strategy, err = strategy.New(db, zaiEngine)
 	if err != nil {
 		panic(err)
 	}
