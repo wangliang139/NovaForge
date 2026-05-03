@@ -2,8 +2,8 @@
 
 欢迎使用 **NovaForge** 交易策略能力！本手册将帮助您使用 JavaScript 创建和管理自定义交易策略。
 
-> **版本**: v1.1  
-> **更新日期**: 2026-05-03 
+> **版本**: v1.2
+> **更新日期**: 2026-05-03
 
 ---
 
@@ -164,15 +164,15 @@ function onSignal(signal) {
   if (price.gt(ma5) && !hasPosition) {
     // 价格上穿均线且无仓位，买入
     sym.Buy({
-      type: "MARKET",
-      amount: "100"  // 买入100 USDT
+      type: "market",
+      quoteQty: "100"  // 买入100 USDT
     });
     console.log("买入信号 - 价格:", price.toString(), "MA5:", ma5.toString());
   } else if (price.lt(ma5) && hasPosition) {
     // 价格下穿均线且有仓位，卖出
     sym.Sell({
-      type: "MARKET",
-      amount: positions[0].amount
+      type: "market",
+      quantity: positions[0].amount
     });
     console.log("卖出信号 - 价格:", price.toString(), "MA5:", ma5.toString());
   }
@@ -1070,8 +1070,8 @@ function onSignal(signal) {
 
   if (decision.result.action === "buy" && decision.result.confidence >= (params.minConfidence || 0.8)) {
     sym.Buy({
-      type: "MARKET",
-      amount: params.orderAmount || "50"
+      type: "market",
+      quoteQty: params.orderAmount || "50"
     });
   }
 }
@@ -1322,12 +1322,12 @@ function onSignal(signal) {
 
 | 字段 | 类型 | 必需 | 说明 |
 |-----|------|------|------|
-| `type` | string | 否 | 订单类型："MARKET"（市价，默认）, "LIMIT"（限价） |
+| `type` | string | 否 | 订单类型："market"（市价，默认）, "limit"（限价） |
 | `price` | string/number | 限价必需 | 限价单价格 |
-| `amount` | string/number | 是 | 下单数量（现货）或张数（合约） |
-| `side` | string | 合约必需 | 仓位方向："LONG"（做多）, "SHORT"（做空） |
-| `reduceOnly` | boolean | 否 | 只减仓（合约专用） |
-| `positionSide` | string | 否 | 持仓方向（双向持仓模式） |
+| `quantity` | string/number | 与 `quoteQty` 二选一 | 基础资产数量（如 BTC 数量）或合约张数 |
+| `quoteQty` | string/number | 与 `quantity` 二选一 | 计价资产金额（如 USDT 金额） |
+| `side` | string | 合约建议显式传入 | 仓位方向："LONG"（做多）, "SHORT"（做空）；现货仅支持 "LONG" |
+| `timeInForce` | string | 否 | 成交策略，默认 "GTC" |
 
 ```javascript
 function onSignal(signal) {
@@ -1339,63 +1339,62 @@ function onSignal(signal) {
   
   // 现货市价买入
   const order1 = sym.Buy({
-    type: "MARKET",
-    amount: "100"  // 买入100 USDT
+    type: "market",
+    quoteQty: "100"  // 买入100 USDT
   });
-  console.log("订单ID:", order1.id);
+  console.log("订单ID:", order1.orderId);
   
   // 现货限价买入
   const order2 = sym.Buy({
-    type: "LIMIT",
+    type: "limit",
     price: "50000",
-    amount: "0.001"
+    quantity: "0.001"
   });
   
   // 合约做多（市价）
   const order3 = sym.Buy({
-    type: "MARKET",
-    amount: "10",      // 10张合约
+    type: "market",
+    quantity: "10",    // 10张合约
     side: "LONG"       // 做多
   });
   
   // 合约做多（限价）
   const order4 = sym.Buy({
-    type: "LIMIT",
+    type: "limit",
     price: "50000",
-    amount: "10",
+    quantity: "10",
     side: "LONG"
   });
   
   // 现货市价卖出
   const order5 = sym.Sell({
-    type: "MARKET",
-    amount: "0.001"
+    type: "market",
+    quantity: "0.001"
   });
   
   // 现货限价卖出
   const order6 = sym.Sell({
-    type: "LIMIT",
+    type: "limit",
     price: "51000",
-    amount: "0.001"
+    quantity: "0.001"
   });
   
   // 合约平多仓（市价）
   const order7 = sym.Sell({
-    type: "MARKET",
-    amount: "10",
-    side: "LONG",
-    reduceOnly: true   // 只减仓
+    type: "market",
+    quantity: "10",
+    side: "LONG"
   });
   
   // 合约做空（市价）
   const order8 = sym.Sell({
-    type: "MARKET",
-    amount: "10",
+    type: "market",
+    quantity: "10",
     side: "SHORT"      // 做空
   });
   
   // 撤销订单
-  sym.CancelOrder(order2.id);
+  sym.CancelOrder(order2.orderId);
 }
 ```
 
@@ -1422,9 +1421,9 @@ function onSignal(signal) {
   const orders = sym.GetOrders();
   console.log("未成交订单数:", orders.length);
   orders.forEach(order => {
-    console.log("订单ID:", order.id);
-    console.log("类型:", order.type, "状态:", order.status);
-    console.log("价格:", order.price, "数量:", order.amount);
+    console.log("订单ID:", order.orderId);
+    console.log("类型:", order.orderType, "状态:", order.status);
+    console.log("价格:", order.price, "数量:", order.originalQty);
   });
   
   // 获取指定订单
@@ -1432,17 +1431,17 @@ function onSignal(signal) {
   const order = sym.GetOrder(orderId);
   if (order) {
     console.log("订单状态:", order.status);
-    console.log("已成交数量:", order.filled_amount);
+    console.log("已成交数量:", order.executedQty);
   }
   
   // 获取成交记录
   const fills = sym.GetFills();
   console.log("成交记录数:", fills.length);
   fills.forEach(fill => {
-    console.log("成交ID:", fill.id);
-    console.log("订单ID:", fill.order_id);
-    console.log("成交价:", fill.price, "成交量:", fill.qty);
-    console.log("手续费:", fill.fee, "币种:", fill.fee_asset);
+    console.log("成交ID:", fill.fillId);
+    console.log("订单ID:", fill.orderId);
+    console.log("成交价:", fill.price, "成交量:", fill.quantity);
+    console.log("手续费:", fill.commission, "币种:", fill.commissionAsset);
   });
   
   // 获取指定时间窗口的成交（最近1小时）
@@ -1455,8 +1454,8 @@ function onSignal(signal) {
     console.log("交易对:", pos.symbol);
     console.log("方向:", pos.side);  // "LONG" 或 "SHORT"
     console.log("持仓数量:", pos.amount);
-    console.log("开仓均价:", pos.entry_price);
-    console.log("未实现盈亏:", pos.unrealized_pnl);
+    console.log("开仓均价:", pos.entryPrice);
+    console.log("未实现盈亏:", pos.unrealizedProfit);
     console.log("杠杆倍数:", pos.leverage);
   });
   
@@ -1617,13 +1616,13 @@ function onSignal(signal) {
     // 在币安卖出，在OKX买入
     const tradeAmount = new Decimal("0.01");
     binanceBtc.Sell({
-      type: "MARKET",
-      amount: tradeAmount.toString()
+      type: "market",
+      quantity: tradeAmount.toString()
     });
     const buyAmount = tradeAmount.mul(okxPrice);
     okxBtc.Buy({
-      type: "MARKET",
-      amount: buyAmount.toString()
+      type: "market",
+      quoteQty: buyAmount.toString()
     });
   }
   else if (spread.lt(-0.01)) {
@@ -1632,13 +1631,13 @@ function onSignal(signal) {
     // 在OKX卖出，在币安买入
     const tradeAmount = new Decimal("0.01");
     okxBtc.Sell({
-      type: "MARKET",
-      amount: tradeAmount.toString()
+      type: "market",
+      quantity: tradeAmount.toString()
     });
     const buyAmount = tradeAmount.mul(binancePrice);
     binanceBtc.Buy({
-      type: "MARKET",
-      amount: buyAmount.toString()
+      type: "market",
+      quoteQty: buyAmount.toString()
     });
   }
 }
@@ -2200,8 +2199,8 @@ function executeBuy(amount) {
   // 市价买入
   console.log("执行买入，金额:", amount, "USDT");
   sym.Buy({
-    type: "MARKET",
-    amount: amount.toString()
+    type: "market",
+    quoteQty: amount.toString()
   });
 }
 
@@ -2224,8 +2223,8 @@ function executeSell() {
   // 市价卖出全部
   console.log("执行卖出，数量:", positions[0].amount);
   sym.Sell({
-    type: "MARKET",
-    amount: positions[0].amount
+    type: "market",
+    quantity: positions[0].amount
   });
 }
 
@@ -2594,12 +2593,12 @@ function onSignal(signal) {
     // 在币安卖出，在OKX买入
     const tradeAmount = new Decimal("0.01");
     binanceBtc.Sell({
-      type: "MARKET",
-      amount: tradeAmount.toString()
+      type: "market",
+      quantity: tradeAmount.toString()
     });
     okxBtc.Buy({
-      type: "MARKET",
-      amount: tradeAmount.mul(okxPrice).toString()
+      type: "market",
+      quoteQty: tradeAmount.mul(okxPrice).toString()
     });
   }
   else if (spread.lt(-0.01)) {
@@ -2607,12 +2606,12 @@ function onSignal(signal) {
     // 在OKX卖出，在币安买入
     const tradeAmount = new Decimal("0.01");
     okxBtc.Sell({
-      type: "MARKET",
-      amount: tradeAmount.toString()
+      type: "market",
+      quantity: tradeAmount.toString()
     });
     binanceBtc.Buy({
-      type: "MARKET",
-      amount: tradeAmount.mul(binancePrice).toString()
+      type: "market",
+      quoteQty: tradeAmount.mul(binancePrice).toString()
     });
   }
 }
@@ -2664,8 +2663,8 @@ function onSignal(signal) {
       const profitPercent = profit.mul(100);
       console.log("触发止损, 亏损:", profitPercent.toFixed(2), "%");
       sym.Sell({
-        type: "MARKET",
-        amount: positions[0].amount
+        type: "market",
+        quantity: positions[0].amount
       });
       entryPrice = null;
     }
@@ -2674,8 +2673,8 @@ function onSignal(signal) {
       const profitPercent = profit.mul(100);
       console.log("触发止盈, 盈利:", profitPercent.toFixed(2), "%");
       sym.Sell({
-        type: "MARKET",
-        amount: positions[0].amount
+        type: "market",
+        quantity: positions[0].amount
       });
       entryPrice = null;
     }
@@ -2808,8 +2807,8 @@ function onSignal(signal) {
           if (holdingTime > 3600000) {
             console.log("持仓时间过长，平仓:", sym.symbol);
             sym.Sell({
-              type: "MARKET",
-              amount: position.amount
+              type: "market",
+              quantity: position.amount
             });
           }
         }
@@ -2969,8 +2968,8 @@ function onSignal(signal) {
         if (holdingHours >= 24) {
           console.log("持仓时间过长，执行止损");
           sym.Sell({
-            type: "MARKET",
-            amount: positions[0].amount
+            type: "market",
+            quantity: positions[0].amount
           });
           sym.Set("entryTime", null);
           return;
@@ -3128,8 +3127,8 @@ const Decimal = require("decimal.js");
 
 // ======================
 // 马丁策略（合约做空，默认 10x）
-// - 使用 symbol.Sell() 开空（Side=SHORT, IsBuy=false）
-// - 使用 symbol.Buy({side:"SHORT", isBuy:true}) 平空
+// - 使用 symbol.Sell({side:"SHORT"}) 开空（Side=SHORT, IsBuy=false）
+// - 使用 symbol.Buy({side:"SHORT"}) 平空（Side=SHORT, IsBuy=true）
 // ======================
 
 // ========== 参数（可通过 params 覆盖） ==========
@@ -3412,7 +3411,10 @@ function calcBaseNotional(sym, leverage) {
 
 // 开空仓
 function openShort(sym, notionalQuote, px, nowMs, reason) {
-  var opts = { type: orderType };
+  var opts = {
+    type: orderType,
+    side: "SHORT"
+  };
   
   if (orderType === "market") {
     opts.quoteQty = notionalQuote.toFixed(8);
@@ -3504,21 +3506,20 @@ var tpPx = avgEntry.mul(new Decimal(1).minus(new Decimal(takeProfitPercent).div(
 ##### 2. 合约开平仓逻辑
 
 ```javascript
-// 开空仓：使用 Sell
-sym.Sell({ type: "market", quoteQty: "1000" });  // 名义价值 1000 USDT
+// 开空仓：使用 Sell + side="SHORT"
+sym.Sell({ type: "market", side: "SHORT", quoteQty: "1000" });  // 名义价值 1000 USDT
 
-// 平空仓：使用 Buy + side="SHORT" + isBuy=true
+// 平空仓：使用 Buy + side="SHORT"
 sym.Buy({
   type: "market",
   side: "SHORT",
-  isBuy: true,
   quantity: "0.5"
 });
 ```
 
 **关键点**：
-- 开空：`Sell()` 自动设置 `Side=SHORT, IsBuy=false`
-- 平空：`Buy()` + 显式指定 `side="SHORT", isBuy=true`
+- 开空：`Sell()` 默认 `IsBuy=false`，需要显式指定 `side="SHORT"`
+- 平空：`Buy()` 默认 `IsBuy=true`，需要显式指定 `side="SHORT"`
 
 ##### 3. 状态管理
 
