@@ -420,6 +420,9 @@ func (e *Entity) RunBacktest(ctx context.Context, input *stypes.RunBacktestInput
 	}
 
 	// 校验 symbols
+	if err := backtest.ValidateSingleExchangeSymbols(input.Symbols); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	exSymbolSet := make(map[ctypes.ExSymbolKey]*stypes.BacktestSymbol)
 	for _, symbol := range input.Symbols {
 		exSymbol := ctypes.NewExSymbol(symbol.Exchange, symbol.Symbol)

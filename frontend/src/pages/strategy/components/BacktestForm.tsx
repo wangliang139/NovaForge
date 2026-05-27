@@ -1026,15 +1026,22 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
                       // 禁止重复的 exchange/symbol 组合（仅对填写完整的行生效）
                       const list = (value || []) as any[];
                       const seen = new Set<string>();
+                      const exchanges = new Set<string>();
                       for (const item of list) {
                         const ex = String(item?.exchange || '').trim();
                         const sym = String(item?.symbol || '').trim();
+                        if (ex) {
+                          exchanges.add(ex);
+                        }
                         if (!ex || !sym) continue;
                         const key = `${ex}__${sym}`;
                         if (seen.has(key)) {
                           return Promise.reject(new Error('存在重复的交易对配置，请删除重复项'));
                         }
                         seen.add(key);
+                      }
+                      if (exchanges.size > 1) {
+                        return Promise.reject(new Error('回测只能选择一个交易所，请统一交易对的交易所'));
                       }
                       return Promise.resolve();
                     },

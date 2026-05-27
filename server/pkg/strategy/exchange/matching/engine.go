@@ -18,7 +18,6 @@ import (
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/misc"
-	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
@@ -907,7 +906,7 @@ func (m *MatchingEngine) fillMarketBuyLocked(ctx context.Context, exSymbol ctype
 		return false, true, nil
 	}
 
-	marketInfo, err := proxy.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
+	marketInfo, err := m.marketProvider.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
 	if err != nil {
 		return false, false, err
 	}
@@ -969,7 +968,7 @@ func (m *MatchingEngine) fillMarketSellLocked(ctx context.Context, exSymbol ctyp
 		return false, true, nil
 	}
 
-	marketInfo, err := proxy.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
+	marketInfo, err := m.marketProvider.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
 	if err != nil {
 		return false, false, err
 	}
@@ -1033,7 +1032,7 @@ func (m *MatchingEngine) fillLimitBuyLocked(ctx context.Context, exSymbol ctypes
 		return false, false, errors.New("price is zero")
 	}
 
-	marketInfo, err := proxy.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
+	marketInfo, err := m.marketProvider.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
 	if err != nil {
 		return false, false, err
 	}
@@ -1091,7 +1090,7 @@ func (m *MatchingEngine) fillLimitSellLocked(ctx context.Context, exSymbol ctype
 		return false, false, errors.New("price is zero")
 	}
 
-	marketInfo, err := proxy.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
+	marketInfo, err := m.marketProvider.GetMarket(ctx, exSymbol.Exchange, exSymbol.Symbol)
 	if err != nil {
 		return false, false, err
 	}

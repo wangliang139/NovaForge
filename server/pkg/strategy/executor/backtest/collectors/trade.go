@@ -84,7 +84,7 @@ func (c *TradeCollector) GetStats() (winTrades, lossTrades int, winRate float64)
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	total := winTrades + lossTrades
+	total := c.winTrades + c.lossTrades
 	if total > 0 {
 		winRate = float64(c.winTrades) / float64(total)
 		// 处理 NaN 和 Inf

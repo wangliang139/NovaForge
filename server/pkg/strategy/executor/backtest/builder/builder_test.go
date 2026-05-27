@@ -32,7 +32,10 @@ func TestCalculateUnrealizedPnL_Spot(t *testing.T) {
 	avgPx := decimal.NewFromInt(10000)
 	lastPx := decimal.NewFromInt(12000)
 
-	unrealized := builder.calculateUnrealizedPnL(context.Background(), exSymbol, posQty, avgPx, lastPx)
+	unrealized, err := builder.calculateUnrealizedPnL(context.Background(), exSymbol, posQty, avgPx, lastPx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// 未实现盈亏应为 1 * (12000 - 10000) = 2000 USDT
 	expected := decimal.NewFromInt(2000)
@@ -61,7 +64,10 @@ func TestCalculateUnrealizedPnL_Future_Long(t *testing.T) {
 	avgPx := decimal.NewFromInt(10000)
 	lastPx := decimal.NewFromInt(12000)
 
-	unrealized := builder.calculateUnrealizedPnL(context.Background(), exSymbol, posQty, avgPx, lastPx)
+	unrealized, err := builder.calculateUnrealizedPnL(context.Background(), exSymbol, posQty, avgPx, lastPx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// 未实现盈亏应为 1 * (12000 - 10000) = 2000 USDT
 	expected := decimal.NewFromInt(2000)
@@ -90,7 +96,10 @@ func TestCalculateUnrealizedPnL_Future_Short(t *testing.T) {
 	avgPx := decimal.NewFromInt(10000)
 	lastPx := decimal.NewFromInt(12000)
 
-	unrealized := builder.calculateUnrealizedPnL(context.Background(), exSymbol, posQty, avgPx, lastPx)
+	unrealized, err := builder.calculateUnrealizedPnL(context.Background(), exSymbol, posQty, avgPx, lastPx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// 未实现盈亏应为 -1 * (12000 - 10000) = -2000 USDT（亏损）
 	expected := decimal.NewFromInt(-2000)
@@ -181,3 +190,7 @@ func (m *mockMarketProvider) GetTrades(ctx context.Context, ex ctypes.Exchange, 
 func (m *mockMarketProvider) OnEvent(ctx context.Context, event stypes.Signal) error {
 	return nil
 }
+
+func (m *mockMarketProvider) Start() error { return nil }
+
+func (m *mockMarketProvider) Close() {}

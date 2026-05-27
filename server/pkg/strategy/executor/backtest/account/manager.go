@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	mb "github.com/wangliang139/NovaForge/server/pkg/strategy/infra/bus"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/infra/clock"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	"github.com/wangliang139/NovaForge/server/pkg/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // AccountManager 账户管理器，管理多个 Account（按 accountId 分组）。
@@ -203,8 +203,7 @@ func (m *AccountManager) GetLeverage(ctx context.Context, accountID string, symb
 func (m *AccountManager) SetLeverage(ctx context.Context, accountID string, symbol ctypes.Symbol, leverage int) error {
 	acc := m.GetAccount(accountID)
 	if acc == nil {
-		// 杠杆配置应当可以在账户未初始化时落地（例如：先设置杠杆再注入余额/仓位）。
-		acc = m.CreateAccount(accountID, AccountConfig{Exchange: acc.GetExchange()})
+		return errors.New("account not found")
 	}
 	err := acc.SetLeverage(ctx, accountID, symbol, leverage)
 	if err != nil {

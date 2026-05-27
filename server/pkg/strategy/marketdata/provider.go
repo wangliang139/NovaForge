@@ -80,13 +80,16 @@ type MarketProvider interface {
 
 	// 处理市场事件（用于事件驱动的实现）
 	OnEvent(ctx context.Context, ev stypes.Signal) error
+
+	Start() error
+	Close()
 }
 
 func newKey(key string, params ...any) string {
 	return fmt.Sprintf("%s:%s", CacheKeyPrefix, fmt.Sprintf(key, params...))
 }
 
-// GlobalMarketProvider 基于事件的市场数据提供器（用于回测场景）
+// GlobalMarketProvider 基于事件的市场数据提供器（用于实盘/实时场景）。
 type GlobalMarketProvider struct {
 	cache *Cache
 
@@ -99,6 +102,14 @@ type GlobalMarketProvider struct {
 }
 
 var _ MarketProvider = (*GlobalMarketProvider)(nil)
+
+func ttlUntilEventPlus(evTs time.Time, nominal time.Duration) time.Duration {
+	d := time.Until(evTs.Add(nominal))
+	if d < time.Second {
+		return time.Second
+	}
+	return d
+}
 
 // NewGlobalMarketProviderWithBus 创建基于事件的市场数据提供器
 func NewGlobalMarketProviderWithBus(baseExchange ctypes.Exchange, baseCurrency string, bus mb.Bus) *GlobalMarketProvider {
@@ -114,7 +125,7 @@ func NewGlobalMarketProviderWithBus(baseExchange ctypes.Exchange, baseCurrency s
 
 // NewGlobalMarketProvider 创建基于事件的市场数据提供器
 func NewGlobalMarketProvider(baseExchange ctypes.Exchange, baseCurrency string) *GlobalMarketProvider {
-	provider := &GlobalMarketProvider{
+	return &GlobalMarketProvider{
 		cache:        NewCache(time.Minute, time.Minute),
 		baseExchange: baseExchange,
 		baseCurrency: baseCurrency,
@@ -122,7 +133,6 @@ func NewGlobalMarketProvider(baseExchange ctypes.Exchange, baseCurrency string) 
 		stopped:      atomic.Bool{},
 		ch:           make(chan stypes.Signal, 1000),
 	}
-	return provider
 }
 
 func (p *GlobalMarketProvider) Start() error {
@@ -157,6 +167,7 @@ func (p *GlobalMarketProvider) Close() {
 
 // OnEvent 处理市场事件，更新缓存
 func (p *GlobalMarketProvider) OnEvent(ctx context.Context, ev stypes.Signal) error {
+	_ = ctx
 	if !ev.GetType().IsMarketSignal() {
 		return nil
 	}
@@ -193,7 +204,7 @@ func (p *GlobalMarketProvider) OnKlineEvent(ev stypes.Signal) error {
 		Ts:       kline.Ts,
 	}
 	key := newKey(CacheKeyPrice, kline.Exchange.String(), kline.Symbol.String())
-	ttl := time.Until(kline.Ts.Add(CacheTTLPrice))
+	ttl := ttlUntilEventPlus(kline.Ts, CacheTTLPrice)
 	_, _ = p.cache.SwapByTtl(key, lastPrice, ttl)
 
 	// 保存 K 线
@@ -427,7 +438,7 @@ func (p *GlobalMarketProvider) OnTickerEvent(ev stypes.Signal) error {
 		Ts:       signal.Ts,
 	}
 	key := newKey(CacheKeyPrice, signal.Exchange.String(), signal.Symbol.String())
-	ttl := time.Until(signal.Ts.Add(CacheTTLPrice))
+	ttl := ttlUntilEventPlus(signal.Ts, CacheTTLPrice)
 	_, _ = p.cache.SwapByTtl(key, lastPrice, ttl)
 
 	ticker := &ctypes.Ticker{
@@ -444,7 +455,7 @@ func (p *GlobalMarketProvider) OnTickerEvent(ev stypes.Signal) error {
 	}
 	// 保存ticker
 	key = newKey(CacheKeyTicker, ticker.Exchange.String(), ticker.Symbol.String())
-	ttl = time.Until(ticker.Ts.Add(CacheTTLTicker))
+	ttl = ttlUntilEventPlus(ticker.Ts, CacheTTLTicker)
 	_, _ = p.cache.SwapByTtl(key, ticker, ttl)
 	return nil
 }
@@ -463,11 +474,12 @@ func (p *GlobalMarketProvider) OnMarkPriceEvent(ev stypes.Signal) error {
 	}
 	// 保存标记价格
 	key := newKey(CacheKeyMarkPrice, markPrice.Exchange.String(), markPrice.Symbol.String())
-	ttl := time.Until(markPrice.Ts.Add(CacheTTLMarkPrice))
+	ttl := ttlUntilEventPlus(markPrice.Ts, CacheTTLMarkPrice)
 	_, _ = p.cache.SwapByTtl(key, markPrice, ttl)
 	return nil
 }
 
+// GetMarkets 获取交易所全部市场
 func (p *GlobalMarketProvider) GetMarkets(ctx context.Context, ex ctypes.Exchange) ([]*ctypes.Market, error) {
 	key := newKey(CacheKeyMarkets, ex.String())
 	markets, err := p.cache.Get(ctx, key, CacheTTLMarkets, func(ctx context.Context, params ...any) (any, error) {
@@ -675,15 +687,23 @@ func (p *GlobalMarketProvider) GetDepth(ctx context.Context, ex ctypes.Exchange,
 	}
 	if result != nil {
 		orderBook := result.(*ctypes.OrderBook)
-		if limit > len(orderBook.Bids) {
-			limit = len(orderBook.Bids)
+		bidN := limit
+		if bidN > len(orderBook.Bids) {
+			bidN = len(orderBook.Bids)
 		}
-		if limit > len(orderBook.Asks) {
-			limit = len(orderBook.Asks)
+		askN := limit
+		if askN > len(orderBook.Asks) {
+			askN = len(orderBook.Asks)
 		}
+		out.Bids = make([]ctypes.OrderBookLevel, bidN)
+		out.Asks = make([]ctypes.OrderBookLevel, askN)
 		out.Ts = orderBook.Ts
-		copy(out.Bids, orderBook.Bids[len(orderBook.Bids)-limit:])
-		copy(out.Asks, orderBook.Asks[len(orderBook.Asks)-limit:])
+		if bidN > 0 {
+			copy(out.Bids, orderBook.Bids[len(orderBook.Bids)-bidN:])
+		}
+		if askN > 0 {
+			copy(out.Asks, orderBook.Asks[len(orderBook.Asks)-askN:])
+		}
 		return out, nil
 	}
 	return nil, errors.New("depth not found")

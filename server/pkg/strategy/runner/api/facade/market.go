@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
-	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
+	"github.com/wangliang139/NovaForge/server/pkg/strategy/proxy"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // MarketFacade 市场数据外观模式，统一回测和实盘的市场数据访问
@@ -99,6 +99,10 @@ func (f *MarketFacade) GetTrades(ctx context.Context, exchange ctypes.Exchange, 
 		trades, err := f.provider.GetTrades(ctx, exchange, symbol, limit)
 		if err == nil {
 			return tradesToMaps(trades, period), nil
+		}
+		if f.isBacktest {
+			log.Ctx(ctx).Debug().Err(err).Msg("backtest GetTrades: provider miss, no live fallback")
+			return []map[string]any{}, nil
 		}
 	}
 	trades, err := proxy.GetTrades(ctx, exchange, symbol, limit)

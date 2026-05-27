@@ -50,3 +50,30 @@ func TestTradeCollectorRecordsFeeWithoutOrderSnapshot(t *testing.T) {
 		t.Fatalf("expected client order id %s, got %s", orderID, trades[0].ClientOrderID)
 	}
 }
+
+func TestTradeCollectorGetStatsWinRate(t *testing.T) {
+	exchange := ctypes.ExchangeBinance
+	symbol := ctypes.NewSymbol("BTC", "USDT", ctypes.MarketTypeSpot)
+	accountID := "binance"
+	collector := NewTradeCollector()
+	ts := time.Unix(100, 0)
+
+	collector.OnFill(&stypes.FillSignal{
+		BaseSignal:  stypes.BaseSignal{Exchange: &exchange, Symbol: &symbol, AccountID: &accountID, Ts: ts},
+		OrderID:     "a",
+		RealizedPnl: decimal.RequireFromString("1"),
+	}, nil)
+	collector.OnFill(&stypes.FillSignal{
+		BaseSignal:  stypes.BaseSignal{Exchange: &exchange, Symbol: &symbol, AccountID: &accountID, Ts: ts},
+		OrderID:     "b",
+		RealizedPnl: decimal.RequireFromString("-1"),
+	}, nil)
+
+	win, loss, wr := collector.GetStats()
+	if win != 1 || loss != 1 {
+		t.Fatalf("expected win=1 loss=1, got %d %d", win, loss)
+	}
+	if wr != 0.5 {
+		t.Fatalf("expected win rate 0.5, got %v", wr)
+	}
+}

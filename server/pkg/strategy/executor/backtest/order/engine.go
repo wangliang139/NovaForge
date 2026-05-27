@@ -391,7 +391,11 @@ func (m *orderEngine) computeReservation(
 
 		notional := px.Mul(qty)
 		margin := notional.Div(lev)
-		feeBuf := precision.FeeFromNotional(notional, m.config.TakerCommissionRate)
+		futureTaker := m.config.FutureTakerCommissionRate
+		if futureTaker.IsZero() {
+			futureTaker = m.config.TakerCommissionRate
+		}
+		feeBuf := precision.FeeFromNotional(notional, futureTaker)
 		openPos := isOpenPosition(intent.Side, intent.IsBuy)
 
 		if openPos {

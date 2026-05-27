@@ -65,11 +65,11 @@ type BacktestExecutor struct {
 	bus        *mb.TimelineEventBus        // 内部事件总线
 	tScheduler *timeline.TimelineScheduler // 回测事件编排器
 
-	marketProvider   *marketdata.GlobalMarketProvider // 市场数据提供器（全局视角）
-	exchangeGateway  *exchange.BacktestGateway        // 交易所网关（交易所视角）
-	orderManager     strategy.OrderEngine             // 订单引擎（账户视角）
-	accountManager   strategy.AccountEngine           // 账户管理器（账户视角）
-	portfolio        *portfolio.Portfolio             // 投资组合（策略视角）
+	marketProvider  marketdata.MarketProvider // 市场数据提供器（回测专用同步实现）
+	exchangeGateway *exchange.BacktestGateway        // 交易所网关（交易所视角）
+	orderManager    strategy.OrderEngine             // 订单引擎（账户视角）
+	accountManager  strategy.AccountEngine           // 账户管理器（账户视角）
+	portfolio       *portfolio.Portfolio             // 投资组合（策略视角）
 
 	// Collectors 和 ResultBuilder
 	collectors    *collectors.Collectors
@@ -113,6 +113,9 @@ func NewBacktestExecutor(
 	if config.BaseExchange == "" {
 		config.BaseExchange = ctypes.ExchangeBinance
 	}
+	if err := ValidateSingleExchangeSymbols(config.Symbols); err != nil {
+		return nil, err
+	}
 
 	clock := clock.NewBacktestClock(config.StartTime)
 
@@ -136,8 +139,14 @@ func NewBacktestExecutor(
 		return nil, fmt.Errorf("failed to start timeline event bus: %w", err)
 	}
 
-	// 创建市场数据提供器
-	marketProvider := marketdata.NewGlobalMarketProvider(config.BaseExchange, config.BaseCurrency)
+	// 创建市场数据提供器（同步入账，不依赖墙钟与异步 channel）
+	marketProvider := marketdata.NewBacktestMarketProvider(config.BaseExchange, config.BaseCurrency)
+	for _, sym := range config.Symbols {
+		if sym == nil {
+			continue
+		}
+		_, _ = marketProvider.GetMarket(context.Background(), sym.Exchange, sym.Symbol)
+	}
 
 	// 创建 Portfolio
 	portfolio := portfolio.NewPortfolio(eventBus, marketProvider)
@@ -318,22 +327,45 @@ func NewBacktestExecutor(
 	}
 
 	return &BacktestExecutor{
-		status:           stypes.ExecutorStatusInit,
-		done:             make(chan struct{}),
-		config:           config,
-		btCtx:            btCtx,
-		clock:            clock,
-		bus:              eventBus,
-		tScheduler:       scheduler,
-		jsRunner:         jsEngine,
-		exchangeGateway:  exGateway,
-		orderManager:     orderManager,
-		accountManager:   accountManager,
-		portfolio:        portfolio,
-		marketProvider:   marketProvider,
-		collectors:       collectors,
-		resultBuilder:    resultBuilder,
+		status:          stypes.ExecutorStatusInit,
+		done:            make(chan struct{}),
+		config:          config,
+		btCtx:           btCtx,
+		clock:           clock,
+		bus:             eventBus,
+		tScheduler:      scheduler,
+		jsRunner:        jsEngine,
+		exchangeGateway: exGateway,
+		orderManager:    orderManager,
+		accountManager:  accountManager,
+		portfolio:       portfolio,
+		marketProvider:  marketProvider,
+		collectors:      collectors,
+		resultBuilder:   resultBuilder,
 	}, nil
+}
+
+// ValidateSingleExchangeSymbols ensures one backtest uses a single exchange,
+// matching the live runner's account/exchange boundary while still allowing
+// multiple symbols on that exchange.
+func ValidateSingleExchangeSymbols(symbols []*stypes.BacktestSymbol) error {
+	var selected ctypes.Exchange
+	for i, sym := range symbols {
+		if sym == nil {
+			return fmt.Errorf("backtest symbol at index %d is nil", i)
+		}
+		if sym.Exchange == "" {
+			return fmt.Errorf("backtest symbol exchange is required: %s", sym.Symbol.String())
+		}
+		if selected == "" {
+			selected = sym.Exchange
+			continue
+		}
+		if sym.Exchange != selected {
+			return fmt.Errorf("backtest only supports one exchange, got %s and %s", selected, sym.Exchange)
+		}
+	}
+	return nil
 }
 
 // Start 启动回测
@@ -559,7 +591,19 @@ func (e *BacktestExecutor) injectInitialState() error {
 		_ = e.marketProvider.OnEvent(e.ctx, ev.Signal)
 	}
 
+	type balAggKey struct {
+		accountID string
+		mt        ctypes.MarketType
+		asset     string
+	}
+	amounts := make(map[balAggKey]decimal.Decimal)
+	pickSym := make(map[balAggKey]ctypes.Symbol)
+	pickEx := make(map[balAggKey]ctypes.Exchange)
+
 	for _, symCfg := range e.config.Symbols {
+		if symCfg == nil {
+			continue
+		}
 		ex := symCfg.Exchange
 		sym := symCfg.Symbol
 		baseQty, err := decimal.NewFromString(symCfg.BaseAssetQty)
@@ -571,85 +615,88 @@ func (e *BacktestExecutor) injectInitialState() error {
 			return fmt.Errorf("invalid quote asset qty %q for %s: %w", symCfg.QuoteAssetQty, sym.String(), err)
 		}
 
-		baseBal := baseQty
-		if sym.Type == ctypes.MarketTypeFuture {
-			baseBal = decimal.Zero
+		if sym.Type == ctypes.MarketTypeFuture && !baseQty.IsZero() {
+			return fmt.Errorf("backtest does not support non-zero future initial position (baseAssetQty) yet: %s", sym.String())
 		}
 
-		// 现阶段：用配置值作为初始快照写入 StrategyState（事件形式），以便 JS API 读取。
-		// 对 FUTURE：先把 QuoteAssetQty 视作 collateral，BaseAssetQty 视作初始仓位 qty（可为负）；
-		// AvgPrice 等更完整字段会在永续合约 todo 中补齐。
+		aid := ex.String()
+		if quoteQty.GreaterThan(decimal.Zero) {
+			k := balAggKey{accountID: aid, mt: sym.Type, asset: sym.Quote}
+			amounts[k] = amounts[k].Add(quoteQty)
+			pickSym[k] = sym
+			pickEx[k] = ex
+		}
+		if sym.Type != ctypes.MarketTypeFuture && baseQty.GreaterThan(decimal.Zero) {
+			k := balAggKey{accountID: aid, mt: sym.Type, asset: sym.Base}
+			amounts[k] = amounts[k].Add(baseQty)
+			pickSym[k] = sym
+			pickEx[k] = ex
+		}
+	}
 
+	for k, amt := range amounts {
+		if amt.IsZero() {
+			continue
+		}
+		sym := pickSym[k]
+		ex := pickEx[k]
 		walletType := ctypes.GetWalletType(ex, sym.Type)
+		balanceSignal := &stypes.BalanceSignal{
+			BaseSignal: stypes.BaseSignal{
+				Exchange:  &ex,
+				Symbol:    &sym,
+				AccountID: lo.ToPtr(k.accountID),
+				Ts:        e.config.StartTime,
+			},
+			WalletType: walletType,
+			Asset:      k.asset,
+			Free:       amt,
+			Frozen:     decimal.Zero,
+		}
+		if err := e.bus.Send(e.ctx, balanceSignal); err != nil {
+			return fmt.Errorf("failed to send aggregated balance event: %w", err)
+		}
+	}
 
-		// 发布初始余额事件
-		if baseBal.GreaterThan(decimal.Zero) {
-			baseBalanceSignal := &stypes.BalanceSignal{
-				BaseSignal: stypes.BaseSignal{
-					Exchange:  &ex,
-					Symbol:    &sym,
-					AccountID: accountIDProvider(ex, sym),
-					Ts:        e.config.StartTime,
-				},
-				WalletType: walletType,
-				Asset:      sym.Base,
-				Free:       baseBal,
-				Frozen:     decimal.Zero,
-			}
-			// 使用 Send 同步分发：Publish 只会进入 timeline 内部队列，在首帧之前不会落地到账户/Portfolio，
-			// 导致 OnInit / sym.GetAsset 读到空余额（Portfolio 未 Init 时还会因 exchange 未绑定而恒为空）。
-			if err := e.bus.Send(e.ctx, baseBalanceSignal); err != nil {
-				return fmt.Errorf("failed to send base balance event: %w", err)
-			}
-
-			// 现货初始持仓需要记录成本价（使用初始价格作为成本价）
-			if sym.Type == ctypes.MarketTypeSpot {
-				exSymbol := ctypes.NewExSymbol(ex, sym)
-				initialPrice, err := e.marketProvider.GetLastPrice(e.ctx, ex, sym)
-				if err == nil && !initialPrice.IsZero() {
-					// 通过发布 FillSignal 来初始化成本跟踪（模拟初始买入）
-					accountID := accountIDProvider(ex, sym)
-					if accountID != nil {
-						initFillSignal := &stypes.FillSignal{
-							BaseSignal: stypes.BaseSignal{
-								Exchange:  &ex,
-								Symbol:    &sym,
-								AccountID: accountID,
-								Ts:        e.config.StartTime,
-							},
-							OrderID: ctypes.OrderId("INIT_" + exSymbol.String()),
-							Side:    ctypes.PositionSideLong,
-							IsBuy:   true,
-							Qty:     baseBal,
-							Price:   initialPrice,
-							Fee:     decimal.Zero,
-							Asset:   sym.Base,
-						}
-						if err := e.bus.Send(e.ctx, initFillSignal); err != nil {
-							return fmt.Errorf("failed to send initial fill signal: %w", err)
-						}
-					}
+	// 现货：为每个标的单独发 INIT Fill，建立成本基数（余额已在上面按资产聚合入账）
+	for _, symCfg := range e.config.Symbols {
+		if symCfg == nil {
+			continue
+		}
+		ex := symCfg.Exchange
+		sym := symCfg.Symbol
+		if sym.Type != ctypes.MarketTypeSpot {
+			continue
+		}
+		baseQty, err := decimal.NewFromString(symCfg.BaseAssetQty)
+		if err != nil || !baseQty.GreaterThan(decimal.Zero) {
+			continue
+		}
+		exSymbol := ctypes.NewExSymbol(ex, sym)
+		initialPrice, err := e.marketProvider.GetLastPrice(e.ctx, ex, sym)
+		if err == nil && !initialPrice.IsZero() {
+			accountID := accountIDProvider(ex, sym)
+			if accountID != nil {
+				initFillSignal := &stypes.FillSignal{
+					BaseSignal: stypes.BaseSignal{
+						Exchange:  &ex,
+						Symbol:    &sym,
+						AccountID: accountID,
+						Ts:        e.config.StartTime,
+					},
+					OrderID: ctypes.OrderId("INIT_" + exSymbol.String()),
+					Side:    ctypes.PositionSideLong,
+					IsBuy:   true,
+					Qty:     baseQty,
+					Price:   initialPrice,
+					Fee:     decimal.Zero,
+					Asset:   sym.Base,
+				}
+				if err := e.bus.Send(e.ctx, initFillSignal); err != nil {
+					return fmt.Errorf("failed to send initial fill signal: %w", err)
 				}
 			}
 		}
-		if quoteQty.GreaterThan(decimal.Zero) {
-			quoteBalanceSignal := &stypes.BalanceSignal{
-				BaseSignal: stypes.BaseSignal{
-					Exchange:  &ex,
-					Symbol:    &sym,
-					AccountID: accountIDProvider(ex, sym),
-					Ts:        e.config.StartTime,
-				},
-				WalletType: walletType,
-				Asset:      sym.Quote,
-				Free:       quoteQty,
-				Frozen:     decimal.Zero,
-			}
-			if err := e.bus.Send(e.ctx, quoteBalanceSignal); err != nil {
-				return fmt.Errorf("failed to send quote balance event: %w", err)
-			}
-		}
-
 	}
 
 	// 与实盘/模拟盘一致：初始化 Portfolio（绑定主交易所、从 AccountEngine 拉快照）。
@@ -669,6 +716,14 @@ func (e *BacktestExecutor) injectInitialState() error {
 		if err := e.portfolio.Init(e.ctx, e.accountManager, initEx.String(), initEx, symbols); err != nil {
 			return fmt.Errorf("init portfolio for backtest: %w", err)
 		}
+	}
+
+	if e.collectors != nil && e.collectors.Equity != nil {
+		pt, err := e.CalculateEquityPoint(e.ctx)
+		if err != nil {
+			return fmt.Errorf("initial equity point: %w", err)
+		}
+		e.collectors.Equity.OnEquityPoint(*pt)
 	}
 
 	return nil
@@ -728,7 +783,7 @@ func (e *BacktestExecutor) GetResult() (*stypes.BacktestResult, error) {
 	}
 
 	// 使用 ResultBuilder 构建结果
-	return e.resultBuilder.BuildResult(
+	result, err := e.resultBuilder.BuildResult(
 		context.Background(),
 		e.btCtx,
 		e.config,
@@ -736,6 +791,19 @@ func (e *BacktestExecutor) GetResult() (*stypes.BacktestResult, error) {
 		e.config.EndTime,
 		e.endAt.Sub(e.runAt).Milliseconds(),
 	)
+	if err != nil {
+		return nil, err
+	}
+	if e.status == stypes.ExecutorStatusCanceled {
+		if result.Data == nil {
+			result.Data = &stypes.BacktestResultData{}
+		}
+		if result.Data.Meta == nil {
+			result.Data.Meta = make(map[string]any)
+		}
+		result.Data.Meta["partial"] = true
+	}
+	return result, nil
 }
 
 func (e *BacktestExecutor) setRunErr(err error) {

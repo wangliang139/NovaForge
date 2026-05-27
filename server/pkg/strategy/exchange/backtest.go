@@ -265,7 +265,7 @@ func (g *BacktestGateway) CancelOrder(ctx context.Context, intent stypes.OrderCa
 	}
 	clientOrderID := intent.ClientOrderID
 	if clientOrderID == "" {
-		return nil
+		return fmt.Errorf("client order id is required for cancel")
 	}
 
 	g.mu.RLock()
@@ -305,7 +305,7 @@ func (g *BacktestGateway) SetLeverage(ctx context.Context, accountID string, exc
 	ex := exchange
 	sym := symbol
 	aid := accountID
-	return g.bus.Publish(ctx, &stypes.LeverageChangedSignal{
+	return g.emitStrategySignal(ctx, &stypes.LeverageChangedSignal{
 		BaseSignal: stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &aid, Ts: g.now()},
 		Leverage:   leverage,
 	})
@@ -316,6 +316,20 @@ func (g *BacktestGateway) now() time.Time {
 		return time.Now()
 	}
 	return g.clock.Now()
+}
+
+// emitStrategySignal 将撮合产物投递到策略侧总线：若总线支持同步 Send（如 TimelineEventBus），则当帧入账，避免 Publish 进入下一帧。
+func (g *BacktestGateway) emitStrategySignal(ctx context.Context, sig stypes.Signal) error {
+	if g == nil || g.bus == nil || sig == nil {
+		return nil
+	}
+	type syncSender interface {
+		Send(context.Context, stypes.Signal) error
+	}
+	if s, ok := g.bus.(syncSender); ok {
+		return s.Send(ctx, sig)
+	}
+	return g.bus.Publish(ctx, sig)
 }
 
 func (g *BacktestGateway) OnMarketSignal(ctx context.Context, sig stypes.Signal) error {
@@ -334,10 +348,10 @@ func (g *BacktestGateway) OnMarketSignal(ctx context.Context, sig stypes.Signal)
 			Symbol:   *ks.GetSymbol(),
 			Phase:    phase,
 			Open:     ks.Open,
-			High:     ks.Open,
-			Low:      ks.Open,
-			Close:    ks.Open,
-			Volume:   decimal.Zero, // open 点不限制 volume
+			High:     ks.High,
+			Low:      ks.Low,
+			Close:    ks.Close,
+			Volume:   ks.Volume,
 		}
 		return g.me.OnMarketEvent(ctx, ev)
 	default:
@@ -387,14 +401,14 @@ func (g *BacktestGateway) publishOrderEvent(ctx context.Context, e bridge.OrderE
 
 	switch e.Kind {
 	case bridge.ExchangeEventKindOrderAccepted:
-		return g.bus.Publish(ctx, &stypes.OrderLifecycleSignal{
+		return g.emitStrategySignal(ctx, &stypes.OrderLifecycleSignal{
 			BaseSignal: stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &accountID, Ts: ts},
 			OrderID:    clientOrderID,
 			Status:     ctypes.OrderStatusNew,
 		})
 	case bridge.ExchangeEventKindOrderRejected:
 		defer cleanup()
-		return g.bus.Publish(ctx, &stypes.OrderLifecycleSignal{
+		return g.emitStrategySignal(ctx, &stypes.OrderLifecycleSignal{
 			BaseSignal: stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &accountID, Ts: ts},
 			OrderID:    clientOrderID,
 			Status:     ctypes.OrderStatusRejected,
@@ -403,7 +417,7 @@ func (g *BacktestGateway) publishOrderEvent(ctx context.Context, e bridge.OrderE
 		})
 	case bridge.ExchangeEventKindOrderCanceled:
 		defer cleanup()
-		return g.bus.Publish(ctx, &stypes.OrderLifecycleSignal{
+		return g.emitStrategySignal(ctx, &stypes.OrderLifecycleSignal{
 			BaseSignal: stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &accountID, Ts: ts},
 			OrderID:    clientOrderID,
 			Status:     ctypes.OrderStatusCanceled,
@@ -411,7 +425,7 @@ func (g *BacktestGateway) publishOrderEvent(ctx context.Context, e bridge.OrderE
 		})
 	case bridge.ExchangeEventKindOrderExpired:
 		defer cleanup()
-		return g.bus.Publish(ctx, &stypes.OrderLifecycleSignal{
+		return g.emitStrategySignal(ctx, &stypes.OrderLifecycleSignal{
 			BaseSignal: stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &accountID, Ts: ts},
 			OrderID:    clientOrderID,
 			Status:     ctypes.OrderStatusExpired,
@@ -419,7 +433,7 @@ func (g *BacktestGateway) publishOrderEvent(ctx context.Context, e bridge.OrderE
 		})
 	case bridge.ExchangeEventKindOrderDone:
 		defer cleanup()
-		return g.bus.Publish(ctx, &stypes.OrderLifecycleSignal{
+		return g.emitStrategySignal(ctx, &stypes.OrderLifecycleSignal{
 			BaseSignal: stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &accountID, Ts: ts},
 			OrderID:    clientOrderID,
 			Status:     ctypes.OrderStatusDone,
@@ -457,7 +471,7 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 		return err
 	}
 
-	err = g.bus.Publish(ctx, &stypes.FillSignal{
+	err = g.emitStrategySignal(ctx, &stypes.FillSignal{
 		BaseSignal:  stypes.BaseSignal{Exchange: &ex, Symbol: &sym, AccountID: &accountID, Ts: ts},
 		OrderID:     clientOrderID,
 		Side:        e.Side,
@@ -527,7 +541,7 @@ func (g *BacktestGateway) publishFillEvent(ctx context.Context, e bridge.FillEve
 		}
 		g.mu.Unlock()
 
-		if err := g.bus.Publish(ctx, &stypes.PositionSignal{
+		if err := g.emitStrategySignal(ctx, &stypes.PositionSignal{
 			BaseSignal: stypes.BaseSignal{
 				Exchange:  &ex,
 				Symbol:    &sym,
@@ -636,7 +650,7 @@ func (g *BacktestGateway) publishBalanceDelta(ctx context.Context, accountID str
 		return nil
 	}
 
-	return g.bus.Publish(ctx, &stypes.BalanceDeltaSignal{
+	return g.emitStrategySignal(ctx, &stypes.BalanceDeltaSignal{
 		BaseSignal: stypes.BaseSignal{
 			Exchange:  &exchange,
 			Symbol:    &symbol,

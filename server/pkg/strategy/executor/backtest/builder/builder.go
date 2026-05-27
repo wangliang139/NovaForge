@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/executor/backtest/collectors"
 	"github.com/wangliang139/NovaForge/server/pkg/strategy/marketdata"
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
+	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
 
 // ResultBuilder 结果构建器
@@ -303,7 +303,10 @@ func (b *ResultBuilder) calculateSummaryBySymbols(ctx context.Context, config st
 		}
 
 		// 计算未实现盈亏（基于持仓*（当前价格-成本价）），而不是残差
-		unrealized := b.calculateUnrealizedPnL(ctx, exSymbol, posQty, avgPx, lastPx)
+		unrealized, err := b.calculateUnrealizedPnL(ctx, exSymbol, posQty, avgPx, lastPx)
+		if err != nil {
+			return nil, fmt.Errorf("unrealized pnl for %s: %w", exSymbol.String(), err)
+		}
 
 		// 获取按方向统计的数据
 		longRealized := decimal.Zero
@@ -372,9 +375,9 @@ func (b *ResultBuilder) calculateSummaryBySymbols(ctx context.Context, config st
 
 // calculateUnrealizedPnL 计算未实现盈亏（以 BaseCurrency 计价）
 // 基于持仓*（当前价格-成本价），而不是残差
-func (b *ResultBuilder) calculateUnrealizedPnL(ctx context.Context, exSymbol ctypes.ExSymbol, posQty, avgPx, lastPx decimal.Decimal) decimal.Decimal {
+func (b *ResultBuilder) calculateUnrealizedPnL(ctx context.Context, exSymbol ctypes.ExSymbol, posQty, avgPx, lastPx decimal.Decimal) (decimal.Decimal, error) {
 	if posQty.IsZero() || avgPx.IsZero() || lastPx.IsZero() {
-		return decimal.Zero
+		return decimal.Zero, nil
 	}
 
 	// 未实现盈亏（quote 计价）
@@ -394,8 +397,8 @@ func (b *ResultBuilder) calculateUnrealizedPnL(ctx context.Context, exSymbol cty
 	quoteAsset := exSymbol.GetQuote()
 	quotePrice, err := b.marketProvider.GetPriceInBaseCurrency(ctx, quoteAsset, b.baseCurrency)
 	if err != nil {
-		return decimal.Zero
+		return decimal.Zero, fmt.Errorf("quote to base currency %s/%s: %w", quoteAsset, b.baseCurrency, err)
 	}
 
-	return unrealizedQuote.Mul(quotePrice)
+	return unrealizedQuote.Mul(quotePrice), nil
 }

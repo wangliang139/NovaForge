@@ -18,7 +18,16 @@ func CalculateMaxDrawdown(equity []stypes.EquityPoint) float64 {
 
 	for _, p := range equity {
 		nv, err := decimal.NewFromString(p.TotalNetValue.String())
-		if err != nil || nv.LessThanOrEqual(decimal.Zero) {
+		if err != nil {
+			continue
+		}
+		if nv.LessThanOrEqual(decimal.Zero) {
+			if peak.GreaterThan(decimal.Zero) {
+				one := decimal.NewFromInt(1)
+				if one.GreaterThan(maxDD) {
+					maxDD = one
+				}
+			}
 			continue
 		}
 		if peak.IsZero() || nv.GreaterThan(peak) {
