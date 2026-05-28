@@ -1,3 +1,4 @@
+import { EllipsisMiddleText } from '@/components';
 import { AccountType, deleteAccount, queryAccount } from '@/services/gateway/account';
 import {
   Bot,
@@ -23,11 +24,12 @@ import {
 } from '@ant-design/icons';
 import { ActionType, PageContainer, ProColumns, ProTable } from '@ant-design/pro-components';
 import { Outlet, useMatch } from '@umijs/max';
-import { Button, Checkbox, Dropdown, message, Modal, Space, Tag, Typography } from 'antd';
+import { Button, Checkbox, Dropdown, message, Modal, Space, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { MenuInfo } from 'rc-menu/es/interface';
 import React, { useRef, useState } from 'react';
 import BotModal from './components/BotModal';
+import './index.less';
 
 const BotsComponent: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -35,6 +37,33 @@ const BotsComponent: React.FC = () => {
 
   const [botModalOpen, setBotModalOpen] = useState(false);
   const [editingBot, setEditingBot] = useState<Bot | null>(null);
+  const [accountNameMap, setAccountNameMap] = useState<Record<string, string>>({});
+
+  const ensureAccountNames = React.useCallback(
+    (bots: Bot[]) => {
+      const missingIds = Array.from(
+        new Set(
+          bots
+            .map((b) => b.accountId)
+            .filter((id) => id && !accountNameMap[id]),
+        ),
+      );
+      if (!missingIds.length) return;
+
+      missingIds.forEach(async (id) => {
+        try {
+          const accountRes = await queryAccount(id);
+          const name = accountRes?.list?.[0]?.name;
+          if (name) {
+            setAccountNameMap((prev) => (prev[id] ? prev : { ...prev, [id]: name }));
+          }
+        } catch {
+          // ignore single account load failure
+        }
+      });
+    },
+    [accountNameMap],
+  );
 
   // 子路由 /bot/:id 时渲染详情页出口，避免两级导航
   if (matchDetail) {
@@ -197,18 +226,19 @@ const BotsComponent: React.FC = () => {
     {
       title: '账户',
       dataIndex: 'accountId',
-      width: 200,
+      width: 180,
       align: 'center',
-      render: (_, record) => (
-        <Typography.Link
-          copyable
-          onClick={() => {
-            history.push(`/account/${record.accountId}`);
-          }}
-        >
-          {record.accountId || record.accountId}
-        </Typography.Link>
-      ),
+      render: (_, record) => {
+        const displayName = accountNameMap[record.accountId] || record.accountId;
+        return (
+          <EllipsisMiddleText
+            className="bot-account-link-text"
+            suffixCount={6}
+            onClick={() => {
+              history.push(`/account/${record.accountId}`);
+            }}>{displayName}</EllipsisMiddleText>
+        );
+      },
     },
     {
       title: '模式',
@@ -339,6 +369,10 @@ const BotsComponent: React.FC = () => {
             total: result?.totalCount || 0,
             success: true,
           };
+        }}
+        postData={(data?: Bot[]) => {
+          ensureAccountNames(data || []);
+          return data;
         }}
         editable={{
           type: 'multiple',

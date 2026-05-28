@@ -6,7 +6,7 @@ import PositionsTable from '@/components/Market/PositionsTable';
 import { Exchange } from '@/global.types';
 import StrategyModal from '@/pages/strategy/components/StrategyModal';
 import { api } from '@/services/gateway';
-import { AccountEquity, Asset, Position } from '@/services/gateway/account';
+import { AccountEquity, Asset, Position, queryAccount } from '@/services/gateway/account';
 import { MarketInfo } from '@/services/gateway/market';
 import {
   Bot,
@@ -79,6 +79,7 @@ import {
   YAxis,
 } from 'recharts';
 import BotDebugModal from './components/BotDebugModal';
+import { EllipsisMiddleText } from '@/components';
 
 const toMsIfSeconds = (ts: number) => (ts < 1e12 ? ts * 1000 : ts);
 
@@ -89,6 +90,7 @@ const BotDetailPage: React.FC = () => {
 
   const [bot, setBot] = useState<Bot | null>(null);
   const [botState, setBotState] = useState<BotState | null>(null);
+  const [accountName, setAccountName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [balance, setBalance] = useState<{
@@ -248,6 +250,29 @@ const BotDetailPage: React.FC = () => {
     };
   }, [klineVisible, klineSymbol, bot?.exchange]);
 
+  useEffect(() => {
+    const accountId = bot?.accountId;
+    if (!accountId || String(accountId) === '0') {
+      setAccountName(null);
+      return;
+    }
+    let cancelled = false;
+    queryAccount(String(accountId))
+      .then((res) => {
+        if (!cancelled) {
+          setAccountName(res?.list?.[0]?.name ?? null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAccountName(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bot?.accountId]);
+
   const loadBot = async () => {
     if (!Number.isFinite(botId) || botId <= 0) {
       setBot(null);
@@ -280,10 +305,10 @@ const BotDetailPage: React.FC = () => {
       setBalance(
         resp
           ? {
-              notional: resp.notional,
-              unRealizedProfit: resp.unRealizedProfit,
-              notional24HChange: resp.notional24HChange,
-            }
+            notional: resp.notional,
+            unRealizedProfit: resp.unRealizedProfit,
+            notional24HChange: resp.notional24HChange,
+          }
           : null,
       );
       setAssets(resp?.assets || []);
@@ -319,8 +344,8 @@ const BotDetailPage: React.FC = () => {
         equityRange === '1d'
           ? 24 * 60 * 60 * 1000
           : equityRange === '30d'
-          ? 30 * 24 * 60 * 60 * 1000
-          : 7 * 24 * 60 * 60 * 1000;
+            ? 30 * 24 * 60 * 60 * 1000
+            : 7 * 24 * 60 * 60 * 1000;
       const startTs = endTs - rangeMs;
       const resp = await queryBotEquity(botId, startTs, endTs);
       setEquity(resp?.list || []);
@@ -439,23 +464,23 @@ const BotDetailPage: React.FC = () => {
                   value={
                     botState
                       ? (() => {
-                          const { score } = calculateBotHealth(botState);
-                          return score;
-                        })()
+                        const { score } = calculateBotHealth(botState);
+                        return score;
+                      })()
                       : '-'
                   }
                   valueStyle={{
                     color: botState
                       ? (() => {
-                          const { level } = calculateBotHealth(botState);
-                          return level === 'excellent'
-                            ? '#388e3c'
-                            : level === 'good'
+                        const { level } = calculateBotHealth(botState);
+                        return level === 'excellent'
+                          ? '#388e3c'
+                          : level === 'good'
                             ? '#1976d2'
                             : level === 'fair'
-                            ? '#ed6c02'
-                            : '#d32f2f';
-                        })()
+                              ? '#ed6c02'
+                              : '#d32f2f';
+                      })()
                       : undefined,
                   }}
                   suffix={botState ? '/ 100' : ''}
@@ -624,8 +649,8 @@ const BotDetailPage: React.FC = () => {
                     bot.status === BotStatus.Running
                       ? 'green'
                       : bot.status === BotStatus.Error
-                      ? 'red'
-                      : 'default'
+                        ? 'red'
+                        : 'default'
                   }
                 >
                   {BotStatusOptions.find((x) => x.value === bot.status)?.label ?? bot.status}
@@ -654,10 +679,10 @@ const BotDetailPage: React.FC = () => {
                       level === 'excellent'
                         ? 'green'
                         : level === 'good'
-                        ? 'blue'
-                        : level === 'fair'
-                        ? 'orange'
-                        : 'red';
+                          ? 'blue'
+                          : level === 'fair'
+                            ? 'orange'
+                            : 'red';
                     return <Tag color={healthColor}>健康度: {score}</Tag>;
                   })()}
                 </Space>
@@ -678,15 +703,14 @@ const BotDetailPage: React.FC = () => {
                 '-'
               )}
             </ProDescriptions.Item>
-            <ProDescriptions.Item label="账户ID" copyable>
+            <ProDescriptions.Item label="账户">
               {bot?.accountId && String(bot.accountId) !== '0' ? (
-                <Typography.Link
+                <EllipsisMiddleText
+                  className="bot-account-link-text"
+                  suffixCount={6}
                   onClick={() => {
                     history.push(`/account/${bot.accountId}`);
-                  }}
-                >
-                  {bot.accountId}
-                </Typography.Link>
+                  }}>{accountName || bot.accountId}</EllipsisMiddleText>
               ) : (
                 '-'
               )}
@@ -757,9 +781,8 @@ const BotDetailPage: React.FC = () => {
                       formatter={(value: number) => Number(value).toFixed(2)}
                       labelFormatter={(_label, payload) => {
                         const ts = payload?.[0]?.payload?.ts as number | undefined;
-                        return `时间: ${
-                          ts ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss') : '-'
-                        }`;
+                        return `时间: ${ts ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss') : '-'
+                          }`;
                       }}
                     />
                     <Line
@@ -802,8 +825,8 @@ const BotDetailPage: React.FC = () => {
                         botMetrics?.cagr != null && botMetrics.cagr >= 0
                           ? '#52c41a'
                           : botMetrics?.cagr != null
-                          ? '#ff4d4f'
-                          : undefined,
+                            ? '#ff4d4f'
+                            : undefined,
                     }}
                   >
                     {botMetrics?.cagr != null
@@ -1064,10 +1087,10 @@ const BotDetailPage: React.FC = () => {
                             item.level === 'error'
                               ? 'red'
                               : item.level === 'warn'
-                              ? 'orange'
-                              : item.level === 'info'
-                              ? 'blue'
-                              : 'default'
+                                ? 'orange'
+                                : item.level === 'info'
+                                  ? 'blue'
+                                  : 'default'
                           }
                         >
                           {item.level}
@@ -1133,10 +1156,10 @@ const BotDetailPage: React.FC = () => {
                     selectedLog.level === 'error'
                       ? 'red'
                       : selectedLog.level === 'warn'
-                      ? 'orange'
-                      : selectedLog.level === 'info'
-                      ? 'blue'
-                      : 'default'
+                        ? 'orange'
+                        : selectedLog.level === 'info'
+                          ? 'blue'
+                          : 'default'
                   }
                 >
                   {selectedLog.level}

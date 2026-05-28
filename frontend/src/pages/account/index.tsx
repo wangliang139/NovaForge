@@ -67,13 +67,13 @@ const AccountsComponent: React.FC = () => {
     if (e.key === 'online') {
       const resp = await onlineAccount(row.id);
       if (!resp.errors) {
-        message.success(`Account online successfully!`);
+        message.success('账户已上线');
         actionRef.current?.reload();
       }
     } else if (e.key === 'offline') {
       const resp = await offlineAccount(row.id);
       if (!resp.errors) {
-        message.success(`Account offline successfully!`);
+        message.success('账户已下线');
         actionRef.current?.reload();
       }
     } else if (e.key === 'delete') {
@@ -359,10 +359,12 @@ const AccountsComponent: React.FC = () => {
             actions: {
               render: (_: React.ReactNode, row: Account) => {
                 const menus = [];
-                if (row.status === AccountStatus.Online) {
-                  menus.push({ key: 'offline', label: 'Offline' });
-                } else {
-                  menus.push({ key: 'online', label: 'Online' });
+                if (row.accountType !== AccountType.VirtualSub) {
+                  if (row.status === AccountStatus.Online) {
+                    menus.push({ key: 'offline', label: '下线' });
+                  } else {
+                    menus.push({ key: 'online', label: '上线' });
+                  }
                 }
                 menus.push({ key: 'delete', label: '删除', danger: true });
                 return [

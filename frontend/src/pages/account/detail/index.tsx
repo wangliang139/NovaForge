@@ -20,8 +20,6 @@ import {
   getOrders,
   getPositions,
   Ledger,
-  offlineAccount,
-  onlineAccount,
   Order,
   OrderSource,
   OrderStatus,
@@ -44,10 +42,8 @@ import { getSideTagInfo, getWalletTypeTagInfo } from '@/utils/marketTag';
 import {
   AlertOutlined,
   BugOutlined,
-  CaretRightOutlined,
   DesktopOutlined,
   InfoCircleOutlined,
-  PoweroffOutlined,
   ReloadOutlined,
   SyncOutlined
 } from '@ant-design/icons';
@@ -179,7 +175,6 @@ const AccountDetail: FC = () => {
   const [debugModalVisible, setDebugModalVisible] = useState(false);
   const [riskConfig, setRiskConfig] = useState<AccountConfig | null>(null);
   const [riskFormVisible, setRiskFormVisible] = useState(false);
-  const [statusOperating, setStatusOperating] = useState(false);
   const [loading, setLoading] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [klineVisible, setKlineVisible] = useState(false);
@@ -560,7 +555,7 @@ const AccountDetail: FC = () => {
   };
 
   const handleSyncSnapshots = async () => {
-    if (!id || syncLoading || reloading || statusOperating) {
+    if (!id || syncLoading || reloading) {
       return;
     }
     setSyncLoading(true);
@@ -568,15 +563,7 @@ const AccountDetail: FC = () => {
       const success = await refreshAccountSnapshots(id);
       if (success) {
         message.success('同步成功');
-        await Promise.all([
-          loadAccountBalance(),
-          loadAccountPositions(),
-          loadAccountOrders(orderFilters, {
-            page: orderPagination.current,
-            pageSize: orderPagination.pageSize,
-            onlyOnTheWay,
-          }),
-        ]);
+        await reloadAll();
       } else {
         message.error('同步失败');
       }
@@ -588,7 +575,6 @@ const AccountDetail: FC = () => {
   };
 
   const reloadAll = async () => {
-    // 不上线 statusOperating：上线/下线成功后会在 statusOperating 仍为 true 时调用本函数刷新数据
     if (!id || reloading || syncLoading) return;
     setReloading(true);
     try {
@@ -723,49 +709,11 @@ const AccountDetail: FC = () => {
   const multiBotSubAccounts = multiBotDetails?.subAccounts || [];
   const multiBotAssetRows = multiBotDetails?.assetAllocations || [];
   const multiBotPositionRows = multiBotDetails?.positionAllocations || [];
-  /** 刷新 / 上线 / 下线 / 同步 任一进行中时，全页遮罩与按钮防重复 */
-  const pageActionBusy = reloading || syncLoading || statusOperating;
+  /** 刷新 / 同步 任一进行中时，全页遮罩与按钮防重复 */
+  const pageActionBusy = reloading || syncLoading;
 
   const onClickButtonGroup = async ({ key }: MenuInfo) => {
     if (!id) return;
-    if (key === 'online' || key === 'offline') {
-      const nextAction = accountIsOnline ? '下线' : '上线';
-      const doToggle = async () => {
-        setStatusOperating(true);
-        try {
-          const resp = accountIsOnline ? await offlineAccount(id) : await onlineAccount(id);
-          const errMsg = resp?.errors?.[0]?.message;
-          if (errMsg) {
-            return;
-          }
-          message.success(`账户已${nextAction}`);
-          await reloadAll();
-        } catch (err) {
-          message.error(`账户${nextAction}失败：${err}`);
-        } finally {
-          setStatusOperating(false);
-        }
-      };
-      if (accountIsOnline) {
-        Modal.confirm({
-          title: '确认下线账户',
-          content: '下线后将停止账户相关数据订阅；若账户被运行中的 Bot 绑定，将无法下线。',
-          okText: '确认下线',
-          okType: 'danger',
-          cancelText: '取消',
-          onOk: doToggle,
-        });
-        return;
-      }
-      doToggle();
-    }
-    if (key === 'offline') {
-      const resp = await offlineAccount(id);
-      if (!resp.errors) {
-        message.success('账户已下线');
-        await reloadAll();
-      }
-    }
     if (key === 'sync') {
       await handleSyncSnapshots();
     }
@@ -773,27 +721,6 @@ const AccountDetail: FC = () => {
 
   const renderButtonGroup = () => {
     const items = [
-      {
-        key: 'online',
-        label: (
-          <Space style={{ color: accountIsOnline ? '#999' : '#52c41a' }}>
-            <CaretRightOutlined />
-            上线
-          </Space>
-        ),
-        disabled: accountIsOnline,
-      },
-      {
-        key: 'offline',
-        label: (
-          <Space style={{ color: !accountIsOnline ? '#999' : '#fa8c16' }}>
-            <PoweroffOutlined />
-            下线
-          </Space>
-        ),
-        danger: true,
-        disabled: !accountIsOnline,
-      },
       {
         key: 'sync',
         label: (
@@ -998,7 +925,11 @@ const AccountDetail: FC = () => {
           <ProDescriptions.Item label="ID" copyable>
             {account.id}
           </ProDescriptions.Item>
-          <ProDescriptions.Item label="账户名称">{account.name}</ProDescriptions.Item>
+          <ProDescriptions.Item label="账户名称">
+            <EllipsisMiddleText suffixCount={6}>
+              {account.name || account.id}
+            </EllipsisMiddleText>
+          </ProDescriptions.Item>
           <ProDescriptions.Item label="交易所">
             <Space size={4}>
               <img
