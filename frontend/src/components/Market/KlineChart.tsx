@@ -1,4 +1,9 @@
 import { Kline } from '@/services/gateway/market';
+import {
+  KlineTheme,
+  LIGHTWEIGHT_KLINE_THEME,
+  useKlineTheme,
+} from '@/utils/klineTheme';
 import { Col, Row, Space, Typography } from 'antd';
 import dayjs from 'dayjs';
 import {
@@ -38,6 +43,8 @@ interface KlineChartProps {
    * - ctx.kline: 当前时间对应的 K 线（若存在）
    */
   renderMarkerTooltip?: (marker: KlineMarker, ctx: { kline?: Kline }) => React.ReactNode;
+  /** 未指定时跟随全局 navTheme（与 KlineChartPro 一致） */
+  theme?: KlineTheme;
 }
 
 export const KlineChart: React.FC<KlineChartProps> = ({
@@ -47,7 +54,12 @@ export const KlineChart: React.FC<KlineChartProps> = ({
   markers,
   tsIsSeconds = false,
   renderMarkerTooltip,
+  theme: themeProp,
 }) => {
+  const detectedTheme = useKlineTheme();
+  const chartTheme = themeProp ?? detectedTheme;
+  const tokens = LIGHTWEIGHT_KLINE_THEME[chartTheme];
+
   const DEFAULT_BAR_SPACING = 8;
   const DEFAULT_MIN_BAR_SPACING = 2;
   const DEFAULT_INIT_VISIBLE_BARS = 120;
@@ -267,7 +279,9 @@ export const KlineChart: React.FC<KlineChartProps> = ({
         time: t as UTCTimestamp,
         value: v,
         color:
-          Number.isFinite(open) && Number.isFinite(close) && close >= open ? '#26a69a' : '#ef5350',
+          Number.isFinite(open) && Number.isFinite(close) && close >= open
+            ? tokens.volumeUp
+            : tokens.volumeDown,
       });
     }
 
@@ -290,10 +304,7 @@ export const KlineChart: React.FC<KlineChartProps> = ({
     const chart = createChart(containerRef.current, {
       width: getWidth(),
       height,
-      layout: {
-        background: { color: '#ffffff' },
-        textColor: '#333',
-      },
+      layout: tokens.layout,
       // 关键：让十字线价格标签显示“鼠标所在价格”（而不是吸附到K线 close）
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -313,10 +324,7 @@ export const KlineChart: React.FC<KlineChartProps> = ({
           return String(time ?? '');
         },
       },
-      grid: {
-        vertLines: { color: '#eee' },
-        horzLines: { color: '#eee' },
-      },
+      grid: tokens.grid,
       timeScale: {
         timeVisible: true,
         secondsVisible: false,
@@ -337,9 +345,7 @@ export const KlineChart: React.FC<KlineChartProps> = ({
           return '';
         },
       },
-      rightPriceScale: {
-        borderColor: '#ccc',
-      },
+      rightPriceScale: tokens.rightPriceScale,
     });
 
     const candleSeries = chart.addCandlestickSeries({
@@ -501,7 +507,7 @@ export const KlineChart: React.FC<KlineChartProps> = ({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [height, priceFormat]);
+  }, [height, priceFormat, chartTheme, tokens]);
 
   // 1.1️⃣ precision 变化时同步更新 Y 轴/价格标签格式
   useEffect(() => {
@@ -603,7 +609,7 @@ export const KlineChart: React.FC<KlineChartProps> = ({
     if (typeof (timeScale as any).scrollToRealTime === 'function') {
       (timeScale as any).scrollToRealTime();
     }
-  }, [data]);
+  }, [data, chartTheme, tokens]);
 
   // 2.1️⃣ 设置标记点位（买入/卖出/信号等）
   useEffect(() => {
@@ -646,28 +652,35 @@ export const KlineChart: React.FC<KlineChartProps> = ({
 
   return (
     <>
-      <Row style={{ marginBottom: 10, color: '#868E9B' }}>
+      <Row style={{ marginBottom: 10, color: tokens.headerMuted }}>
         <Col span={24}>
           <Space>
             <span>{shown ? dayjs(shown.timeMs).format('YYYY/MM/DD HH:mm:ss') : '-'}</span>
             <span>
               开:{' '}
-              <span style={{ color: 'red' }}>{shown ? shown.open.toFixed(precision) : '-'}</span>
+              <span style={{ color: tokens.ohlc }}>
+                {shown ? shown.open.toFixed(precision) : '-'}
+              </span>
             </span>
             <span>
               高:{' '}
-              <span style={{ color: 'red' }}>{shown ? shown.high.toFixed(precision) : '-'}</span>
+              <span style={{ color: tokens.ohlc }}>
+                {shown ? shown.high.toFixed(precision) : '-'}
+              </span>
             </span>
             <span>
-              低: <span style={{ color: 'red' }}>{shown ? shown.low.toFixed(precision) : '-'}</span>
+              低:{' '}
+              <span style={{ color: tokens.ohlc }}>{shown ? shown.low.toFixed(precision) : '-'}</span>
             </span>
             <span>
               收:{' '}
-              <span style={{ color: 'red' }}>{shown ? shown.close.toFixed(precision) : '-'}</span>
+              <span style={{ color: tokens.ohlc }}>
+                {shown ? shown.close.toFixed(precision) : '-'}
+              </span>
             </span>
             <span>
               成交额:{' '}
-              <Typography.Text style={{ color: '#ff7300' }}>
+              <Typography.Text style={{ color: tokens.volumeLabel }}>
                 {shown && typeof shown.volume === 'number' ? formatVolume(shown.volume) : '-'}
               </Typography.Text>
             </span>
@@ -691,11 +704,12 @@ export const KlineChart: React.FC<KlineChartProps> = ({
               top: Math.max(0, markerTip.y - 10),
               zIndex: 3,
               pointerEvents: 'none',
-              background: '#fff',
-              border: '1px solid #e8e8e8',
+              background: tokens.markerTooltip.background,
+              border: tokens.markerTooltip.border,
               borderRadius: 6,
               padding: '8px 10px',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+              boxShadow: tokens.markerTooltip.boxShadow,
+              color: tokens.layout.textColor,
               maxWidth: 600,
             }}
           >

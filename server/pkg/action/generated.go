@@ -194,12 +194,34 @@ type ComplexityRoot struct {
 		TsMs  func(childComplexity int) int
 	}
 
+	BacktestAssetSeriesPoint struct {
+		Asset    func(childComplexity int) int
+		NetValue func(childComplexity int) int
+		Qty      func(childComplexity int) int
+	}
+
+	BacktestEquityPoint struct {
+		AssetPoints  func(childComplexity int) int
+		NetValue     func(childComplexity int) int
+		SymbolPoints func(childComplexity int) int
+		Ts           func(childComplexity int) int
+	}
+
 	BacktestResultData struct {
 		Equity   func(childComplexity int) int
 		Fills    func(childComplexity int) int
+		Ledgers  func(childComplexity int) int
 		MetaJSON func(childComplexity int) int
 		Orders   func(childComplexity int) int
 		Symbols  func(childComplexity int) int
+	}
+
+	BacktestSymbolSeriesPoint struct {
+		AvgPx    func(childComplexity int) int
+		BaseQty  func(childComplexity int) int
+		Exchange func(childComplexity int) int
+		PosQty   func(childComplexity int) int
+		Symbol   func(childComplexity int) int
 	}
 
 	Balance struct {
@@ -1232,6 +1254,7 @@ type ComplexityRoot struct {
 		AvgPrice           func(childComplexity int) int
 		Base               func(childComplexity int) int
 		Exchange           func(childComplexity int) int
+		FeesInBase         func(childComplexity int) int
 		FinalBase          func(childComplexity int) int
 		FinalNet           func(childComplexity int) int
 		FinalQuote         func(childComplexity int) int
@@ -2082,6 +2105,50 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AssetSnapshotHistoryPoint.TsMs(childComplexity), true
 
+	case "BacktestAssetSeriesPoint.asset":
+		if e.ComplexityRoot.BacktestAssetSeriesPoint.Asset == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestAssetSeriesPoint.Asset(childComplexity), true
+	case "BacktestAssetSeriesPoint.netValue":
+		if e.ComplexityRoot.BacktestAssetSeriesPoint.NetValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestAssetSeriesPoint.NetValue(childComplexity), true
+	case "BacktestAssetSeriesPoint.qty":
+		if e.ComplexityRoot.BacktestAssetSeriesPoint.Qty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestAssetSeriesPoint.Qty(childComplexity), true
+
+	case "BacktestEquityPoint.assetPoints":
+		if e.ComplexityRoot.BacktestEquityPoint.AssetPoints == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestEquityPoint.AssetPoints(childComplexity), true
+	case "BacktestEquityPoint.netValue":
+		if e.ComplexityRoot.BacktestEquityPoint.NetValue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestEquityPoint.NetValue(childComplexity), true
+	case "BacktestEquityPoint.symbolPoints":
+		if e.ComplexityRoot.BacktestEquityPoint.SymbolPoints == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestEquityPoint.SymbolPoints(childComplexity), true
+	case "BacktestEquityPoint.ts":
+		if e.ComplexityRoot.BacktestEquityPoint.Ts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestEquityPoint.Ts(childComplexity), true
+
 	case "BacktestResultData.equity":
 		if e.ComplexityRoot.BacktestResultData.Equity == nil {
 			break
@@ -2094,6 +2161,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.BacktestResultData.Fills(childComplexity), true
+	case "BacktestResultData.ledgers":
+		if e.ComplexityRoot.BacktestResultData.Ledgers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestResultData.Ledgers(childComplexity), true
 	case "BacktestResultData.metaJson":
 		if e.ComplexityRoot.BacktestResultData.MetaJSON == nil {
 			break
@@ -2112,6 +2185,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.BacktestResultData.Symbols(childComplexity), true
+
+	case "BacktestSymbolSeriesPoint.avgPx":
+		if e.ComplexityRoot.BacktestSymbolSeriesPoint.AvgPx == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestSymbolSeriesPoint.AvgPx(childComplexity), true
+	case "BacktestSymbolSeriesPoint.baseQty":
+		if e.ComplexityRoot.BacktestSymbolSeriesPoint.BaseQty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestSymbolSeriesPoint.BaseQty(childComplexity), true
+	case "BacktestSymbolSeriesPoint.exchange":
+		if e.ComplexityRoot.BacktestSymbolSeriesPoint.Exchange == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestSymbolSeriesPoint.Exchange(childComplexity), true
+	case "BacktestSymbolSeriesPoint.posQty":
+		if e.ComplexityRoot.BacktestSymbolSeriesPoint.PosQty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestSymbolSeriesPoint.PosQty(childComplexity), true
+	case "BacktestSymbolSeriesPoint.symbol":
+		if e.ComplexityRoot.BacktestSymbolSeriesPoint.Symbol == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BacktestSymbolSeriesPoint.Symbol(childComplexity), true
 
 	case "Balance.assets":
 		if e.ComplexityRoot.Balance.Assets == nil {
@@ -7062,6 +7166,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SymbolSummary.Exchange(childComplexity), true
+	case "SymbolSummary.feesInBase":
+		if e.ComplexityRoot.SymbolSummary.FeesInBase == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SymbolSummary.FeesInBase(childComplexity), true
 	case "SymbolSummary.finalBase":
 		if e.ComplexityRoot.SymbolSummary.FinalBase == nil {
 			break
@@ -7406,6 +7516,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputArchiveDocumentInput,
 		ec.unmarshalInputBacktestAssetInput,
 		ec.unmarshalInputBacktestExchangeInput,
+		ec.unmarshalInputBacktestInitialAssetInput,
 		ec.unmarshalInputBacktestSignalInput,
 		ec.unmarshalInputBacktestSymbolInput,
 		ec.unmarshalInputCancelOrderInput,
@@ -12140,6 +12251,229 @@ func (ec *executionContext) fieldContext_AssetSnapshotHistoryPoint_total(_ conte
 	return fc, nil
 }
 
+func (ec *executionContext) _BacktestAssetSeriesPoint_asset(ctx context.Context, field graphql.CollectedField, obj *model.BacktestAssetSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestAssetSeriesPoint_asset,
+		func(ctx context.Context) (any, error) {
+			return obj.Asset, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestAssetSeriesPoint_asset(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestAssetSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestAssetSeriesPoint_netValue(ctx context.Context, field graphql.CollectedField, obj *model.BacktestAssetSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestAssetSeriesPoint_netValue,
+		func(ctx context.Context) (any, error) {
+			return obj.NetValue, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestAssetSeriesPoint_netValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestAssetSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestAssetSeriesPoint_qty(ctx context.Context, field graphql.CollectedField, obj *model.BacktestAssetSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestAssetSeriesPoint_qty,
+		func(ctx context.Context) (any, error) {
+			return obj.Qty, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestAssetSeriesPoint_qty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestAssetSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestEquityPoint_ts(ctx context.Context, field graphql.CollectedField, obj *model.BacktestEquityPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestEquityPoint_ts,
+		func(ctx context.Context) (any, error) {
+			return obj.Ts, nil
+		},
+		nil,
+		ec.marshalNInt2int,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestEquityPoint_ts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestEquityPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestEquityPoint_netValue(ctx context.Context, field graphql.CollectedField, obj *model.BacktestEquityPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestEquityPoint_netValue,
+		func(ctx context.Context) (any, error) {
+			return obj.NetValue, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestEquityPoint_netValue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestEquityPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestEquityPoint_assetPoints(ctx context.Context, field graphql.CollectedField, obj *model.BacktestEquityPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestEquityPoint_assetPoints,
+		func(ctx context.Context) (any, error) {
+			return obj.AssetPoints, nil
+		},
+		nil,
+		ec.marshalNBacktestAssetSeriesPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetSeriesPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestEquityPoint_assetPoints(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestEquityPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "asset":
+				return ec.fieldContext_BacktestAssetSeriesPoint_asset(ctx, field)
+			case "netValue":
+				return ec.fieldContext_BacktestAssetSeriesPoint_netValue(ctx, field)
+			case "qty":
+				return ec.fieldContext_BacktestAssetSeriesPoint_qty(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BacktestAssetSeriesPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestEquityPoint_symbolPoints(ctx context.Context, field graphql.CollectedField, obj *model.BacktestEquityPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestEquityPoint_symbolPoints,
+		func(ctx context.Context) (any, error) {
+			return obj.SymbolPoints, nil
+		},
+		nil,
+		ec.marshalNBacktestSymbolSeriesPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolSeriesPointᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestEquityPoint_symbolPoints(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestEquityPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "exchange":
+				return ec.fieldContext_BacktestSymbolSeriesPoint_exchange(ctx, field)
+			case "symbol":
+				return ec.fieldContext_BacktestSymbolSeriesPoint_symbol(ctx, field)
+			case "baseQty":
+				return ec.fieldContext_BacktestSymbolSeriesPoint_baseQty(ctx, field)
+			case "posQty":
+				return ec.fieldContext_BacktestSymbolSeriesPoint_posQty(ctx, field)
+			case "avgPx":
+				return ec.fieldContext_BacktestSymbolSeriesPoint_avgPx(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type BacktestSymbolSeriesPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _BacktestResultData_symbols(ctx context.Context, field graphql.CollectedField, obj *model.BacktestResultData) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12212,6 +12546,8 @@ func (ec *executionContext) fieldContext_BacktestResultData_symbols(_ context.Co
 				return ec.fieldContext_SymbolSummary_longTrades(ctx, field)
 			case "shortTrades":
 				return ec.fieldContext_SymbolSummary_shortTrades(ctx, field)
+			case "feesInBase":
+				return ec.fieldContext_SymbolSummary_feesInBase(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type SymbolSummary", field.Name)
 		},
@@ -12229,7 +12565,7 @@ func (ec *executionContext) _BacktestResultData_equity(ctx context.Context, fiel
 			return obj.Equity, nil
 		},
 		nil,
-		ec.marshalNEquity2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐEquityᚄ,
+		ec.marshalNBacktestEquityPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestEquityPointᚄ,
 		true,
 		true,
 	)
@@ -12243,20 +12579,75 @@ func (ec *executionContext) fieldContext_BacktestResultData_equity(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "id":
-				return ec.fieldContext_Equity_id(ctx, field)
-			case "accountId":
-				return ec.fieldContext_Equity_accountId(ctx, field)
 			case "ts":
-				return ec.fieldContext_Equity_ts(ctx, field)
-			case "notional":
-				return ec.fieldContext_Equity_notional(ctx, field)
-			case "unRealizedProfit":
-				return ec.fieldContext_Equity_unRealizedProfit(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Equity_createdAt(ctx, field)
+				return ec.fieldContext_BacktestEquityPoint_ts(ctx, field)
+			case "netValue":
+				return ec.fieldContext_BacktestEquityPoint_netValue(ctx, field)
+			case "assetPoints":
+				return ec.fieldContext_BacktestEquityPoint_assetPoints(ctx, field)
+			case "symbolPoints":
+				return ec.fieldContext_BacktestEquityPoint_symbolPoints(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Equity", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type BacktestEquityPoint", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestResultData_ledgers(ctx context.Context, field graphql.CollectedField, obj *model.BacktestResultData) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestResultData_ledgers,
+		func(ctx context.Context) (any, error) {
+			return obj.Ledgers, nil
+		},
+		nil,
+		ec.marshalNLedger2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐLedgerᚄ,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestResultData_ledgers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestResultData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Ledger_id(ctx, field)
+			case "accountId":
+				return ec.fieldContext_Ledger_accountId(ctx, field)
+			case "exchange":
+				return ec.fieldContext_Ledger_exchange(ctx, field)
+			case "asset":
+				return ec.fieldContext_Ledger_asset(ctx, field)
+			case "walletType":
+				return ec.fieldContext_Ledger_walletType(ctx, field)
+			case "total":
+				return ec.fieldContext_Ledger_total(ctx, field)
+			case "frozen":
+				return ec.fieldContext_Ledger_frozen(ctx, field)
+			case "totalDelta":
+				return ec.fieldContext_Ledger_totalDelta(ctx, field)
+			case "frozenDelta":
+				return ec.fieldContext_Ledger_frozenDelta(ctx, field)
+			case "type":
+				return ec.fieldContext_Ledger_type(ctx, field)
+			case "detail":
+				return ec.fieldContext_Ledger_detail(ctx, field)
+			case "isEffective":
+				return ec.fieldContext_Ledger_isEffective(ctx, field)
+			case "ts":
+				return ec.fieldContext_Ledger_ts(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Ledger_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Ledger", field.Name)
 		},
 	}
 	return fc, nil
@@ -12451,6 +12842,151 @@ func (ec *executionContext) _BacktestResultData_metaJson(ctx context.Context, fi
 func (ec *executionContext) fieldContext_BacktestResultData_metaJson(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "BacktestResultData",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestSymbolSeriesPoint_exchange(ctx context.Context, field graphql.CollectedField, obj *model.BacktestSymbolSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestSymbolSeriesPoint_exchange,
+		func(ctx context.Context) (any, error) {
+			return obj.Exchange, nil
+		},
+		nil,
+		ec.marshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestSymbolSeriesPoint_exchange(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestSymbolSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Exchange does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestSymbolSeriesPoint_symbol(ctx context.Context, field graphql.CollectedField, obj *model.BacktestSymbolSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestSymbolSeriesPoint_symbol,
+		func(ctx context.Context) (any, error) {
+			return obj.Symbol, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestSymbolSeriesPoint_symbol(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestSymbolSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestSymbolSeriesPoint_baseQty(ctx context.Context, field graphql.CollectedField, obj *model.BacktestSymbolSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestSymbolSeriesPoint_baseQty,
+		func(ctx context.Context) (any, error) {
+			return obj.BaseQty, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestSymbolSeriesPoint_baseQty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestSymbolSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestSymbolSeriesPoint_posQty(ctx context.Context, field graphql.CollectedField, obj *model.BacktestSymbolSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestSymbolSeriesPoint_posQty,
+		func(ctx context.Context) (any, error) {
+			return obj.PosQty, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestSymbolSeriesPoint_posQty(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestSymbolSeriesPoint",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BacktestSymbolSeriesPoint_avgPx(ctx context.Context, field graphql.CollectedField, obj *model.BacktestSymbolSeriesPoint) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_BacktestSymbolSeriesPoint_avgPx,
+		func(ctx context.Context) (any, error) {
+			return obj.AvgPx, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_BacktestSymbolSeriesPoint_avgPx(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BacktestSymbolSeriesPoint",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -34725,6 +35261,8 @@ func (ec *executionContext) fieldContext_RunBacktestResponse_data(_ context.Cont
 				return ec.fieldContext_BacktestResultData_symbols(ctx, field)
 			case "equity":
 				return ec.fieldContext_BacktestResultData_equity(ctx, field)
+			case "ledgers":
+				return ec.fieldContext_BacktestResultData_ledgers(ctx, field)
 			case "orders":
 				return ec.fieldContext_BacktestResultData_orders(ctx, field)
 			case "fills":
@@ -38102,6 +38640,35 @@ func (ec *executionContext) fieldContext_SymbolSummary_shortTrades(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _SymbolSummary_feesInBase(ctx context.Context, field graphql.CollectedField, obj *model.SymbolSummary) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		ec.fieldContext_SymbolSummary_feesInBase,
+		func(ctx context.Context) (any, error) {
+			return obj.FeesInBase, nil
+		},
+		nil,
+		ec.marshalNString2string,
+		true,
+		true,
+	)
+}
+
+func (ec *executionContext) fieldContext_SymbolSummary_feesInBase(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SymbolSummary",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TestExtractResult_filtered(ctx context.Context, field graphql.CollectedField, obj *model.TestExtractResult) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -40770,6 +41337,57 @@ func (ec *executionContext) unmarshalInputBacktestExchangeInput(ctx context.Cont
 				return it, err
 			}
 			it.Assets = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputBacktestInitialAssetInput(ctx context.Context, obj any) (model.BacktestInitialAssetInput, error) {
+	var it model.BacktestInitialAssetInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"asset", "walletType", "total", "frozen"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "asset":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("asset"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Asset = data
+		case "walletType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("walletType"))
+			data, err := ec.unmarshalNWalletType2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐWalletType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WalletType = data
+		case "total":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("total"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Total = data
+		case "frozen":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("frozen"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Frozen = data
 		}
 	}
 	return it, nil
@@ -44602,7 +45220,7 @@ func (ec *executionContext) unmarshalInputRunBacktestInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"strategy", "strategyId", "version", "runType", "startTime", "endTime", "symbols", "params", "signals"}
+	fieldsInOrder := [...]string{"strategy", "strategyId", "version", "runType", "startTime", "endTime", "exchange", "symbols", "initialAssets", "params", "signals"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -44651,13 +45269,27 @@ func (ec *executionContext) unmarshalInputRunBacktestInput(ctx context.Context, 
 				return it, err
 			}
 			it.EndTime = data
+		case "exchange":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("exchange"))
+			data, err := ec.unmarshalNExchange2githubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋtypesᚐExchange(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Exchange = data
 		case "symbols":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("symbols"))
-			data, err := ec.unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInputᚄ(ctx, v)
+			data, err := ec.unmarshalNString2ᚕstringᚄ(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.Symbols = data
+		case "initialAssets":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("initialAssets"))
+			data, err := ec.unmarshalNBacktestInitialAssetInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestInitialAssetInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.InitialAssets = data
 		case "params":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("params"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -46894,6 +47526,109 @@ func (ec *executionContext) _AssetSnapshotHistoryPoint(ctx context.Context, sel 
 	return out
 }
 
+var backtestAssetSeriesPointImplementors = []string{"BacktestAssetSeriesPoint"}
+
+func (ec *executionContext) _BacktestAssetSeriesPoint(ctx context.Context, sel ast.SelectionSet, obj *model.BacktestAssetSeriesPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, backtestAssetSeriesPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BacktestAssetSeriesPoint")
+		case "asset":
+			out.Values[i] = ec._BacktestAssetSeriesPoint_asset(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "netValue":
+			out.Values[i] = ec._BacktestAssetSeriesPoint_netValue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "qty":
+			out.Values[i] = ec._BacktestAssetSeriesPoint_qty(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var backtestEquityPointImplementors = []string{"BacktestEquityPoint"}
+
+func (ec *executionContext) _BacktestEquityPoint(ctx context.Context, sel ast.SelectionSet, obj *model.BacktestEquityPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, backtestEquityPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BacktestEquityPoint")
+		case "ts":
+			out.Values[i] = ec._BacktestEquityPoint_ts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "netValue":
+			out.Values[i] = ec._BacktestEquityPoint_netValue(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "assetPoints":
+			out.Values[i] = ec._BacktestEquityPoint_assetPoints(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "symbolPoints":
+			out.Values[i] = ec._BacktestEquityPoint_symbolPoints(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var backtestResultDataImplementors = []string{"BacktestResultData"}
 
 func (ec *executionContext) _BacktestResultData(ctx context.Context, sel ast.SelectionSet, obj *model.BacktestResultData) graphql.Marshaler {
@@ -46915,12 +47650,76 @@ func (ec *executionContext) _BacktestResultData(ctx context.Context, sel ast.Sel
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "ledgers":
+			out.Values[i] = ec._BacktestResultData_ledgers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "orders":
 			out.Values[i] = ec._BacktestResultData_orders(ctx, field, obj)
 		case "fills":
 			out.Values[i] = ec._BacktestResultData_fills(ctx, field, obj)
 		case "metaJson":
 			out.Values[i] = ec._BacktestResultData_metaJson(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.ProcessDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var backtestSymbolSeriesPointImplementors = []string{"BacktestSymbolSeriesPoint"}
+
+func (ec *executionContext) _BacktestSymbolSeriesPoint(ctx context.Context, sel ast.SelectionSet, obj *model.BacktestSymbolSeriesPoint) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, backtestSymbolSeriesPointImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BacktestSymbolSeriesPoint")
+		case "exchange":
+			out.Values[i] = ec._BacktestSymbolSeriesPoint_exchange(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "symbol":
+			out.Values[i] = ec._BacktestSymbolSeriesPoint_symbol(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "baseQty":
+			out.Values[i] = ec._BacktestSymbolSeriesPoint_baseQty(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "posQty":
+			out.Values[i] = ec._BacktestSymbolSeriesPoint_posQty(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "avgPx":
+			out.Values[i] = ec._BacktestSymbolSeriesPoint_avgPx(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -55076,6 +55875,11 @@ func (ec *executionContext) _SymbolSummary(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "feesInBase":
+			out.Values[i] = ec._SymbolSummary_feesInBase(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -56107,6 +56911,78 @@ func (ec *executionContext) unmarshalNBacktestAssetInput2ᚖgithubᚗcomᚋwangl
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNBacktestAssetSeriesPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetSeriesPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BacktestAssetSeriesPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBacktestAssetSeriesPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetSeriesPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBacktestAssetSeriesPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestAssetSeriesPoint(ctx context.Context, sel ast.SelectionSet, v *model.BacktestAssetSeriesPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BacktestAssetSeriesPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNBacktestEquityPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestEquityPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BacktestEquityPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBacktestEquityPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestEquityPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBacktestEquityPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestEquityPoint(ctx context.Context, sel ast.SelectionSet, v *model.BacktestEquityPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BacktestEquityPoint(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNBacktestInitialAssetInput2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestInitialAssetInputᚄ(ctx context.Context, v any) ([]*model.BacktestInitialAssetInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.BacktestInitialAssetInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNBacktestInitialAssetInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestInitialAssetInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNBacktestInitialAssetInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestInitialAssetInput(ctx context.Context, v any) (*model.BacktestInitialAssetInput, error) {
+	res, err := ec.unmarshalInputBacktestInitialAssetInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNBacktestResultData2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestResultData(ctx context.Context, sel ast.SelectionSet, v *model.BacktestResultData) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -56140,6 +57016,32 @@ func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚕᚖgithubᚗcomᚋw
 func (ec *executionContext) unmarshalNBacktestSymbolInput2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolInput(ctx context.Context, v any) (*model.BacktestSymbolInput, error) {
 	res, err := ec.unmarshalInputBacktestSymbolInput(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBacktestSymbolSeriesPoint2ᚕᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolSeriesPointᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BacktestSymbolSeriesPoint) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBacktestSymbolSeriesPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolSeriesPoint(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBacktestSymbolSeriesPoint2ᚖgithubᚗcomᚋwangliang139ᚋNovaForgeᚋserverᚋpkgᚋactionᚋmodelᚐBacktestSymbolSeriesPoint(ctx context.Context, sel ast.SelectionSet, v *model.BacktestSymbolSeriesPoint) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._BacktestSymbolSeriesPoint(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {

@@ -419,8 +419,14 @@ func (e *Entity) RunBacktest(ctx context.Context, input *stypes.RunBacktestInput
 		}
 	}
 
-	// 校验 symbols
+	// 校验 symbols 与初始资产（单交易所 + 共享资金池）
+	if input.Exchange == "" && len(input.Symbols) > 0 && input.Symbols[0] != nil {
+		input.Exchange = input.Symbols[0].Exchange
+	}
 	if err := backtest.ValidateSingleExchangeSymbols(input.Symbols); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if err := backtest.ValidateInitialAssetsForSymbols(input.Exchange, input.Symbols, input.InitialAssets); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	exSymbolSet := make(map[ctypes.ExSymbolKey]*stypes.BacktestSymbol)
@@ -448,13 +454,18 @@ func (e *Entity) RunBacktest(ctx context.Context, input *stypes.RunBacktestInput
 	log.Info().Interface("sources", sources).Msg("strategy backtest sources")
 
 	config := stypes.BacktestConfig{
-		StartTime:    input.StartTime,
-		EndTime:      input.EndTime,
-		Symbols:      input.Symbols,
-		Sources:      sources,
-		Params:       params,
-		BaseCurrency: e.cfg.BaseCurrency, // 默认使用 USDT
-		BaseExchange: e.cfg.BaseExchange, // 默认使用 Binance
+		StartTime:     input.StartTime,
+		EndTime:       input.EndTime,
+		Exchange:      input.Exchange,
+		Symbols:       input.Symbols,
+		InitialAssets: input.InitialAssets,
+		Sources:       sources,
+		Params:        params,
+		BaseCurrency: e.cfg.BaseCurrency,
+		BaseExchange: input.Exchange,
+	}
+	if config.BaseExchange == "" {
+		config.BaseExchange = e.cfg.BaseExchange
 	}
 
 	executor, err := backtest.NewBacktestExecutor(strategy, input.Context, config,

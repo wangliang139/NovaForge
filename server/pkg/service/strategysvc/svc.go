@@ -538,12 +538,14 @@ func (s *Service) RunBacktest(ctx context.Context, req *stypes.RunBacktestReques
 			StrategyID:  strategyID,
 			StrategyVer: version,
 		},
-		StartTime: time.Unix(req.StartTime, 0),
-		EndTime:   time.Unix(req.EndTime, 0),
-		Symbols:   req.Symbols,
-		Signals:   req.Signals,
-		Params:    params,
-		Strategy:  strategy,
+		StartTime:     time.Unix(req.StartTime, 0),
+		EndTime:       time.Unix(req.EndTime, 0),
+		Exchange:      req.Exchange,
+		Symbols:       req.Symbols,
+		InitialAssets: req.InitialAssets,
+		Signals:       req.Signals,
+		Params:        params,
+		Strategy:      strategy,
 	}
 
 	result, err := entity.Strategy.RunBacktest(ctx, input)

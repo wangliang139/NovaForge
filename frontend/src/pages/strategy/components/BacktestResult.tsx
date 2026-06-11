@@ -1,5 +1,8 @@
+import { MarketType } from '@/global.types';
+import LedgersTable from '@/components/Market/LedgersTable';
 import OrdersTable from '@/components/Market/OrdersTable';
 import { queryKline } from '@/pages/exchange/service';
+import { Ledger, OrderSource } from '@/services/gateway/account';
 import { Kline } from '@/services/gateway/market';
 import {
   ConsoleLog,
@@ -8,9 +11,11 @@ import {
   SignalType,
   SymbolSummary,
   Fill,
+  BacktestSymbolSeriesPoint,
 } from '@/services/gateway/strategy';
 import {
   Card,
+  Checkbox,
   Col,
   Descriptions,
   Empty,
@@ -21,14 +26,15 @@ import {
   Table,
   Tabs,
   Tag,
+  theme,
   Typography,
 } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import utils from '@/utils';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   Tooltip as RechartsTooltip,
@@ -37,6 +43,8 @@ import {
   YAxis,
 } from 'recharts';
 import { KlineChart, KlineMarker } from '../../../components/Market/KlineChart';
+import { getTradeSideColor, getTradeSideLabel, isOpeningTradeSide } from '@/utils/orderSide';
+import utils from '@/utils';
 
 type BacktestResultProps = {
   value: RunBacktestResponse;
@@ -45,15 +53,45 @@ type BacktestResultProps = {
 const defaultPrecision = 8;
 const maxKlineBars = 1000;
 
+const ASSET_SERIES_COLORS = [
+  '#0ea5e9',
+  '#10b981',
+  '#f59e0b',
+  '#e11d48',
+  '#64748b',
+  '#14b8a6',
+];
+
+const symbolSeriesKey = (sp: Pick<BacktestSymbolSeriesPoint, 'exchange' | 'symbol'>) =>
+  `${sp.exchange}-${sp.symbol}`;
+
+const chartDataKeyForAsset = (asset: string) => `asset_${asset}`;
+
 const toMsIfSeconds = (ts: number) => (ts < 1e12 ? ts * 1000 : ts);
 
 const safeFixed = (value: string | number | undefined, precision = defaultPrecision) => {
   const n = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(n)) return '-';
-  return n.toFixed(precision);
+  return utils.math.formatByPrecision(n, precision);
 };
 
 const isNonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+
+const getSymbolMarketType = (symbol: string): MarketType => {
+  const idx = symbol.lastIndexOf(':');
+  if (idx >= 0) {
+    const t = symbol.slice(idx + 1).toLowerCase();
+    if (t === MarketType.Future) return MarketType.Future;
+    if (t === MarketType.Spot) return MarketType.Spot;
+  }
+  return MarketType.Spot;
+};
+
+const isSpotSymbolSummary = (s: SymbolSummary) =>
+  getSymbolMarketType(s.symbol) === MarketType.Spot;
+
+const isFutureSymbolSummary = (s: SymbolSummary) =>
+  getSymbolMarketType(s.symbol) === MarketType.Future;
 
 const intervalToSeconds = (interval: string): number | undefined => {
   const n = Number.parseFloat(interval);
@@ -152,24 +190,62 @@ const getSignalIntervalForSymbol = (
 };
 
 const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
-  const formatedEquityData = useMemo(() => {
-    if (!value) {
-      return [];
+  const { token } = theme.useToken();
+
+  const assetSeriesList = useMemo(() => {
+    const assets = new Set<string>();
+    for (const point of value?.data?.equity ?? []) {
+      for (const ap of point.assetPoints ?? []) {
+        if (ap.asset) {
+          assets.add(ap.asset);
+        }
+      }
     }
+    return Array.from(assets)
+      .sort((a, b) => a.localeCompare(b))
+      .map((asset) => ({ key: asset, label: asset }));
+  }, [value?.data?.equity]);
+
+  const [visibleAssetSeries, setVisibleAssetSeries] = useState<string[]>([]);
+
+  useEffect(() => {
+    setVisibleAssetSeries(assetSeriesList.map((s) => s.key));
+  }, [assetSeriesList]);
+
+  const equityTimeFormat = useMemo(() => {
     const duration = dayjs(toMsIfSeconds(value.endTime)).diff(
       dayjs(toMsIfSeconds(value.startTime)),
       'second',
     );
-    let format = 'MM-DD HH:mm:ss';
-    if (duration > 60 * 5) {
-      format = 'MM-DD HH:mm';
+    return duration > 60 * 5 ? 'MM-DD HH:mm' : 'MM-DD HH:mm:ss';
+  }, [value.endTime, value.startTime]);
+
+  const formatedEquityData = useMemo(() => {
+    if (!value?.data?.equity?.length) {
+      return [];
     }
-    return value.data.equity.map((point) => ({
-      ts: point.ts,
-      netValue: parseFloat(point.netValue),
-      time: dayjs(toMsIfSeconds(point.ts)).format(format),
-    }));
-  }, [value]);
+    return value.data.equity.map((point) => {
+      const row: Record<string, number | string> = {
+        ts: point.ts,
+        netValue: parseFloat(point.netValue),
+        time: dayjs(toMsIfSeconds(point.ts)).format(equityTimeFormat),
+      };
+      for (const ap of point.assetPoints ?? []) {
+        if (!ap.asset) continue;
+        row[chartDataKeyForAsset(ap.asset)] = parseFloat(ap.netValue);
+      }
+      return row;
+    });
+  }, [value?.data?.equity, equityTimeFormat]);
+
+  const backtestOrders = useMemo(
+    () =>
+      (value?.data?.orders ?? []).map((order) => ({
+        ...order,
+        source: order.source || OrderSource.Strategy,
+      })),
+    [value?.data?.orders],
+  );
 
   const equityYDomain = useMemo(() => {
     if (!formatedEquityData.length) {
@@ -177,10 +253,17 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
     }
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
+    const consider = (v: unknown) => {
+      const n = typeof v === 'number' ? v : Number(v);
+      if (!Number.isFinite(n)) return;
+      if (n < min) min = n;
+      if (n > max) max = n;
+    };
     for (const p of formatedEquityData) {
-      if (!Number.isFinite(p.netValue)) continue;
-      if (p.netValue < min) min = p.netValue;
-      if (p.netValue > max) max = p.netValue;
+      consider(p.netValue);
+      for (const assetKey of visibleAssetSeries) {
+        consider(p[chartDataKeyForAsset(assetKey)]);
+      }
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) {
       return undefined;
@@ -188,14 +271,69 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
     const range = max - min;
     const padding = range === 0 ? Math.abs(min) * 0.1 || 1 : range * 0.1;
     return [min - padding, max + padding] as [number, number];
-  }, [formatedEquityData]);
+  }, [formatedEquityData, visibleAssetSeries]);
+
+  const backtestLedgers = useMemo((): Ledger[] => {
+    return (value?.data?.ledgers ?? []).map((item) => ({
+      ...item,
+      detail: typeof item.detail === 'string' ? item.detail : JSON.stringify(item.detail ?? {}),
+    }));
+  }, [value?.data?.ledgers]);
+
+  const positionSeriesBySymbolKey = useMemo(() => {
+    const map: Record<
+      string,
+      { ts: number; time: string; posQty: number; avgPx: number }[]
+    > = {};
+    for (const s of value?.data?.symbols ?? []) {
+      if (!isFutureSymbolSummary(s)) continue;
+      const key = `${s.exchange}-${s.symbol}`;
+      map[key] = [];
+    }
+    for (const point of value?.data?.equity ?? []) {
+      const time = dayjs(toMsIfSeconds(point.ts)).format(equityTimeFormat);
+      for (const sp of point.symbolPoints ?? []) {
+        const key = symbolSeriesKey(sp);
+        if (!map[key]) continue;
+        map[key].push({
+          ts: point.ts,
+          time,
+          posQty: parseFloat(sp.posQty),
+          avgPx: parseFloat(sp.avgPx),
+        });
+      }
+    }
+    return map;
+  }, [value?.data?.equity, value?.data?.symbols, equityTimeFormat]);
+
+  const baseAssetSeriesBySymbolKey = useMemo(() => {
+    const map: Record<string, { ts: number; time: string; baseQty: number }[]> = {};
+    for (const s of value?.data?.symbols ?? []) {
+      if (!isSpotSymbolSummary(s)) continue;
+      const key = `${s.exchange}-${s.symbol}`;
+      map[key] = [];
+    }
+    for (const point of value?.data?.equity ?? []) {
+      const time = dayjs(toMsIfSeconds(point.ts)).format(equityTimeFormat);
+      for (const sp of point.symbolPoints ?? []) {
+        const key = symbolSeriesKey(sp);
+        if (!map[key]) continue;
+        map[key].push({
+          ts: point.ts,
+          time,
+          baseQty: parseFloat(sp.baseQty),
+        });
+      }
+    }
+    return map;
+  }, [value?.data?.equity, value?.data?.symbols, equityTimeFormat]);
 
   const consoleColumns: ColumnsType<ConsoleLog> = [
     {
       title: '时间',
       dataIndex: 'ts',
       width: 220,
-      render: (ts: number) => dayjs(ts).format('YYYY-MM-DD HH:mm:ss.SSS'),
+      render: (ts: number) => dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss.SSS'),
     },
     {
       title: '级别',
@@ -236,26 +374,26 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
     },
   ];
 
-  const calcFee = (fill?: Fill): { fee: number; asset: string } | undefined => {
-    if (!fill) return undefined;
-    const feeNum = Number(fill.fee);
-    if (!Number.isFinite(feeNum)) return undefined;
-
-    const symbol = utils.market.parseSymbol(fill.symbol);
-    const priceNum = Number(fill.price);
-
-    // 默认按 fill.asset 计费；如果 fee 以 base 资产计，则折算到 quote（与原先展示逻辑一致）
-    if (symbol.base === fill.asset) {
-      if (!Number.isFinite(priceNum)) return undefined;
-      return { fee: feeNum * priceNum, asset: symbol.quote };
-    }
-    return { fee: feeNum, asset: fill.asset };
+  const renderRawFee = (fill?: Fill) => {
+    const feeNum = Number(fill?.fee);
+    if (!Number.isFinite(feeNum)) return '-';
+    const asset = isNonEmptyString(fill?.asset) ? fill.asset : '-';
+    return `${safeFixed(feeNum)}(${asset})`;
   };
 
-  const renderFee = (fill?: Fill) => {
-    const r = calcFee(fill);
-    if (!r) return '-';
-    return `${safeFixed(r.fee)}(${r.asset})`;
+  const renderRealizedPnl = (fill?: Fill) => {
+    if (!fill) return '-';
+    if (isOpeningTradeSide(fill)) {
+      return <Typography.Text type="secondary">--</Typography.Text>;
+    }
+    const pnl = Number(fill.realizedPnl);
+    if (!Number.isFinite(pnl)) return '-';
+    return (
+      <span style={{ color: pnl >= 0 ? '#52c41a' : '#ff4d4f' }}>
+        {pnl >= 0 ? '+' : ''}
+        {safeFixed(pnl)}
+      </span>
+    );
   };
 
   const getFeeInBase = (fill?: Fill): { fee: number; asset: string } | undefined => {
@@ -265,21 +403,6 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
     if (!Number.isFinite(feeNum)) return undefined;
     const asset = isNonEmptyString(fill.numeraire) ? fill.numeraire : 'USDT';
     return { fee: feeNum, asset };
-  };
-
-  const renderFeeInBase = (fill?: Fill) => {
-    const r = getFeeInBase(fill);
-    if (!r) return '-';
-    return <Typography.Text type="secondary">{`${safeFixed(r.fee)}`}</Typography.Text>;
-  };
-
-  const calcRealizedNet = (fill?: Fill): { pnl: number; asset: string } | undefined => {
-    if (!fill) return undefined;
-    const realized = Number(fill.realizedPnl);
-    if (!Number.isFinite(realized)) return undefined;
-    const feeInBase = getFeeInBase(fill);
-    if (!feeInBase) return undefined;
-    return { pnl: realized - feeInBase.fee, asset: feeInBase.asset };
   };
 
   const fillColumns: ColumnsType<Fill> = [
@@ -300,23 +423,24 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
     },
     {
       title: '方向',
-      dataIndex: 'isBuy',
+      dataIndex: 'side',
+      align: 'center',
       width: 80,
-      render: (isBuy?: boolean) => (
-        <Tag color={isBuy ? 'green' : 'red'}>{isBuy ? '买入' : '卖出'}</Tag>
+      render: (_: unknown, record: Fill) => (
+        <Tag color={getTradeSideColor(record)}>{getTradeSideLabel(record)}</Tag>
       ),
     },
     {
       title: '价格',
       dataIndex: 'price',
       width: 120,
-      render: (price?: string) => (price ? parseFloat(price).toFixed(defaultPrecision) : '-'),
+      render: (price?: string) => (price ? utils.math.formatByPrecision(price, defaultPrecision) : '-'),
     },
     {
       title: '数量',
       dataIndex: 'qty',
       width: 120,
-      render: (qty?: string) => (qty ? parseFloat(qty).toFixed(defaultPrecision) : '-'),
+      render: (qty?: string) => (qty ? utils.math.formatByPrecision(qty, defaultPrecision) : '-'),
     },
     {
       title: '金额',
@@ -330,25 +454,16 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
       },
     },
     {
-      title: '手续费(计价)',
-      dataIndex: 'feeInBase',
-      width: 150,
-      render: (_: string, record?: Fill) => renderFeeInBase(record),
+      title: '手续费',
+      dataIndex: 'fee',
+      width: 160,
+      render: (_: string, record?: Fill) => renderRawFee(record),
     },
     {
-      title: '已实现盈亏(计价)',
-      dataIndex: 'realizedPnlNet',
+      title: '已实现盈亏',
+      dataIndex: 'realizedPnl',
       width: 150,
-      render: (_: string, record?: Fill) => {
-        const r = calcRealizedNet(record);
-        if (!r) return '-';
-        return (
-          <span style={{ color: r.pnl >= 0 ? '#52c41a' : '#ff4d4f' }}>
-            {r.pnl >= 0 ? '+' : ''}
-            {safeFixed(r.pnl)}
-          </span>
-        );
-      },
+      render: (_: string, record?: Fill) => renderRealizedPnl(record),
     },
     {
       title: '时间',
@@ -357,7 +472,8 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
       sorter: (a, b) => (a.ts ?? 0) - (b.ts ?? 0),
       defaultSortOrder: 'ascend',
       sortDirections: ['ascend', 'descend'],
-      render: (ts?: number) => (ts ? dayjs(ts).format('YYYY-MM-DD HH:mm:ss.SSS') : '-'),
+      render: (ts?: number) =>
+        ts ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss.SSS') : '-',
     },
   ];
 
@@ -438,7 +554,7 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
       symbol: meta.symbol,
       exchange: meta.exchange,
       interval,
-      // RunBacktest 返回的 startTime/endTime 为 Unix 秒；Kline 接口与后端 GetHisKlines 使用毫秒
+      // RunBacktest 返回的 startTime/endTime 为 Unix 毫秒；Kline 接口同样使用毫秒
       startTime: toMsIfSeconds(value.startTime),
       endTime: toMsIfSeconds(value.endTime),
       limit: maxKlineBars,
@@ -502,69 +618,89 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
 
   const renderSymbolDescriptions = (s: SymbolSummary) => {
     const pnlColor = (pnl: string) => (Number(pnl) >= 0 ? '#52c41a' : '#ff4d4f');
-    const key = `${s.exchange}-${s.symbol}`;
-    const fills = fillsBySymbolKey[key] || [];
-
-    const feeInBaseByAsset: Record<string, number> = {};
-    for (const t of fills) {
-      const r = getFeeInBase(t);
-      if (!r) continue;
-      feeInBaseByAsset[r.asset] = (feeInBaseByAsset[r.asset] || 0) + r.fee;
-    }
-    const feeInBaseText = Object.entries(feeInBaseByAsset)
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([asset, total]) => `${safeFixed(total)}(${asset})`)
-      .join(' / ');
-
-    // 在只有一个计价货币时给出“含手续费”的已实现净盈亏（最常见是 USDT）
-    const feeAssets = Object.keys(feeInBaseByAsset);
-    const realizedNet =
-      feeAssets.length === 1
-        ? Number(s.realizedPnl) - (feeInBaseByAsset[feeAssets[0]] || 0)
-        : undefined;
+    const isSpot = isSpotSymbolSummary(s);
+    const isFuture = isFutureSymbolSummary(s);
 
     return (
       <Descriptions size="small" bordered column={3} styles={{ label: { width: 120 } }}>
         <Descriptions.Item label="交易对">{s.symbol}</Descriptions.Item>
 
-        <Descriptions.Item label="初始基础资产">{safeFixed(s.initialBase)}</Descriptions.Item>
+        {!isFuture && (
+          <Descriptions.Item label="初始基础资产">{safeFixed(s.initialBase)}</Descriptions.Item>
+        )}
         <Descriptions.Item label="初始计价资产">{safeFixed(s.initialQuote)}</Descriptions.Item>
         <Descriptions.Item label="初始净值">{safeFixed(s.initialNet)}</Descriptions.Item>
 
-        <Descriptions.Item label="最终基础资产">{safeFixed(s.finalBase)}</Descriptions.Item>
+        {!isFuture && (
+          <Descriptions.Item label="最终基础资产">{safeFixed(s.finalBase)}</Descriptions.Item>
+        )}
         <Descriptions.Item label="最终计价资产">{safeFixed(s.finalQuote)}</Descriptions.Item>
         <Descriptions.Item label="最终净值">{safeFixed(s.finalNet)}</Descriptions.Item>
 
-        <Descriptions.Item label="平均价格">{safeFixed(s.avgPrice)}</Descriptions.Item>
+        {isFuture && (
+          <Descriptions.Item label="平均价格">{safeFixed(s.avgPrice)}</Descriptions.Item>
+        )}
         <Descriptions.Item label="最新价格">{safeFixed(s.lastPrice)}</Descriptions.Item>
 
-        <Descriptions.Item label="持仓数量">{safeFixed(s.positionQty)}</Descriptions.Item>
+        {isFuture && (
+          <Descriptions.Item label="持仓数量">{safeFixed(s.positionQty)}</Descriptions.Item>
+        )}
 
-        <Descriptions.Item label="多仓成交次数">{s.longTrades || 0}</Descriptions.Item>
-        <Descriptions.Item label="空仓成交次数">{s.shortTrades || 0}</Descriptions.Item>
+        {isSpot ? (
+          <Descriptions.Item label="成交次数">{s.longTrades || 0}</Descriptions.Item>
+        ) : (
+          <>
+            <Descriptions.Item label="多仓成交次数">{s.longTrades || 0}</Descriptions.Item>
+            <Descriptions.Item label="空仓成交次数">{s.shortTrades || 0}</Descriptions.Item>
+          </>
+        )}
 
-        <Descriptions.Item label="总盈亏">
-          <span style={{ color: pnlColor(s.netPnl), fontWeight: 600 }}>
-            {Number(s.netPnl) >= 0 ? '+' : ''}
-            {safeFixed(s.netPnl)}
-          </span>
-        </Descriptions.Item>
-        <Descriptions.Item label="已实现净盈亏(含手续费)">
-          {typeof realizedNet === 'number' && Number.isFinite(realizedNet) ? (
-            <span style={{ color: realizedNet >= 0 ? '#52c41a' : '#ff4d4f' }}>
-              {realizedNet >= 0 ? '+' : ''}
-              {safeFixed(realizedNet)}
-            </span>
-          ) : (
-            <Typography.Text type="secondary">-</Typography.Text>
-          )}
-        </Descriptions.Item>
-        <Descriptions.Item label="未实现盈亏">
-          <span style={{ color: pnlColor(s.unrealizedPnl) }}>
-            {Number(s.unrealizedPnl) >= 0 ? '+' : ''}
-            {safeFixed(s.unrealizedPnl)}
-          </span>
-        </Descriptions.Item>
+        {isSpot && (
+          <Descriptions.Item label="手续费">{safeFixed(s.feesInBase)}</Descriptions.Item>
+        )}
+
+        {isFuture && (
+          <>
+            <Descriptions.Item label="总盈亏">
+              <span style={{ color: pnlColor(s.netPnl), fontWeight: 600 }}>
+                {Number(s.netPnl) >= 0 ? '+' : ''}
+                {safeFixed(s.netPnl)}
+              </span>
+            </Descriptions.Item>
+            <Descriptions.Item label="已实现净盈亏(含手续费)">
+              {(() => {
+                const key = `${s.exchange}-${s.symbol}`;
+                const fills = fillsBySymbolKey[key] || [];
+                const feeInBaseByAsset: Record<string, number> = {};
+                for (const t of fills) {
+                  const r = getFeeInBase(t);
+                  if (!r) continue;
+                  feeInBaseByAsset[r.asset] = (feeInBaseByAsset[r.asset] || 0) + r.fee;
+                }
+                const feeAssets = Object.keys(feeInBaseByAsset);
+                const realizedNet =
+                  feeAssets.length === 1
+                    ? Number(s.realizedPnl) - (feeInBaseByAsset[feeAssets[0]] || 0)
+                    : undefined;
+                if (typeof realizedNet === 'number' && Number.isFinite(realizedNet)) {
+                  return (
+                    <span style={{ color: realizedNet >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                      {realizedNet >= 0 ? '+' : ''}
+                      {safeFixed(realizedNet)}
+                    </span>
+                  );
+                }
+                return <Typography.Text type="secondary">-</Typography.Text>;
+              })()}
+            </Descriptions.Item>
+            <Descriptions.Item label="未实现盈亏">
+              <span style={{ color: pnlColor(s.unrealizedPnl) }}>
+                {Number(s.unrealizedPnl) >= 0 ? '+' : ''}
+                {safeFixed(s.unrealizedPnl)}
+              </span>
+            </Descriptions.Item>
+          </>
+        )}
       </Descriptions>
     );
   };
@@ -594,7 +730,7 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
         </Space>
         <Space>
           <span>时间：</span>
-          <span>{dayjs(marker.payload?.ts).format('MM-DD,HH:mm:ss')}</span>
+          <span>{dayjs(toMsIfSeconds(marker.payload?.ts)).format('MM-DD,HH:mm:ss')}</span>
         </Space>
       </Space>
     );
@@ -613,10 +749,10 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
                   <Card title="资金信息">
                     <Descriptions column={1} size="small">
                       <Descriptions.Item label="初始资金">
-                        {parseFloat(value.initialBalance).toFixed(defaultPrecision)}
+                        {utils.math.formatByPrecision(value.initialBalance, defaultPrecision)}
                       </Descriptions.Item>
                       <Descriptions.Item label="最终资金">
-                        {parseFloat(value.finalBalance).toFixed(defaultPrecision)}
+                        {utils.math.formatByPrecision(value.finalBalance, defaultPrecision)}
                       </Descriptions.Item>
                       <Descriptions.Item label="总盈亏">
                         <span
@@ -626,7 +762,7 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
                           }}
                         >
                           {parseFloat(value.totalPnl) >= 0 ? '+' : ''}
-                          {parseFloat(value.totalPnl).toFixed(defaultPrecision)}
+                          {utils.math.formatByPrecision(value.totalPnl, defaultPrecision)}
                         </span>
                       </Descriptions.Item>
                       <Descriptions.Item label="收益率">
@@ -679,13 +815,13 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
                     <Descriptions column={1} size="small">
                       <Descriptions.Item label="回测ID">{value.id}</Descriptions.Item>
                       <Descriptions.Item label="创建时间">
-                        {dayjs(value.createdAt).format('YYYY-MM-DD HH:mm:ss.SSS')}
+                        {dayjs(toMsIfSeconds(value.createdAt)).format('YYYY-MM-DD HH:mm:ss.SSS')}
                       </Descriptions.Item>
                       <Descriptions.Item label="开始时间">
-                        {dayjs(value.startTime).format('YYYY-MM-DD HH:mm:ss.SSS')}
+                        {dayjs(toMsIfSeconds(value.startTime)).format('YYYY-MM-DD HH:mm:ss.SSS')}
                       </Descriptions.Item>
                       <Descriptions.Item label="结束时间">
-                        {dayjs(value.endTime).format('YYYY-MM-DD HH:mm:ss.SSS')}
+                        {dayjs(toMsIfSeconds(value.endTime)).format('YYYY-MM-DD HH:mm:ss.SSS')}
                       </Descriptions.Item>
                       <Descriptions.Item label="耗时">{value.timeCost}ms</Descriptions.Item>
                     </Descriptions>
@@ -700,42 +836,85 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
           label: '净值曲线',
           children: (
             <div>
+              {assetSeriesList.length > 0 ? (
+                <div style={{ marginBottom: 12 }}>
+                  <Typography.Text type="secondary" style={{ marginRight: 12 }}>
+                    按资产叠加
+                  </Typography.Text>
+                  <Checkbox.Group
+                    value={visibleAssetSeries}
+                    onChange={(keys) => setVisibleAssetSeries(keys as string[])}
+                  >
+                    {assetSeriesList.map((s, idx) => (
+                      <Checkbox key={s.key} value={s.key}>
+                        <span style={{ color: ASSET_SERIES_COLORS[idx % ASSET_SERIES_COLORS.length] }}>
+                          {s.label}
+                        </span>
+                      </Checkbox>
+                    ))}
+                  </Checkbox.Group>
+                </div>
+              ) : null}
               {formatedEquityData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={400}>
                   <LineChart
                     data={formatedEquityData}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={token.colorBorderSecondary} />
                     <XAxis
                       dataKey="time"
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: token.colorTextSecondary }}
                       angle={-45}
                       textAnchor="end"
                       height={80}
                     />
                     <YAxis
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value: number) => value.toFixed(4)}
+                      tick={{ fontSize: 12, fill: token.colorTextSecondary }}
+                      tickFormatter={(v: number) => v.toFixed(4)}
                       domain={equityYDomain ?? ['auto', 'auto']}
                       allowDataOverflow
                     />
                     <RechartsTooltip
-                      formatter={(value: number) => value.toFixed(4)}
-                      labelFormatter={(label, payload) => {
+                      contentStyle={{
+                        backgroundColor: token.colorBgElevated,
+                        border: `1px solid ${token.colorBorderSecondary}`,
+                        borderRadius: token.borderRadiusLG,
+                        boxShadow: token.boxShadowSecondary,
+                      }}
+                      labelStyle={{ color: token.colorText, fontWeight: 500 }}
+                      itemStyle={{ color: token.colorTextSecondary }}
+                      formatter={(v: number, name: string) => [v.toFixed(4), name]}
+                      labelFormatter={(_label, payload) => {
                         const ts = payload?.[0]?.payload?.ts as number | undefined;
-                        return `时间: ${ts ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss') : '-'
-                          }`;
+                        return `时间: ${
+                          ts ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss') : '-'
+                        }`;
                       }}
                     />
+                    <Legend />
                     <Line
                       type="monotone"
                       dataKey="netValue"
-                      stroke="#1890ff"
+                      stroke={token.colorPrimary}
                       strokeWidth={2}
                       dot={false}
-                      name="净值"
+                      name="总净值"
                     />
+                    {assetSeriesList.map((s, idx) =>
+                      visibleAssetSeries.includes(s.key) ? (
+                        <Line
+                          key={s.key}
+                          type="monotone"
+                          dataKey={chartDataKeyForAsset(s.key)}
+                          stroke={ASSET_SERIES_COLORS[idx % ASSET_SERIES_COLORS.length]}
+                          strokeWidth={1.5}
+                          dot={false}
+                          strokeDasharray="4 2"
+                          name={s.label}
+                        />
+                      ) : null,
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -764,6 +943,38 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
                     const loading = loadingBySymbol[item.key];
                     const error = errorBySymbol[item.key];
                     const symbolOrders = ordersBySymbolKey[item.key] || [];
+                    const isSpot = isSpotSymbolSummary(s);
+                    const isFuture = isFutureSymbolSummary(s);
+                    const positionSeries = positionSeriesBySymbolKey[item.key] || [];
+                    const baseAssetSeries = baseAssetSeriesBySymbolKey[item.key] || [];
+                    const positionYDomain = (() => {
+                      if (!positionSeries.length) return undefined;
+                      let min = Number.POSITIVE_INFINITY;
+                      let max = Number.NEGATIVE_INFINITY;
+                      for (const p of positionSeries) {
+                        if (Number.isFinite(p.posQty)) {
+                          if (p.posQty < min) min = p.posQty;
+                          if (p.posQty > max) max = p.posQty;
+                        }
+                      }
+                      if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+                      const pad = (max - min) * 0.1 || 1;
+                      return [min - pad, max + pad] as [number, number];
+                    })();
+                    const baseAssetYDomain = (() => {
+                      if (!baseAssetSeries.length) return undefined;
+                      let min = Number.POSITIVE_INFINITY;
+                      let max = Number.NEGATIVE_INFINITY;
+                      for (const p of baseAssetSeries) {
+                        if (Number.isFinite(p.baseQty)) {
+                          if (p.baseQty < min) min = p.baseQty;
+                          if (p.baseQty > max) max = p.baseQty;
+                        }
+                      }
+                      if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
+                      const pad = (max - min) * 0.1 || 1;
+                      return [min - pad, max + pad] as [number, number];
+                    })();
                     const marks: KlineMarker[] = symbolOrders
                       .map((o: any) => {
                         const ts = o?.createdTs ?? o?.workingTs ?? o?.updatedTs;
@@ -813,6 +1024,128 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
                               </Spin>
                             </div>
                           </Card>
+                          {isSpot ? (
+                            <Card title={`资金曲线（${s.base}）`} style={{ marginTop: 16 }}>
+                              {baseAssetSeries.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={280}>
+                                  <LineChart
+                                    data={baseAssetSeries}
+                                    margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+                                  >
+                                    <CartesianGrid
+                                      strokeDasharray="3 3"
+                                      stroke={token.colorBorderSecondary}
+                                    />
+                                    <XAxis
+                                      dataKey="time"
+                                      tick={{ fontSize: 11, fill: token.colorTextSecondary }}
+                                      angle={-35}
+                                      textAnchor="end"
+                                      height={64}
+                                    />
+                                    <YAxis
+                                      tick={{ fontSize: 11, fill: token.colorTextSecondary }}
+                                      tickFormatter={(v: number) => v.toFixed(6)}
+                                      domain={baseAssetYDomain ?? ['auto', 'auto']}
+                                      allowDataOverflow
+                                    />
+                                    <RechartsTooltip
+                                      contentStyle={{
+                                        backgroundColor: token.colorBgElevated,
+                                        border: `1px solid ${token.colorBorderSecondary}`,
+                                        borderRadius: token.borderRadiusLG,
+                                      }}
+                                      formatter={(v: number, name: string) => [
+                                        Number.isFinite(v) ? v.toFixed(6) : '-',
+                                        name,
+                                      ]}
+                                      labelFormatter={(_label, payload) => {
+                                        const ts = payload?.[0]?.payload?.ts as number | undefined;
+                                        return ts
+                                          ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss')
+                                          : '-';
+                                      }}
+                                    />
+                                    <Legend />
+                                    <Line
+                                      type="monotone"
+                                      dataKey="baseQty"
+                                      stroke="#10b981"
+                                      strokeWidth={2}
+                                      dot={false}
+                                      name={s.base}
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              ) : (
+                                <Empty
+                                  description="暂无资金曲线数据"
+                                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                />
+                              )}
+                            </Card>
+                          ) : null}
+                          {isFuture ? (
+                            <Card title="仓位曲线" style={{ marginTop: 16 }}>
+                              {positionSeries.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={280}>
+                                  <LineChart
+                                    data={positionSeries}
+                                    margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+                                  >
+                                    <CartesianGrid
+                                      strokeDasharray="3 3"
+                                      stroke={token.colorBorderSecondary}
+                                    />
+                                    <XAxis
+                                      dataKey="time"
+                                      tick={{ fontSize: 11, fill: token.colorTextSecondary }}
+                                      angle={-35}
+                                      textAnchor="end"
+                                      height={64}
+                                    />
+                                    <YAxis
+                                      tick={{ fontSize: 11, fill: token.colorTextSecondary }}
+                                      tickFormatter={(v: number) => v.toFixed(6)}
+                                      domain={positionYDomain ?? ['auto', 'auto']}
+                                      allowDataOverflow
+                                    />
+                                    <RechartsTooltip
+                                      contentStyle={{
+                                        backgroundColor: token.colorBgElevated,
+                                        border: `1px solid ${token.colorBorderSecondary}`,
+                                        borderRadius: token.borderRadiusLG,
+                                      }}
+                                      formatter={(v: number, name: string) => [
+                                        Number.isFinite(v) ? v.toFixed(6) : '-',
+                                        name,
+                                      ]}
+                                      labelFormatter={(_label, payload) => {
+                                        const ts = payload?.[0]?.payload?.ts as number | undefined;
+                                        return ts
+                                          ? dayjs(toMsIfSeconds(ts)).format('YYYY-MM-DD HH:mm:ss')
+                                          : '-';
+                                      }}
+                                    />
+                                    <Legend />
+                                    <Line
+                                      type="monotone"
+                                      dataKey="posQty"
+                                      stroke="#0ea5e9"
+                                      strokeWidth={2}
+                                      dot={false}
+                                      name="持仓数量"
+                                    />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              ) : (
+                                <Empty
+                                  description="暂无仓位曲线数据"
+                                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                />
+                              )}
+                            </Card>
+                          ) : null}
                         </div>
                       ),
                     };
@@ -829,7 +1162,7 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
           label: '订单记录',
           children: (
             <OrdersTable
-              dataSource={value.data.orders || []}
+              dataSource={backtestOrders}
               pagination={{ pageSize: 50 }}
               scrollY={400}
               pricePrecision={defaultPrecision}
@@ -851,39 +1184,23 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
               summary={() => {
                 const fills = value?.data?.fills || [];
                 const feeByAsset: Record<string, number> = {};
-                const feeInBaseByAsset: Record<string, number> = {};
                 let realizedPnlSum = 0;
-                const realizedNetSumByAsset: Record<string, number> = {};
 
                 for (const t of fills) {
-                  const fee = calcFee(t);
-                  if (fee) {
-                    feeByAsset[fee.asset] = (feeByAsset[fee.asset] || 0) + fee.fee;
+                  const feeNum = Number(t?.fee);
+                  if (Number.isFinite(feeNum)) {
+                    const asset = isNonEmptyString(t?.asset) ? t.asset : '-';
+                    feeByAsset[asset] = (feeByAsset[asset] || 0) + feeNum;
                   }
-                  const feeInBase = getFeeInBase(t);
-                  if (feeInBase) {
-                    feeInBaseByAsset[feeInBase.asset] =
-                      (feeInBaseByAsset[feeInBase.asset] || 0) + feeInBase.fee;
-                  }
-
                   const pnl = Number(t?.realizedPnl);
-                  if (Number.isFinite(pnl)) realizedPnlSum += pnl;
-
-                  const pnlNet = calcRealizedNet(t);
-                  if (pnlNet) {
-                    realizedNetSumByAsset[pnlNet.asset] =
-                      (realizedNetSumByAsset[pnlNet.asset] || 0) + pnlNet.pnl;
+                  if (Number.isFinite(pnl) && !isOpeningTradeSide(t)) {
+                    realizedPnlSum += pnl;
                   }
                 }
 
-                const feeInBaseText = Object.entries(feeInBaseByAsset)
+                const feeText = Object.entries(feeByAsset)
                   .sort((a, b) => a[0].localeCompare(b[0]))
-                  .map(([asset, total]) => `${safeFixed(total)}`)
-                  .join(' / ');
-
-                const realizedNetText = Object.entries(realizedNetSumByAsset)
-                  .sort((a, b) => a[0].localeCompare(b[0]))
-                  .map(([asset, total]) => `${safeFixed(total)}`)
+                  .map(([asset, total]) => `${safeFixed(total)}(${asset})`)
                   .join(' / ');
 
                 return (
@@ -893,10 +1210,19 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
                         <Typography.Text strong>合计</Typography.Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={1}>
-                        <Typography.Text>{feeInBaseText || '-'}</Typography.Text>
+                        <Typography.Text>{feeText || '-'}</Typography.Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2}>
-                        <Typography.Text>{realizedNetText || '-'}</Typography.Text>
+                        {Number.isFinite(realizedPnlSum) ? (
+                          <Typography.Text
+                            style={{ color: realizedPnlSum >= 0 ? '#52c41a' : '#ff4d4f' }}
+                          >
+                            {realizedPnlSum >= 0 ? '+' : ''}
+                            {utils.math.formatByPrecision(realizedPnlSum, defaultPrecision)}
+                          </Typography.Text>
+                        ) : (
+                          <Typography.Text>-</Typography.Text>
+                        )}
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={3} />
                     </Table.Summary.Row>
@@ -905,6 +1231,21 @@ const BacktestResult: React.FC<BacktestResultProps> = ({ value }) => {
               }}
             />
           ),
+        },
+        {
+          key: 'ledgers',
+          label: '资金流水',
+          children:
+            backtestLedgers.length > 0 ? (
+              <LedgersTable
+                mode="account"
+                dataSource={backtestLedgers}
+                pagination={{ pageSize: 20, showSizeChanger: true }}
+                scrollY={420}
+              />
+            ) : (
+              <Empty description="暂无资金流水" />
+            ),
         },
         {
           key: 'console',

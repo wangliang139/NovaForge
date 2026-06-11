@@ -9,13 +9,15 @@ import (
 
 // BacktestConfig 回测配置
 type BacktestConfig struct {
-	StartTime    time.Time
-	EndTime      time.Time
-	Symbols      []*BacktestSymbol // 交易标的
-	Sources      []Source         // 支持多数据源
-	Params       map[string]any   // 回测参数（透传给策略）
-	BaseCurrency string           // 统一记账货币，默认 "USDT"
-	BaseExchange ctypes.Exchange  // 估值用价格的优先交易所（可选）
+	StartTime     time.Time
+	EndTime       time.Time
+	Exchange      ctypes.Exchange
+	Symbols       []*BacktestSymbol // 交易标的
+	InitialAssets []ctypes.AssetInput
+	Sources       []Source // 支持多数据源
+	Params        map[string]any
+	BaseCurrency  string
+	BaseExchange  ctypes.Exchange
 }
 
 // BacktestResult 回测结果
@@ -60,6 +62,9 @@ type BacktestResultData struct {
 	// Trades 所有成交记录（包含已实现盈亏）
 	Trades []*Trade `json:"trades,omitempty"`
 
+	// Ledgers 资金流水（回测内生成，便于排查净值跳变）
+	Ledgers []*ctypes.Ledger `json:"ledgers,omitempty"`
+
 	// Meta 预留扩展字段（尽量保持小体积；大对象请放到对象存储/分页接口）
 	Meta map[string]any `json:"meta,omitempty"`
 }
@@ -67,17 +72,27 @@ type BacktestResultData struct {
 type EquityPoint struct {
 	Ts            time.Time           `json:"ts"`
 	TotalNetValue decimal.Decimal     `json:"total_net_value"`
+	Assets        []AssetEquityPoint  `json:"assets"`
 	Symbols       []SymbolEquityPoint `json:"symbols"`
+}
+
+// AssetEquityPoint 单资产在记账货币下的权益贡献（用于资产曲线）。
+type AssetEquityPoint struct {
+	Asset    string          `json:"asset"`
+	NetValue decimal.Decimal `json:"net_value"`
+	Qty      decimal.Decimal `json:"qty"`
 }
 
 type SymbolEquityPoint struct {
 	ExSymbol      ctypes.ExSymbol `json:"ex_symbol"`
 	BaseNetValue  decimal.Decimal `json:"base_net_value"`
 	QuoteNetValue decimal.Decimal `json:"quote_net_value"`
-	BaseQty       decimal.Decimal `json:"base_qty"`
-	QuoteQty      decimal.Decimal `json:"quote_qty"`
-	PosQty        decimal.Decimal `json:"pos_qty"`
-	AvgPx         decimal.Decimal `json:"avg_px"`
+	// SymbolNetValue 逐标的净值口径：现货=base 市值，合约=仓位未实现盈亏（均折算为 BaseCurrency，不含计价资产/共享保证金）
+	SymbolNetValue decimal.Decimal `json:"symbol_net_value"`
+	BaseQty        decimal.Decimal `json:"base_qty"`
+	QuoteQty       decimal.Decimal `json:"quote_qty"`
+	PosQty         decimal.Decimal `json:"pos_qty"`
+	AvgPx          decimal.Decimal `json:"avg_px"`
 }
 
 // ConsoleLog is one strategy console output entry.
@@ -134,6 +149,7 @@ type SymbolSummary struct {
 	ShortNetPnl        decimal.Decimal `json:"shortNetPnl"`        // 空仓净盈亏
 	LongTrades         int             `json:"longTrades"`         // 多仓成交次数
 	ShortTrades        int             `json:"shortTrades"`        // 空仓成交次数
+	FeesInBase         decimal.Decimal `json:"feesInBase"`         // 手续费合计（BaseCurrency 计价）
 }
 
 // BacktestContext 描述一次回测任务上下文（不依赖Bot）
@@ -143,22 +159,22 @@ type BacktestContext struct {
 	StrategyVer string `json:"strategy_version"`
 }
 
-// BacktestSymbol 回测标的
+// BacktestSymbol 回测标的（初始资金见 BacktestConfig.InitialAssets，按交易所资金池共享）
 type BacktestSymbol struct {
-	Exchange      ctypes.Exchange
-	Symbol        ctypes.Symbol
-	BaseAssetQty  string
-	QuoteAssetQty string
+	Exchange ctypes.Exchange
+	Symbol   ctypes.Symbol
 }
 
 // RunBacktestInput 描述一次回测的请求参数
 type RunBacktestInput struct {
-	Context   BacktestContext
-	StartTime time.Time
-	EndTime   time.Time
-	Symbols   []*BacktestSymbol
-	Signals   []*SignalBinding
-	Params    map[string]any
+	Context       BacktestContext
+	StartTime     time.Time
+	EndTime       time.Time
+	Exchange      ctypes.Exchange
+	Symbols       []*BacktestSymbol
+	InitialAssets []ctypes.AssetInput
+	Signals       []*SignalBinding
+	Params        map[string]any
 	// Strategy 可选的策略对象。如果提供，将直接使用此策略，跳过数据库查询。
 	Strategy *Strategy
 }
@@ -166,13 +182,15 @@ type RunBacktestInput struct {
 // ---- Backtest ----
 
 type RunBacktestRequest struct {
-	RunType   int32             `json:"runType"` // 1: 从库加载策略
-	Strategy  *Strategy         `json:"strategy,omitempty"`
-	Params    string            `json:"params,omitempty"`
-	Symbols   []*BacktestSymbol `json:"symbols,omitempty"`
-	Signals   []*SignalBinding  `json:"signals,omitempty"`
-	StartTime int64             `json:"startTime"`
-	EndTime   int64             `json:"endTime"`
+	RunType       int32             `json:"runType"` // 1: 从库加载策略
+	Strategy      *Strategy         `json:"strategy,omitempty"`
+	Params        string            `json:"params,omitempty"`
+	Exchange      ctypes.Exchange   `json:"exchange,omitempty"`
+	Symbols       []*BacktestSymbol `json:"symbols,omitempty"`
+	InitialAssets []ctypes.AssetInput `json:"initialAssets,omitempty"`
+	Signals       []*SignalBinding  `json:"signals,omitempty"`
+	StartTime     int64             `json:"startTime"`
+	EndTime       int64             `json:"endTime"`
 }
 
 type RunBacktestResponse struct {

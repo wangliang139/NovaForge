@@ -1,7 +1,7 @@
 import { Exchange, MarketType } from '@/global.types';
 import { request } from '@umijs/max';
 import dayjs from 'dayjs';
-import { AccountEquity, Balance, LedgersConnection, Order, Position, WalletType } from './account';
+import { AccountEquity, Balance, Ledger, LedgersConnection, Order, Position, WalletType } from './account';
 
 export enum StrategyStatus {
   Unspecified = 'unspecified',
@@ -210,6 +210,14 @@ export type Strategy = {
   updatedAt: number;
 };
 
+/** 与 GraphQL StrategyInput 对齐，用于内联策略回测 */
+export type StrategyInput = {
+  name: string;
+  code: string;
+  params: StrategyParam[];
+  signals: SignalDefinition[];
+};
+
 export type GenerateStrategyResponse = {
   sessionId: string;
   content: string;
@@ -223,6 +231,14 @@ export type QueryStrategiesParams = API.PageParams & {
   createdAtEnd?: number;
 };
 
+export type BacktestInitialAsset = {
+  asset: string;
+  walletType: string;
+  total: string;
+  frozen?: string;
+};
+
+/** @deprecated 旧版逐交易对初始资金模型，已由 exchange + symbols + initialAssets 替代 */
 export type BacktestSymbol = {
   exchange: Exchange;
   symbol: string;
@@ -249,20 +265,38 @@ export type BacktestSignal = {
 };
 
 export type RunBacktestInput = {
-  strategy?: Strategy;
+  strategy?: StrategyInput;
   strategyId?: string;
   version?: string;
   runType: number;
   startTime: number;
   endTime: number;
-  symbols: BacktestSymbol[];
+  exchange: Exchange;
+  symbols: string[];
+  initialAssets: BacktestInitialAsset[];
   params?: string;
   signals?: BacktestSignal[];
+};
+
+export type BacktestAssetSeriesPoint = {
+  asset: string;
+  netValue: string;
+  qty: string;
+};
+
+export type BacktestSymbolSeriesPoint = {
+  exchange: string;
+  symbol: string;
+  baseQty: string;
+  posQty: string;
+  avgPx: string;
 };
 
 export type EquityPoint = {
   ts: number;
   netValue: string;
+  assetPoints?: BacktestAssetSeriesPoint[];
+  symbolPoints?: BacktestSymbolSeriesPoint[];
 };
 
 export type SymbolSummary = {
@@ -290,6 +324,7 @@ export type SymbolSummary = {
   shortNetPnl: string;
   longTrades: number;
   shortTrades: number;
+  feesInBase: string;
 };
 
 export type ExSymbol = {
@@ -318,6 +353,7 @@ export type Fill = {
 export type BacktestResult = {
   symbols: SymbolSummary[];
   equity: EquityPoint[];
+  ledgers?: Ledger[];
   orders?: Order[];
   fills?: Fill[];
   metaJson?: string;
@@ -691,10 +727,39 @@ const RUN_BACKTEST = `
           shortNetPnl
           longTrades
           shortTrades
+          feesInBase
         }
         equity {
           ts
-          netValue: notional
+          netValue
+          assetPoints {
+            asset
+            netValue
+            qty
+          }
+          symbolPoints {
+            exchange
+            symbol
+            baseQty
+            posQty
+            avgPx
+          }
+        }
+        ledgers {
+          id
+          accountId
+          exchange
+          asset
+          walletType
+          total
+          frozen
+          totalDelta
+          frozenDelta
+          type
+          detail
+          isEffective
+          ts
+          createdAt
         }
         orders {
           exchange
@@ -712,6 +777,7 @@ const RUN_BACKTEST = `
           executedQuoteQty
           avgPrice
           status
+          source
           timeInForce
           reduceOnly
           closePosition
@@ -722,6 +788,10 @@ const RUN_BACKTEST = `
           createdTs
           updatedTs
           finishedTs
+          fee
+          feeAsset
+          realizedPnl
+          pnlAsset
         }
         fills {
           exchange
@@ -751,46 +821,32 @@ const RUN_BACKTEST = `
   }
 `;
 
-export async function runBacktest(
-  input: {
-    strategy?: Partial<Strategy>;
-    strategyId?: string;
-    version?: string;
-    runType: number;
-    startTime: number;
-    endTime: number;
-    symbols: Array<{
-      exchange: string;
-      symbol: string;
-      baseAssetQty?: string;
-      quoteAssetQty?: string;
-    }>;
-    params?: string;
-    signals?: Array<{
-      signalId: string;
-      datasourceId: string;
-    }>;
-  },
-  signal?: AbortSignal,
-) {
+export type RunBacktestParams = Omit<RunBacktestInput, 'strategy'> & {
+  strategy?: StrategyInput | Strategy;
+};
+
+export async function runBacktest(input: RunBacktestParams, signal?: AbortSignal) {
+  const payload: RunBacktestInput = { ...input };
   if (input.runType === 0 && input.strategy) {
-    input.strategy = {
-      name: input.strategy.name,
-      code: input.strategy.code,
-      params: input.strategy.params,
-      signals: input.strategy.signals,
+    const s = input.strategy;
+    payload.strategy = {
+      name: s.name,
+      code: s.code,
+      params: s.params,
+      signals: s.signals,
     };
   } else {
-    input.strategyId = input.strategyId || input.strategy?.id;
-    input.version = input.version || input.strategy?.version;
-    delete input.strategy;
+    const s = input.strategy as Strategy | undefined;
+    payload.strategyId = input.strategyId || s?.id;
+    payload.version = input.version || s?.version;
+    delete payload.strategy;
   }
   return await request('/query', {
     method: 'POST',
     data: JSON.stringify({
       query: RUN_BACKTEST,
       variables: {
-        input,
+        input: payload,
       },
     }),
     signal,

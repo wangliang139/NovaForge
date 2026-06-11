@@ -117,6 +117,7 @@ func (b *ResultBuilder) BuildResult(
 		Equity:      equity,
 		Orders:      allOrders,
 		Trades:      tradeRecords,
+		Ledgers:     b.collectors.Ledger.GetLedgers(),
 		ConsoleLogs: logs,
 		Meta:        make(map[string]any),
 	}
@@ -156,6 +157,7 @@ func (b *ResultBuilder) calculateSummaryBySymbols(ctx context.Context, config st
 	// 1. 获取所有成交记录，按 ExSymbol 分组计算已实现盈亏（区分多空方向）
 	trades := b.collectors.Trade.GetTrades()
 	realizedByKey := make(map[ctypes.ExSymbolKey]decimal.Decimal)
+	feesByKey := make(map[ctypes.ExSymbolKey]decimal.Decimal)
 
 	// 按方向统计
 	type DirectionStats struct {
@@ -171,6 +173,7 @@ func (b *ResultBuilder) calculateSummaryBySymbols(ctx context.Context, config st
 		}
 		key := trade.ExSymbol.Key()
 		realizedByKey[key] = realizedByKey[key].Add(trade.RealizedPnl)
+		feesByKey[key] = feesByKey[key].Add(trade.FeeInBase)
 
 		// 按方向统计
 		switch trade.Side {
@@ -230,17 +233,18 @@ func (b *ResultBuilder) calculateSummaryBySymbols(ctx context.Context, config st
 			lastPx = decimal.Zero
 		}
 
-		// 获取已实现盈亏
+		// 获取已实现盈亏与手续费
 		realized := realizedByKey[exSymKey]
+		feesInBase := feesByKey[exSymKey]
 
-		// 使用 BaseCurrency 计价的净值
+		// 逐标的净值：现货仅 base 市值，合约仅仓位未实现盈亏（见 SymbolEquityPoint.SymbolNetValue）
 		initialNet := decimal.Zero
 		finalNet := decimal.Zero
 		if snap, ok := initialSymbolMap[exSymKey]; ok {
-			initialNet = snap.BaseNetValue.Add(snap.QuoteNetValue)
+			initialNet = snap.SymbolNetValue
 		}
 		if snap, ok := finalSymbolMap[exSymKey]; ok {
-			finalNet = snap.BaseNetValue.Add(snap.QuoteNetValue)
+			finalNet = snap.SymbolNetValue
 		}
 
 		accountID := b.accountIDProvider(exSymbol.Exchange, exSymbol.Symbol)
@@ -367,6 +371,7 @@ func (b *ResultBuilder) calculateSummaryBySymbols(ctx context.Context, config st
 			ShortNetPnl:        shortNetPnl,
 			LongTrades:         longTrades,
 			ShortTrades:        shortTrades,
+			FeesInBase:         feesInBase,
 		})
 	}
 

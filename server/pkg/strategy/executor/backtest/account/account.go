@@ -40,9 +40,8 @@ type account struct {
 	clock clock.Clock
 	bus   mb.Bus
 
-	// 内部按 market type 隔离
-	spotLedgers   map[string]*AssetLedger // asset -> AssetLedger
-	futureLedgers map[string]*AssetLedger // asset -> AssetLedger
+	// 余额池按 (walletType, asset) 隔离，与生产账户及 Portfolio 一致。
+	ledgers map[ledgerKey]*AssetLedger
 
 	// exSymbolKey:side -> leverage
 	leverages map[string]int
@@ -55,13 +54,12 @@ func NewAccount(accountID string, config AccountConfig, bus mb.Bus, clk clock.Cl
 		config.AssetPrecision = consts.DefaultAssetPrecision
 	}
 	account := &account{
-		accountID:     accountID,
-		config:        config,
-		clock:         clk,
-		bus:           bus,
-		spotLedgers:   make(map[string]*AssetLedger),
-		futureLedgers: make(map[string]*AssetLedger),
-		leverages:     make(map[string]int),
+		accountID: accountID,
+		config:    config,
+		clock:     clk,
+		bus:       bus,
+		ledgers:   make(map[ledgerKey]*AssetLedger),
+		leverages: make(map[string]int),
 	}
 	return account
 }
@@ -133,15 +131,16 @@ func (a *account) ApplyBalanceDelta(ctx context.Context, b *stypes.BalanceDeltaS
 		return nil
 	}
 	symbol := *b.GetSymbol()
+	walletType := resolveWalletType(exchange, &symbol, b.WalletType)
 	asset := b.Asset
-	if asset == "" {
+	if asset == "" || !walletType.Valid() {
 		return nil
 	}
 
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
-
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	ledger := a.getOrCreateLedgerLocked(newLedgerKey(walletType, asset))
 
 	freeDelta := a.formatAmount(b.Free)
 	frozenDelta := a.formatAmount(b.Frozen)
@@ -172,15 +171,16 @@ func (a *account) ApplyBalanceSnapshot(ctx context.Context, b *stypes.BalanceSig
 		return nil
 	}
 	symbol := *b.GetSymbol()
+	walletType := resolveWalletType(exchange, &symbol, b.WalletType)
 	asset := b.Asset
-	if asset == "" {
+	if asset == "" || !walletType.Valid() {
 		return nil
 	}
 
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
-
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	ledger := a.getOrCreateLedgerLocked(newLedgerKey(walletType, asset))
 
 	ledger.Available = a.formatAmount(b.Free)
 	if ledger.Available.IsNegative() {
@@ -198,23 +198,17 @@ func (a *account) ApplyBalanceSnapshot(ctx context.Context, b *stypes.BalanceSig
 	return nil
 }
 
-func (a *account) ledgersFor(mt ctypes.MarketType) map[string]*AssetLedger {
-	if mt == ctypes.MarketTypeFuture {
-		return a.futureLedgers
-	}
-	return a.spotLedgers
+// getLedgerLocked 在已持有 a.mu（RLock 或 Lock）时读取账本，不存在则返回 nil。
+func (a *account) getLedgerLocked(key ledgerKey) *AssetLedger {
+	return a.ledgers[key]
 }
 
-// ensureAssetLedger 确保资产账本存在（线程安全）
-func (a *account) ensureAssetLedger(mt ctypes.MarketType, asset string) *AssetLedger {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	m := a.ledgersFor(mt)
-	ledger := m[asset]
+// getOrCreateLedgerLocked 在已持有 a.mu.Lock() 时获取或创建账本。
+func (a *account) getOrCreateLedgerLocked(key ledgerKey) *AssetLedger {
+	ledger := a.ledgers[key]
 	if ledger == nil {
-		ledger = NewAssetLedgerWithPrecision(asset, a.assetPrecision())
-		m[asset] = ledger
+		ledger = NewAssetLedgerWithPrecision(key.Asset, a.assetPrecision())
+		a.ledgers[key] = ledger
 	}
 	return ledger
 }
@@ -226,22 +220,20 @@ func (a *account) GetBalance(ctx context.Context, accountID string) ([]*ctypes.A
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
-	assets := make([]*ctypes.AssetBo, 0, len(a.spotLedgers)+len(a.futureLedgers))
-	for _, ledger := range a.spotLedgers {
+	assets := make([]*ctypes.AssetBo, 0, len(a.ledgers))
+	for key, ledger := range a.ledgers {
+		if ledger == nil {
+			continue
+		}
+		bal := ledger.Available.Add(ledger.Locked)
+		if bal.IsZero() && ledger.Locked.IsZero() {
+			continue
+		}
 		assets = append(assets, &ctypes.AssetBo{
 			AccountID:  a.GetAccountID(),
-			WalletType: ctypes.WalletTypeTrade,
+			WalletType: key.WalletType,
 			Code:       ledger.Asset,
-			Balance:    ledger.Available.Add(ledger.Locked),
-			Locked:     ledger.Locked,
-		})
-	}
-	for _, ledger := range a.futureLedgers {
-		assets = append(assets, &ctypes.AssetBo{
-			AccountID:  a.GetAccountID(),
-			WalletType: ctypes.WalletTypeTrade,
-			Code:       ledger.Asset,
-			Balance:    ledger.Available.Add(ledger.Locked),
+			Balance:    bal,
 			Locked:     ledger.Locked,
 		})
 	}
@@ -251,16 +243,17 @@ func (a *account) GetBalance(ctx context.Context, accountID string) ([]*ctypes.A
 // 实现 AccountProvider 接口
 func (a *account) GetAsset(ctx context.Context, accountID string, symbol ctypes.Symbol, asset string) (*ctypes.AssetBo, error) {
 	_ = ctx
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
+	key := ledgerKeyForSymbol(a.GetExchange(), symbol, asset)
 
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
+	ledger := a.getOrCreateLedgerLocked(key)
 	ledger.updateAvailable()
 	return &ctypes.AssetBo{
 		AccountID:  a.GetAccountID(),
-		WalletType: ctypes.WalletTypeTrade,
-		Code:       asset,
+		WalletType: key.WalletType,
+		Code:       key.Asset,
 		Balance:    ledger.Available.Add(ledger.Locked),
 		Locked:     ledger.Locked,
 	}, nil
@@ -273,9 +266,10 @@ func (a *account) FreezeFunds(ctx context.Context, accountID string, symbol ctyp
 		return nil
 	}
 
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
+	walletType := ctypes.GetWalletType(a.GetExchange(), symbol.Type)
 
 	a.mu.Lock()
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, asset))
 	ledger.updateAvailable()
 	if amount.GreaterThan(ledger.Available) {
 		a.mu.Unlock()
@@ -297,7 +291,7 @@ func (a *account) FreezeFunds(ctx context.Context, accountID string, symbol ctyp
 				AccountID: lo.ToPtr(a.GetAccountID()),
 				Ts:        a.clock.Now(),
 			},
-			WalletType: ctypes.WalletTypeTrade,
+			WalletType: walletType,
 			Asset:      asset,
 			Free:       free,
 			Frozen:     frozen,
@@ -311,9 +305,10 @@ func (a *account) UnfreezeFunds(ctx context.Context, accountID string, symbol ct
 	if !amount.GreaterThan(decimal.Zero) {
 		return nil
 	}
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
+	walletType := ctypes.GetWalletType(a.GetExchange(), symbol.Type)
 
 	a.mu.Lock()
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, asset))
 	ledger.updateAvailable()
 	if ledger.Locked.LessThanOrEqual(decimal.Zero) {
 		a.mu.Unlock()
@@ -340,7 +335,7 @@ func (a *account) UnfreezeFunds(ctx context.Context, accountID string, symbol ct
 				AccountID: lo.ToPtr(a.GetAccountID()),
 				Ts:        a.clock.Now(),
 			},
-			WalletType: ctypes.WalletTypeTrade,
+			WalletType: walletType,
 			Asset:      asset,
 			Free:       free,
 			Frozen:     frozen,
@@ -359,10 +354,10 @@ func (a *account) DeductFunds(ctx context.Context, accountID string, symbol ctyp
 	_amt = amount.String()
 	_ = _amt
 
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
-
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, asset))
 
 	_available := ledger.Available.String()
 	_locked := ledger.Locked.String()
@@ -385,11 +380,11 @@ func (a *account) DeductFunds(ctx context.Context, accountID string, symbol ctyp
 
 func (a *account) AddFunds(ctx context.Context, accountID string, symbol ctypes.Symbol, asset string, amount decimal.Decimal) {
 	amount = a.formatAmount(amount)
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, asset))
 	ledger.Available = ledger.Available.Add(amount)
 	ledger.updateAvailable()
 }
@@ -409,8 +404,7 @@ func (a *account) GetPositions(ctx context.Context, accountID string) ([]*ctypes
 
 	positions := make([]*ctypes.Position, 0)
 
-	// 现货：从 SpotCostBasis 汇总持仓
-	for _, ledger := range a.spotLedgers {
+	for _, ledger := range a.ledgers {
 		for _, cb := range ledger.SpotCostBasis {
 			if cb == nil || !cb.Qty.GreaterThan(decimal.Zero) {
 				continue
@@ -422,10 +416,6 @@ func (a *account) GetPositions(ctx context.Context, accountID string) ([]*ctypes
 				EntryPrice: cb.AvgCostQuote,
 			})
 		}
-	}
-
-	// 合约：从 Positions 汇总持仓
-	for _, ledger := range a.futureLedgers {
 		for _, pos := range ledger.Positions {
 			if pos == nil || pos.Amount.IsZero() {
 				continue
@@ -446,14 +436,22 @@ func (a *account) GetPositions(ctx context.Context, accountID string) ([]*ctypes
 func (a *account) GetPosition(ctx context.Context, accountID string, symbol ctypes.Symbol, side ctypes.PositionSide) (*ctypes.Position, error) {
 	_ = ctx
 	exSymbol := ctypes.NewExSymbol(a.GetExchange(), symbol)
-	marginAsset := exSymbol.GetQuote() // 期货合约的保证金资产是Quote
-	ledger := a.ensureAssetLedger(symbol.Type, marginAsset)
 
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
 	// 现货：从 SpotCostBasis 获取持仓和成本价
 	if symbol.Type == ctypes.MarketTypeSpot {
+		asset := exSymbol.GetBase()
+		ledger := a.getLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, asset))
+		if ledger == nil {
+			return &ctypes.Position{
+				Symbol:     symbol,
+				Side:       ctypes.PositionSideLong,
+				Amount:     decimal.Zero,
+				EntryPrice: decimal.Zero,
+			}, nil
+		}
 		cb := ledger.GetSpotCostBasis(exSymbol)
 		if cb != nil && cb.Qty.GreaterThan(decimal.Zero) {
 			return &ctypes.Position{
@@ -473,6 +471,17 @@ func (a *account) GetPosition(ctx context.Context, accountID string, symbol ctyp
 	}
 
 	// 合约：从 Positions 获取
+	marginAsset := exSymbol.GetQuote() // 期货合约的保证金资产是Quote
+	ledger := a.getLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, marginAsset))
+	if ledger == nil {
+		return &ctypes.Position{
+			Symbol:     symbol,
+			Side:       side,
+			Amount:     decimal.Zero,
+			EntryPrice: decimal.Zero,
+		}, nil
+	}
+
 	// 尝试查找LONG持仓
 	if side == ctypes.PositionSideLong {
 		longKey := PositionKey{ExSymbol: exSymbol, Side: ctypes.PositionSideLong}
@@ -519,11 +528,12 @@ func (a *account) UpdatePosition(ctx context.Context, accountID string, symbol c
 	}
 	exSymbol := ctypes.NewExSymbol(a.GetExchange(), symbol)
 	marginAsset := exSymbol.GetQuote() // 期货合约的保证金资产是Quote
-	ledger := a.ensureAssetLedger(symbol.Type, marginAsset)
 	qty = a.formatAmount(qty)
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, marginAsset))
 
 	// 确定持仓方向
 	positionSide := determinePositionSide(side, isBuy)
@@ -603,24 +613,28 @@ func (a *account) UpdatePosition(ctx context.Context, accountID string, symbol c
 }
 
 func (a *account) GetMarginUsed(ctx context.Context, accountID string, symbol ctypes.Symbol) (decimal.Decimal, error) {
+	_ = ctx
 	exSymbol := ctypes.NewExSymbol(a.GetExchange(), symbol)
 	marginAsset := exSymbol.GetQuote() // 期货合约的保证金资产是Quote
-	ledger := a.ensureAssetLedger(symbol.Type, marginAsset)
 
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
+	ledger := a.getLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, marginAsset))
+	if ledger == nil {
+		return decimal.Zero, nil
+	}
 	return a.formatAmount(ledger.MarginUsed), nil
 }
 
 func (a *account) SetLocked(ctx context.Context, accountID string, symbol ctypes.Symbol, asset string, amount decimal.Decimal) {
 	_ = ctx
 	amount = a.formatAmount(amount)
-	ledger := a.ensureAssetLedger(symbol.Type, asset)
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), symbol, asset))
 	ledger.Locked = amount
 	if ledger.Locked.LessThan(decimal.Zero) {
 		ledger.Locked = decimal.Zero
@@ -654,11 +668,11 @@ func (a *account) ApplyFill(ctx context.Context, msg stypes.Signal) error {
 		return nil
 	}
 
-	// 使用 quote 资产账本（现货成本以 quote 计价）
-	ledger := a.ensureAssetLedger(exSymbol.GetType(), exSymbol.GetQuote())
-
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	// 使用 quote 资产账本（现货成本以 quote 计价）
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), exSymbol.Symbol, exSymbol.GetQuote()))
 
 	// 更新现货成本跟踪（会返回已实现盈亏，但这里不使用，由 gateway 计算）
 	_ = ledger.UpdateSpotCostBasis(exSymbol, f.IsBuy, f.Qty, f.Price)
@@ -678,10 +692,11 @@ func (a *account) ApplyPosition(ctx context.Context, msg stypes.Signal) error {
 
 	exSymbol := ctypes.NewExSymbol(*ps.GetExchange(), *ps.GetSymbol())
 	marginAsset := exSymbol.GetQuote()
-	ledger := a.ensureAssetLedger(exSymbol.GetType(), marginAsset)
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	ledger := a.getOrCreateLedgerLocked(ledgerKeyForSymbol(a.GetExchange(), exSymbol.Symbol, marginAsset))
 
 	longKey := PositionKey{ExSymbol: exSymbol, Side: ctypes.PositionSideLong}
 	shortKey := PositionKey{ExSymbol: exSymbol, Side: ctypes.PositionSideShort}

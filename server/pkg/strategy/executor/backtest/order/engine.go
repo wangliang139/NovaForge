@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/shopspring/decimal"
@@ -18,6 +19,16 @@ import (
 	stypes "github.com/wangliang139/NovaForge/server/pkg/strategy/types"
 	ctypes "github.com/wangliang139/NovaForge/server/pkg/types"
 )
+
+// markOrderFinished 标记订单进入终态（完成/撤销/拒绝/过期）并写入结束时间。
+func markOrderFinished(order *ctypes.Order, ts time.Time) {
+	if order == nil || ts.IsZero() {
+		return
+	}
+	order.UpdatedTs = ts
+	finished := ts
+	order.FinishedTs = &finished
+}
 
 type Config struct {
 	AllowedSymbols []ctypes.ExSymbolKey
@@ -690,7 +701,7 @@ func (m *orderEngine) handleOrderRejected(ctx context.Context, signal stypes.Sig
 	order, ok := m.orders[clientOrderID]
 	if ok && order != nil {
 		order.Status = ctypes.OrderStatusRejected
-		order.UpdatedTs = ts
+		markOrderFinished(order, ts)
 		// 在删除前克隆快照
 		snapshot = order.Clone()
 		// 订单已完结，从内存中删除
@@ -738,7 +749,7 @@ func (m *orderEngine) handleOrderCanceled(ctx context.Context, signal stypes.Sig
 	order, ok := m.orders[clientOrderID]
 	if ok && order != nil {
 		order.Status = ctypes.OrderStatusCanceled
-		order.UpdatedTs = ts
+		markOrderFinished(order, ts)
 		// 在删除前克隆快照
 		snapshot = order.Clone()
 		// 订单已完结，从内存中删除
@@ -786,7 +797,7 @@ func (m *orderEngine) handleOrderExpired(ctx context.Context, signal stypes.Sign
 	order, ok := m.orders[clientOrderID]
 	if ok && order != nil {
 		order.Status = ctypes.OrderStatusExpired
-		order.UpdatedTs = ts
+		markOrderFinished(order, ts)
 		// 在删除前克隆快照
 		snapshot = order.Clone()
 		// 订单已完结，从内存中删除
@@ -834,7 +845,7 @@ func (m *orderEngine) handleOrderDone(ctx context.Context, signal stypes.Signal)
 	order, ok := m.orders[clientOrderID]
 	if ok && order != nil {
 		order.Status = ctypes.OrderStatusDone
-		order.UpdatedTs = ts
+		markOrderFinished(order, ts)
 		// 在删除前克隆快照
 		snapshot = order.Clone()
 		// 订单已完结，从内存中删除

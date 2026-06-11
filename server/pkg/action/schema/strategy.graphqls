@@ -159,6 +159,13 @@ input BacktestSymbolInput {
     quoteAssetQty: String
 }
 
+input BacktestInitialAssetInput {
+    asset: String!
+    walletType: WalletType!
+    total: String!
+    frozen: String
+}
+
 input BacktestExchangeInput {
     exchange: Exchange!
     symbols: [BacktestSymbolInput!]!
@@ -184,7 +191,9 @@ input RunBacktestInput {
     runType: Int!
     startTime: Int!
     endTime: Int!
-    symbols: [BacktestSymbolInput!]!
+    exchange: Exchange!
+    symbols: [String!]!
+    initialAssets: [BacktestInitialAssetInput!]!
     params: String
     signals: [BacktestSignalInput!]
 }
@@ -221,11 +230,34 @@ type SymbolSummary {
     shortNetPnl: String!
     longTrades: Int!
     shortTrades: Int!
+    feesInBase: String!
+}
+
+type BacktestAssetSeriesPoint {
+    asset: String!
+    netValue: String!
+    qty: String!
+}
+
+type BacktestSymbolSeriesPoint {
+    exchange: Exchange!
+    symbol: String!
+    baseQty: String!
+    posQty: String!
+    avgPx: String!
+}
+
+type BacktestEquityPoint {
+    ts: Int!
+    netValue: String!
+    assetPoints: [BacktestAssetSeriesPoint!]!
+    symbolPoints: [BacktestSymbolSeriesPoint!]!
 }
 
 type BacktestResultData {
     symbols: [SymbolSummary!]!
-    equity: [Equity!]!
+    equity: [BacktestEquityPoint!]!
+    ledgers: [Ledger!]!
     orders: [Order!]
     fills: [Fill!]
     metaJson: String

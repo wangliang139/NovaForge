@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,10 +68,10 @@ type BacktestExecutor struct {
 	tScheduler *timeline.TimelineScheduler // 回测事件编排器
 
 	marketProvider  marketdata.MarketProvider // 市场数据提供器（回测专用同步实现）
-	exchangeGateway *exchange.BacktestGateway        // 交易所网关（交易所视角）
-	orderManager    strategy.OrderEngine             // 订单引擎（账户视角）
-	accountManager  strategy.AccountEngine           // 账户管理器（账户视角）
-	portfolio       *portfolio.Portfolio             // 投资组合（策略视角）
+	exchangeGateway *exchange.BacktestGateway // 交易所网关（交易所视角）
+	orderManager    strategy.OrderEngine      // 订单引擎（账户视角）
+	accountManager  strategy.AccountEngine    // 账户管理器（账户视角）
+	portfolio       *portfolio.Portfolio      // 投资组合（策略视角）
 
 	// Collectors 和 ResultBuilder
 	collectors    *collectors.Collectors
@@ -591,111 +593,106 @@ func (e *BacktestExecutor) injectInitialState() error {
 		_ = e.marketProvider.OnEvent(e.ctx, ev.Signal)
 	}
 
-	type balAggKey struct {
-		accountID string
-		mt        ctypes.MarketType
-		asset     string
+	exchange := e.config.Exchange
+	if exchange == "" && len(e.config.Symbols) > 0 && e.config.Symbols[0] != nil {
+		exchange = e.config.Symbols[0].Exchange
 	}
-	amounts := make(map[balAggKey]decimal.Decimal)
-	pickSym := make(map[balAggKey]ctypes.Symbol)
-	pickEx := make(map[balAggKey]ctypes.Exchange)
+	if err := ValidateInitialAssetsForSymbols(exchange, e.config.Symbols, e.config.InitialAssets); err != nil {
+		return fmt.Errorf("invalid initial assets: %w", err)
+	}
 
+	assetAmounts, err := initialAssetAmounts(e.config.InitialAssets)
+	if err != nil {
+		return err
+	}
+
+	accountID := exchange.String()
+	for _, item := range e.config.InitialAssets {
+		code := ctypes.ParseAssetCode(item.Asset)
+		total, err := decimal.NewFromString(strings.TrimSpace(item.Total))
+		if err != nil {
+			return fmt.Errorf("invalid total for asset %s: %w", code, err)
+		}
+		frozen := decimal.Zero
+		if strings.TrimSpace(item.Frozen) != "" {
+			frozen, err = decimal.NewFromString(strings.TrimSpace(item.Frozen))
+			if err != nil {
+				return fmt.Errorf("invalid frozen for asset %s: %w", code, err)
+			}
+		}
+		if total.IsZero() && frozen.IsZero() {
+			continue
+		}
+		carrier, ok := pickCarrierSymbol(exchange, item.WalletType, code, e.config.Symbols)
+		if !ok {
+			return fmt.Errorf("no carrier symbol for initial asset %s (%s)", code, item.WalletType)
+		}
+		free := total.Sub(frozen)
+		if free.IsNegative() {
+			return fmt.Errorf("frozen exceeds total for asset %s", code)
+		}
+		balanceSignal := &stypes.BalanceSignal{
+			BaseSignal: stypes.BaseSignal{
+				Exchange:  &exchange,
+				Symbol:    &carrier,
+				AccountID: lo.ToPtr(accountID),
+				Ts:        e.config.StartTime,
+			},
+			WalletType: item.WalletType,
+			Asset:      code,
+			Free:       free,
+			Frozen:     frozen,
+		}
+		if err := e.bus.Send(e.ctx, balanceSignal); err != nil {
+			return fmt.Errorf("failed to send initial balance for %s: %w", code, err)
+		}
+	}
+
+	// 现货：从 initialAssets 中的 base 持仓建立成本基数（每个 base 资产仅归因一次）
+	consumedInitBase := make(map[initialAssetKey]struct{})
 	for _, symCfg := range e.config.Symbols {
-		if symCfg == nil {
+		if symCfg == nil || symCfg.Symbol.Type != ctypes.MarketTypeSpot {
 			continue
 		}
 		ex := symCfg.Exchange
 		sym := symCfg.Symbol
-		baseQty, err := decimal.NewFromString(symCfg.BaseAssetQty)
-		if err != nil {
-			return fmt.Errorf("invalid base asset qty %q for %s: %w", symCfg.BaseAssetQty, sym.String(), err)
-		}
-		quoteQty, err := decimal.NewFromString(symCfg.QuoteAssetQty)
-		if err != nil {
-			return fmt.Errorf("invalid quote asset qty %q for %s: %w", symCfg.QuoteAssetQty, sym.String(), err)
-		}
-
-		if sym.Type == ctypes.MarketTypeFuture && !baseQty.IsZero() {
-			return fmt.Errorf("backtest does not support non-zero future initial position (baseAssetQty) yet: %s", sym.String())
-		}
-
-		aid := ex.String()
-		if quoteQty.GreaterThan(decimal.Zero) {
-			k := balAggKey{accountID: aid, mt: sym.Type, asset: sym.Quote}
-			amounts[k] = amounts[k].Add(quoteQty)
-			pickSym[k] = sym
-			pickEx[k] = ex
-		}
-		if sym.Type != ctypes.MarketTypeFuture && baseQty.GreaterThan(decimal.Zero) {
-			k := balAggKey{accountID: aid, mt: sym.Type, asset: sym.Base}
-			amounts[k] = amounts[k].Add(baseQty)
-			pickSym[k] = sym
-			pickEx[k] = ex
-		}
-	}
-
-	for k, amt := range amounts {
-		if amt.IsZero() {
+		wt := ctypes.GetWalletType(ex, sym.Type)
+		baseKey := initialAssetKey{WalletType: wt, Asset: ctypes.ParseAssetCode(sym.Base)}
+		if _, seen := consumedInitBase[baseKey]; seen {
 			continue
 		}
-		sym := pickSym[k]
-		ex := pickEx[k]
-		walletType := ctypes.GetWalletType(ex, sym.Type)
-		balanceSignal := &stypes.BalanceSignal{
+		baseQty, ok := assetAmounts[baseKey]
+		if !ok || !baseQty.GreaterThan(decimal.Zero) {
+			continue
+		}
+		consumedInitBase[baseKey] = struct{}{}
+
+		exSymbol := ctypes.NewExSymbol(ex, sym)
+		initialPrice, err := e.marketProvider.GetLastPrice(e.ctx, ex, sym)
+		if err != nil || initialPrice.IsZero() {
+			continue
+		}
+		aid := accountIDProvider(ex, sym)
+		if aid == nil {
+			continue
+		}
+		initFillSignal := &stypes.FillSignal{
 			BaseSignal: stypes.BaseSignal{
 				Exchange:  &ex,
 				Symbol:    &sym,
-				AccountID: lo.ToPtr(k.accountID),
+				AccountID: aid,
 				Ts:        e.config.StartTime,
 			},
-			WalletType: walletType,
-			Asset:      k.asset,
-			Free:       amt,
-			Frozen:     decimal.Zero,
+			OrderID: ctypes.OrderId("INIT_" + exSymbol.String()),
+			Side:    ctypes.PositionSideLong,
+			IsBuy:   true,
+			Qty:     baseQty,
+			Price:   initialPrice,
+			Fee:     decimal.Zero,
+			Asset:   sym.Base,
 		}
-		if err := e.bus.Send(e.ctx, balanceSignal); err != nil {
-			return fmt.Errorf("failed to send aggregated balance event: %w", err)
-		}
-	}
-
-	// 现货：为每个标的单独发 INIT Fill，建立成本基数（余额已在上面按资产聚合入账）
-	for _, symCfg := range e.config.Symbols {
-		if symCfg == nil {
-			continue
-		}
-		ex := symCfg.Exchange
-		sym := symCfg.Symbol
-		if sym.Type != ctypes.MarketTypeSpot {
-			continue
-		}
-		baseQty, err := decimal.NewFromString(symCfg.BaseAssetQty)
-		if err != nil || !baseQty.GreaterThan(decimal.Zero) {
-			continue
-		}
-		exSymbol := ctypes.NewExSymbol(ex, sym)
-		initialPrice, err := e.marketProvider.GetLastPrice(e.ctx, ex, sym)
-		if err == nil && !initialPrice.IsZero() {
-			accountID := accountIDProvider(ex, sym)
-			if accountID != nil {
-				initFillSignal := &stypes.FillSignal{
-					BaseSignal: stypes.BaseSignal{
-						Exchange:  &ex,
-						Symbol:    &sym,
-						AccountID: accountID,
-						Ts:        e.config.StartTime,
-					},
-					OrderID: ctypes.OrderId("INIT_" + exSymbol.String()),
-					Side:    ctypes.PositionSideLong,
-					IsBuy:   true,
-					Qty:     baseQty,
-					Price:   initialPrice,
-					Fee:     decimal.Zero,
-					Asset:   sym.Base,
-				}
-				if err := e.bus.Send(e.ctx, initFillSignal); err != nil {
-					return fmt.Errorf("failed to send initial fill signal: %w", err)
-				}
-			}
+		if err := e.bus.Send(e.ctx, initFillSignal); err != nil {
+			return fmt.Errorf("failed to send initial fill signal: %w", err)
 		}
 	}
 
@@ -820,11 +817,11 @@ func (e *BacktestExecutor) getRunErr() error {
 	return e.runErr
 }
 
-// equityLedgerKey 回测账本按「账户 + 市场类型 + 资产」聚合，与 executor/backtest/account 一致；
-// 同一账户下多个交易对共享同一条 USDT/BTC 余额，净值累加时每个池子只能计入一次。
+// equityLedgerKey 回测账本按「账户 + 钱包类型 + 资产」聚合，与 executor/backtest/account 一致；
+// OKX 现货/合约共享 WalletTypeTrade 同一 USDT 池，净值累加时每个池子只能计入一次。
 type equityLedgerKey struct {
 	AccountID  string
-	MarketType ctypes.MarketType
+	WalletType ctypes.WalletType
 	Asset      string
 }
 
@@ -837,13 +834,30 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 	}
 
 	seenLedgerBalance := make(map[equityLedgerKey]struct{})
+	assetContrib := make(map[equityLedgerKey]struct {
+		netValue decimal.Decimal
+		qty      decimal.Decimal
+	})
+
+	accumAsset := func(accountID string, wt ctypes.WalletType, asset string, qtyAttrib, netValue decimal.Decimal) {
+		if asset == "" || netValue.IsZero() {
+			return
+		}
+		k := equityLedgerKey{AccountID: accountID, WalletType: wt, Asset: asset}
+		cur := assetContrib[k]
+		cur.netValue = cur.netValue.Add(netValue)
+		if !qtyAttrib.IsZero() {
+			cur.qty = qtyAttrib
+		}
+		assetContrib[k] = cur
+	}
 
 	// 将账户资产余额只归因到第一次遇到的配置标的，避免跨 symbol 重复计入净值。
-	consumeLedgerQty := func(accountID string, mt ctypes.MarketType, asset string, qty decimal.Decimal) decimal.Decimal {
+	consumeLedgerQty := func(accountID string, wt ctypes.WalletType, asset string, qty decimal.Decimal) decimal.Decimal {
 		if qty.IsZero() {
 			return decimal.Zero
 		}
-		k := equityLedgerKey{AccountID: accountID, MarketType: mt, Asset: asset}
+		k := equityLedgerKey{AccountID: accountID, WalletType: wt, Asset: asset}
 		if _, ok := seenLedgerBalance[k]; ok {
 			return decimal.Zero
 		}
@@ -942,7 +956,8 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 				}
 			}
 
-			quoteQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetQuote(), quoteQty)
+			wt := ctypes.GetWalletType(symCfg.Exchange, symCfg.Symbol.Type)
+			quoteQtyAttrib := consumeLedgerQty(*aid, wt, exSymbol.GetQuote(), quoteQty)
 
 			// 权益 = 已归因保证金 + 未实现盈亏（不包含合约名义本金；名义仅通过 mark/均价差体现在 unrealized）
 			equityInCollateral := quoteQtyAttrib.Add(unrealized)
@@ -954,23 +969,27 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 
 			baseNetValue = decimal.Zero
 			quoteNetValue = equityInCollateral.Mul(quotePrice)
+			symbolNetValue := unrealized.Mul(quotePrice)
+			accumAsset(*aid, wt, exSymbol.GetQuote(), equityInCollateral, quoteNetValue)
 
 			symbolEquity = stypes.SymbolEquityPoint{
-				ExSymbol:      exSymbol,
-				BaseNetValue:  baseNetValue,
-				QuoteNetValue: quoteNetValue,
-				BaseQty:       netPosQty,
-				QuoteQty:      equityInCollateral,
-				PosQty:        netPosQty,
-				AvgPx:         displayAvgPx,
+				ExSymbol:       exSymbol,
+				BaseNetValue:   baseNetValue,
+				QuoteNetValue:  quoteNetValue,
+				SymbolNetValue: symbolNetValue,
+				BaseQty:        netPosQty,
+				QuoteQty:       equityInCollateral,
+				PosQty:         netPosQty,
+				AvgPx:          displayAvgPx,
 			}
 		} else {
 			// SPOT: baseQty * basePriceInBase + quoteQty * quotePriceInBase
 			// 优化：如果数量为零，跳过价格查询
 			var basePrice, quotePrice decimal.Decimal
 
-			baseQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetBase(), baseQty)
-			quoteQtyAttrib := consumeLedgerQty(*aid, symCfg.Symbol.Type, exSymbol.GetQuote(), quoteQty)
+			wt := ctypes.GetWalletType(symCfg.Exchange, symCfg.Symbol.Type)
+			baseQtyAttrib := consumeLedgerQty(*aid, wt, exSymbol.GetBase(), baseQty)
+			quoteQtyAttrib := consumeLedgerQty(*aid, wt, exSymbol.GetQuote(), quoteQty)
 
 			if !baseQtyAttrib.IsZero() {
 				var err error
@@ -994,21 +1013,50 @@ func (e *BacktestExecutor) CalculateEquityPoint(ctx context.Context) (*stypes.Eq
 
 			baseNetValue = baseQtyAttrib.Mul(basePrice)
 			quoteNetValue = quoteQtyAttrib.Mul(quotePrice)
+			if !baseQtyAttrib.IsZero() {
+				accumAsset(*aid, wt, exSymbol.GetBase(), baseQtyAttrib, baseNetValue)
+			}
+			if !quoteQtyAttrib.IsZero() {
+				accumAsset(*aid, wt, exSymbol.GetQuote(), quoteQtyAttrib, quoteNetValue)
+			}
 
 			symbolEquity = stypes.SymbolEquityPoint{
-				ExSymbol:      exSymbol,
-				BaseNetValue:  baseNetValue,
-				QuoteNetValue: quoteNetValue,
-				BaseQty:       baseQtyAttrib,
-				QuoteQty:      quoteQtyAttrib,
-				PosQty:        decimal.Zero,
-				AvgPx:         decimal.Zero,
+				ExSymbol:       exSymbol,
+				BaseNetValue:   baseNetValue,
+				QuoteNetValue:  quoteNetValue,
+				SymbolNetValue: baseNetValue,
+				BaseQty:        baseQtyAttrib,
+				QuoteQty:       quoteQtyAttrib,
+				PosQty:         decimal.Zero,
+				AvgPx:          decimal.Zero,
 			}
 		}
 
 		// 累加总权益（共享资产池已通过 consumeLedgerQty 去重）
 		equityPoint.TotalNetValue = equityPoint.TotalNetValue.Add(baseNetValue).Add(quoteNetValue)
 		equityPoint.Symbols = append(equityPoint.Symbols, symbolEquity)
+		log.Ctx(ctx).Info().Str("symbol", exSymbol.String()).
+			Str("base_net_value", baseNetValue.String()).
+			Str("quote_net_value", quoteNetValue.String()).
+			Str("total_net_value", equityPoint.TotalNetValue.String()).
+			Msg("calculate symbol equity")
+	}
+
+	if len(assetContrib) > 0 {
+		equityPoint.Assets = make([]stypes.AssetEquityPoint, 0, len(assetContrib))
+		for k, v := range assetContrib {
+			if v.netValue.IsZero() {
+				continue
+			}
+			equityPoint.Assets = append(equityPoint.Assets, stypes.AssetEquityPoint{
+				Asset:    k.Asset,
+				NetValue: v.netValue,
+				Qty:      v.qty,
+			})
+		}
+		sort.Slice(equityPoint.Assets, func(i, j int) bool {
+			return equityPoint.Assets[i].Asset < equityPoint.Assets[j].Asset
+		})
 	}
 
 	return equityPoint, nil

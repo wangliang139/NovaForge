@@ -657,7 +657,7 @@ func (g *BacktestGateway) publishBalanceDelta(ctx context.Context, accountID str
 			AccountID: &accountID,
 			Ts:        ts,
 		},
-		WalletType: ctypes.WalletTypeTrade,
+		WalletType: ctypes.GetWalletType(exchange, symbol.Type),
 		Asset:      asset,
 		Free:       freeDelta,
 		Frozen:     frozenDelta,

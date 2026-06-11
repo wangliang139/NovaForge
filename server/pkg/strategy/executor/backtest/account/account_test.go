@@ -51,7 +51,7 @@ func TestFreezeFundsPublishesSnapshotWithoutChangingTotalOnReplay(t *testing.T) 
 			AccountID: ptr("binance"),
 			Ts:        clk.Now(),
 		},
-		WalletType: ctypes.WalletTypeTrade,
+		WalletType: ctypes.WalletTypeSpot,
 		Asset:      "USDT",
 		Free:       decimal.RequireFromString("1000"),
 		Frozen:     decimal.Zero,

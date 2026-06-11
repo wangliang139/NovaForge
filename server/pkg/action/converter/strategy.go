@@ -2,6 +2,7 @@ package converter
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
@@ -370,19 +371,68 @@ func RunBacktestInputGql2Types(input *model.RunBacktestInput) (*stypes.RunBackte
 			Version: *input.Version,
 		}
 	}
-	for _, sym := range input.Symbols {
-		if sym == nil {
-			return nil, errors.New(errors.InvalidArgument, "backtest symbols contains nil item")
+	if input.Exchange == "" {
+		return nil, errors.New(errors.InvalidArgument, "backtest exchange is required")
+	}
+	if len(input.Symbols) == 0 {
+		return nil, errors.New(errors.InvalidArgument, "backtest symbols is required")
+	}
+	if len(input.InitialAssets) == 0 {
+		return nil, errors.New(errors.InvalidArgument, "backtest initialAssets is required")
+	}
+	req.Exchange = input.Exchange
+	seenSymbol := make(map[string]struct{})
+	for _, symStr := range input.Symbols {
+		symStr = strings.TrimSpace(symStr)
+		if symStr == "" {
+			return nil, errors.New(errors.InvalidArgument, "backtest symbol is empty")
 		}
-		symbol, err := ctypes.ParseSymbol(sym.Symbol)
+		if _, ok := seenSymbol[symStr]; ok {
+			return nil, errors.New(errors.InvalidArgument, "duplicated backtest symbol: "+symStr)
+		}
+		seenSymbol[symStr] = struct{}{}
+		symbol, err := ctypes.ParseSymbol(symStr)
 		if err != nil {
 			return nil, err
 		}
 		req.Symbols = append(req.Symbols, &stypes.BacktestSymbol{
-			Exchange:      sym.Exchange,
-			Symbol:        symbol,
-			BaseAssetQty:  lo.FromPtr(sym.BaseAssetQty),
-			QuoteAssetQty: lo.FromPtr(sym.QuoteAssetQty),
+			Exchange: input.Exchange,
+			Symbol:   symbol,
+		})
+	}
+	seenAsset := make(map[string]struct{})
+	for _, asset := range input.InitialAssets {
+		if asset == nil {
+			return nil, errors.New(errors.InvalidArgument, "backtest initialAssets contains nil item")
+		}
+		code := ctypes.ParseAssetCode(asset.Asset)
+		if code == "" {
+			return nil, errors.New(errors.InvalidArgument, "backtest initial asset is required")
+		}
+		wt, ok := WalletTypeGql2TypesRequired(asset.WalletType)
+		if !ok {
+			return nil, errors.New(errors.InvalidArgument, "backtest initial asset walletType is invalid")
+		}
+		if strings.TrimSpace(asset.Total) == "" {
+			return nil, errors.New(errors.InvalidArgument, "backtest initial asset total is required")
+		}
+		key := code + "|" + string(wt)
+		if _, ok := seenAsset[key]; ok {
+			return nil, errors.New(errors.InvalidArgument, "duplicated initial asset: "+key)
+		}
+		seenAsset[key] = struct{}{}
+		frozen := "0"
+		if asset.Frozen != nil {
+			frozen = strings.TrimSpace(*asset.Frozen)
+			if frozen == "" {
+				frozen = "0"
+			}
+		}
+		req.InitialAssets = append(req.InitialAssets, ctypes.AssetInput{
+			Asset:      code,
+			WalletType: wt,
+			Total:      strings.TrimSpace(asset.Total),
+			Frozen:     frozen,
 		})
 	}
 	for _, sig := range input.Signals {
@@ -408,15 +458,31 @@ func RunBacktestInputGql2Types(input *model.RunBacktestInput) (*stypes.RunBackte
 	return req, nil
 }
 
-func EquityPointTypes2Gql(ep *stypes.EquityPoint) *model.Equity {
+func EquityPointTypes2Gql(ep *stypes.EquityPoint) *model.BacktestEquityPoint {
 	if ep == nil {
 		return nil
 	}
-	return &model.Equity{
-		Ts:               int(ep.Ts.UnixMilli()),
-		Notional:         ep.TotalNetValue.String(),
-		UnRealizedProfit: "",
+	out := &model.BacktestEquityPoint{
+		Ts:       int(ep.Ts.UnixMilli()),
+		NetValue: ep.TotalNetValue.String(),
 	}
+	for _, ap := range ep.Assets {
+		out.AssetPoints = append(out.AssetPoints, &model.BacktestAssetSeriesPoint{
+			Asset:    ap.Asset,
+			NetValue: ap.NetValue.String(),
+			Qty:      ap.Qty.String(),
+		})
+	}
+	for _, sp := range ep.Symbols {
+		out.SymbolPoints = append(out.SymbolPoints, &model.BacktestSymbolSeriesPoint{
+			Exchange: sp.ExSymbol.Exchange,
+			Symbol:   sp.ExSymbol.Symbol.String(),
+			BaseQty:  sp.BaseQty.String(),
+			PosQty:   sp.PosQty.String(),
+			AvgPx:    sp.AvgPx.String(),
+		})
+	}
+	return out
 }
 
 func SymbolSummaryTypes2Gql(sym *stypes.SymbolSummary) *model.SymbolSummary {
@@ -448,6 +514,7 @@ func SymbolSummaryTypes2Gql(sym *stypes.SymbolSummary) *model.SymbolSummary {
 		ShortNetPnl:        sym.ShortNetPnl.String(),
 		LongTrades:         sym.LongTrades,
 		ShortTrades:        sym.ShortTrades,
+		FeesInBase:         sym.FeesInBase.String(),
 	}
 }
 
@@ -455,16 +522,31 @@ func RunBacktestResponseTypes2Gql(resp *stypes.RunBacktestResponse) *model.RunBa
 	if resp == nil {
 		return nil
 	}
-	data := &model.BacktestResultData{}
+	data := &model.BacktestResultData{
+		Symbols: []*model.SymbolSummary{},
+		Equity:  []*model.BacktestEquityPoint{},
+		Ledgers: []*model.Ledger{},
+	}
 	if resp.Data != nil {
-		for _, ep := range resp.Data.Equity {
-			data.Equity = append(data.Equity, EquityPointTypes2Gql(&ep))
+		for i := range resp.Data.Equity {
+			data.Equity = append(data.Equity, EquityPointTypes2Gql(&resp.Data.Equity[i]))
+		}
+		for _, lg := range resp.Data.Ledgers {
+			data.Ledgers = append(data.Ledgers, LedgerTypes2Gql(lg))
 		}
 		for _, sym := range resp.Data.Symbols {
 			data.Symbols = append(data.Symbols, SymbolSummaryTypes2Gql(sym))
 		}
 		for _, o := range resp.Data.Orders {
-			data.Orders = append(data.Orders, OrderTypes2Gql(o))
+			gqlOrder := OrderTypes2Gql(o)
+			if gqlOrder == nil {
+				continue
+			}
+			// 回测订单均由策略产生；历史数据可能未写入 source
+			if o != nil && o.Source == "" {
+				gqlOrder.Source = model.OrderSourceStrategy
+			}
+			data.Orders = append(data.Orders, gqlOrder)
 		}
 		for _, t := range resp.Data.Trades {
 			if t == nil {
@@ -511,8 +593,8 @@ func RunBacktestResponseTypes2Gql(resp *stypes.RunBacktestResponse) *model.RunBa
 	return &model.RunBacktestResponse{
 		ID:             resp.ID,
 		Strategy:       StrategyTypes2Gql(resp.Strategy),
-		StartTime:      int(resp.StartTime.Unix()),
-		EndTime:        int(resp.EndTime.Unix()),
+		StartTime:      int(resp.StartTime.UnixMilli()),
+		EndTime:        int(resp.EndTime.UnixMilli()),
 		InitialBalance: resp.InitialBalance,
 		FinalBalance:   resp.FinalBalance,
 		TotalPnl:       resp.TotalPnl,
@@ -523,7 +605,7 @@ func RunBacktestResponseTypes2Gql(resp *stypes.RunBacktestResponse) *model.RunBa
 		SharpeRatio:    resp.SharpeRatio,
 		MaxDrawdown:    resp.MaxDrawdown,
 		Data:           data,
-		CreatedAt:      int(resp.CreatedAt.Unix()),
+		CreatedAt:      int(resp.CreatedAt.UnixMilli()),
 		TimeCost:       int(resp.TimeCost),
 		ConsoleLogs:    consoleLogs,
 	}

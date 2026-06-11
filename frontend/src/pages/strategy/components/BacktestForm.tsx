@@ -1,4 +1,5 @@
 import { Exchange, MarketType } from '@/global.types';
+import { WalletType } from '@/services/gateway/account';
 import * as api from '@/services/gateway/api';
 import {
   BacktestSignal,
@@ -17,6 +18,8 @@ import {
   StrategyParam,
 } from '@/services/gateway/strategy';
 import utils from '@/utils';
+import { getExchangeLogo, parseSymbol } from '@/utils/market';
+import { getWalletTypeLabel } from '@/utils/marketTag';
 import { DeleteOutlined, InfoCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   ProForm,
@@ -53,15 +56,85 @@ type BacktestFormProps = {
   runType?: number; // 0: use strategy object, 1: use strategyId and version
 };
 
-// 交易对项组件，用于处理每个交易对的配置
-type SymbolItemProps = {
-  symbolName: number;
-  restField: any;
-  form: any;
-  exchangeSymbols: Record<string, { label: string; value: string }[]>;
-  loadingSymbols: Record<string, boolean>;
-  onLoadSymbols: (exchange: string) => void;
-  onRemove: (name: number) => void;
+type BacktestInitialAssetRow = {
+  asset: string;
+  walletType?: WalletType;
+  total?: string | number;
+  frozen?: string;
+};
+
+const EMPTY_INITIAL_ASSET_ROW: BacktestInitialAssetRow = {
+  asset: '',
+  walletType: undefined,
+  total: undefined,
+  frozen: '0',
+};
+
+const defaultBacktestInitialAssets = (exchange?: string): BacktestInitialAssetRow[] => {
+  if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
+    return [{ asset: 'USDT', walletType: WalletType.Spot, total: '1000', frozen: '0' }];
+  }
+  return [{ asset: 'USDT', walletType: WalletType.Trade, total: '1000', frozen: '0' }];
+};
+
+const getAllowedWalletTypes = (exchange?: string): WalletType[] => {
+  if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
+    return [WalletType.Spot, WalletType.Future];
+  }
+  if (exchange === Exchange.OKX || exchange === Exchange.OKXTest) {
+    return [WalletType.Trade];
+  }
+  return [WalletType.Spot, WalletType.Future, WalletType.Fund, WalletType.Trade, WalletType.Margin];
+};
+
+const getSymbolWalletType = (exchange: string | undefined, symbolType: MarketType) => {
+  if (exchange === Exchange.Binance || exchange === Exchange.BinanceTest) {
+    return symbolType === MarketType.Future ? WalletType.Future : WalletType.Spot;
+  }
+  if (exchange === Exchange.OKX || exchange === Exchange.OKXTest) {
+    return WalletType.Trade;
+  }
+  return undefined;
+};
+
+const validateInitialAssetsAgainstSymbols = (
+  exchange: string | undefined,
+  symbols: string[],
+  assets: BacktestInitialAssetRow[],
+) => {
+  if (!exchange || !symbols?.length || !assets?.length) {
+    return true;
+  }
+  const assetsByWallet: Record<string, Set<string>> = {};
+  assets.forEach((item) => {
+    const asset = String(item?.asset || '')
+      .trim()
+      .toUpperCase();
+    const walletType = String(item?.walletType || '').trim();
+    if (!asset || !walletType) return;
+    if (!assetsByWallet[walletType]) {
+      assetsByWallet[walletType] = new Set<string>();
+    }
+    assetsByWallet[walletType].add(asset);
+  });
+
+  for (const symbol of symbols) {
+    if (!symbol) continue;
+    const parsed = parseSymbol(String(symbol));
+    if (!parsed.base || !parsed.quote) {
+      return false;
+    }
+    const walletType = getSymbolWalletType(exchange, parsed.type);
+    const assetSet = walletType ? assetsByWallet[walletType] || new Set<string>() : new Set<string>();
+    if (parsed.type === MarketType.Future) {
+      if (!assetSet.has(parsed.quote)) {
+        return false;
+      }
+    } else if (!assetSet.has(parsed.base) && !assetSet.has(parsed.quote)) {
+      return false;
+    }
+  }
+  return true;
 };
 
 // Exchange 级别信号绑定项组件
@@ -188,243 +261,6 @@ const ExchangeBindingItem: React.FC<ExchangeBindingItemProps> = ({
   );
 };
 
-const SymbolItem: React.FC<SymbolItemProps> = ({
-  symbolName,
-  restField,
-  form,
-  exchangeSymbols,
-  loadingSymbols,
-  onLoadSymbols,
-  onRemove,
-}) => {
-  // 监听当前交易对的 exchange 和 symbol 字段变化
-  const exchangeValue = Form.useWatch(['symbols', symbolName, 'exchange'], form);
-  const symbolValue = Form.useWatch(['symbols', symbolName, 'symbol'], form);
-  const prevExchangeRef = useRef<string | undefined>(exchangeValue);
-
-  // 当交易所选择变化时，加载对应的交易对列表，并清空已选择的交易对
-  useEffect(() => {
-    if (exchangeValue && !exchangeSymbols[exchangeValue]) {
-      onLoadSymbols(exchangeValue);
-    }
-    // 如果交易所发生变化（不是初始值），清空已选择的交易对
-    if (prevExchangeRef.current !== undefined && prevExchangeRef.current !== exchangeValue) {
-      form.setFieldValue(['symbols', symbolName, 'symbol'], undefined);
-    }
-    prevExchangeRef.current = exchangeValue;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exchangeValue, symbolName]);
-
-  const parsedSymbol = utils.market.parseSymbol(symbolValue || '');
-  const isSpot = parsedSymbol.type === MarketType.Spot;
-  const isFuture = parsedSymbol.type === MarketType.Future;
-
-  return (
-    <div>
-      <Row gutter={16}>
-        <Col span={5}>
-          <Form.Item
-            {...restField}
-            name={[symbolName, 'exchange']}
-            rules={[{ required: true, message: '请选择交易所' }]}
-          >
-            <Select style={{ width: '100%' }} placeholder="选择交易所">
-              <Select.Option value="binance">
-                <img
-                  alt={Exchange.Binance}
-                  style={{ display: 'inline', marginLeft: 4 }}
-                  width={16}
-                  src={utils.market.getExchangeLogo(Exchange.Binance)}
-                />{' '}
-                Binance
-              </Select.Option>
-              <Select.Option value="binance_test">
-                <img
-                  alt={Exchange.BinanceTest}
-                  style={{ display: 'inline', marginLeft: 4 }}
-                  width={16}
-                  src={utils.market.getExchangeLogo(Exchange.BinanceTest)}
-                />{' '}
-                Binance Test
-              </Select.Option>
-              <Select.Option value="okx">
-                <img
-                  alt={Exchange.OKX}
-                  style={{ display: 'inline', marginLeft: 4 }}
-                  width={16}
-                  src={utils.market.getExchangeLogo(Exchange.OKX)}
-                />{' '}
-                OKX
-              </Select.Option>
-              <Select.Option value="okx_test">
-                <img
-                  alt={Exchange.OKXTest}
-                  style={{ display: 'inline', marginLeft: 4 }}
-                  width={16}
-                  src={utils.market.getExchangeLogo(Exchange.OKXTest)}
-                />{' '}
-                OKX Test
-              </Select.Option>
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item
-            {...restField}
-            name={[symbolName, 'symbol']}
-            dependencies={[['symbols']]}
-            rules={[
-              {
-                validator: (_, value) => {
-                  if (!exchangeValue) {
-                    return Promise.resolve();
-                  }
-                  if (!value) {
-                    return Promise.reject(new Error('请选择交易对'));
-                  }
-                  // 禁止重复的 exchange/symbol 组合
-                  const allSymbols = (form.getFieldValue('symbols') || []) as any[];
-                  const currentExchange = String(exchangeValue || '').trim();
-                  const currentSymbol = String(value || '').trim();
-                  if (currentExchange && currentSymbol) {
-                    const duplicates = allSymbols.filter((s) => {
-                      if (!s?.exchange || !s?.symbol) return false;
-                      return (
-                        String(s.exchange).trim() === currentExchange &&
-                        String(s.symbol).trim() === currentSymbol
-                      );
-                    });
-                    if (duplicates.length > 1) {
-                      return Promise.reject(new Error('不允许添加重复的交易对'));
-                    }
-                  }
-                  return Promise.resolve();
-                },
-              },
-            ]}
-          >
-            <Select
-              style={{ width: '100%' }}
-              placeholder="选择交易对"
-              loading={loadingSymbols[exchangeValue || ''] || false}
-              disabled={!exchangeValue}
-              showSearch
-              filterOption={(input, option) =>
-                ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {(exchangeSymbols[exchangeValue || ''] || [])?.map((option) => (
-                <Select.Option key={option.value} value={option.value} label={option.label}>
-                  {option.label}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-        <Col span={5}>
-          <Form.Item
-            {...restField}
-            name={[symbolName, 'baseAssetQty']}
-            initialValue={0}
-            dependencies={[['symbols', symbolName, 'quoteAssetQty']]}
-            rules={[
-              {
-                validator: (_, value) => {
-                  if (!symbolValue) {
-                    return Promise.resolve();
-                  }
-                  if (value === undefined || value === null || value === '') {
-                    return Promise.reject(new Error('基础资产数量必填'));
-                  }
-                  const numValue = parseFloat(value);
-                  if (isNaN(numValue) || numValue < 0) {
-                    return Promise.reject(new Error('基础资产数量必须 >= 0'));
-                  }
-                  if (isFuture) {
-                    return Promise.resolve();
-                  }
-                  // 检查与计价资产数量之和
-                  const quoteValue = form.getFieldValue(['symbols', symbolName, 'quoteAssetQty']);
-                  if (quoteValue !== undefined && quoteValue !== null && quoteValue !== '') {
-                    const quoteNum = parseFloat(quoteValue);
-                    if (!isNaN(quoteNum) && numValue + quoteNum <= 0) {
-                      return Promise.reject(new Error('基础资产数量与计价资产数量之和必须 > 0'));
-                    }
-                  }
-                  return Promise.resolve();
-                },
-              },
-            ]}
-          >
-            <Input
-              type="number"
-              disabled={isFuture || !symbolValue}
-              placeholder="基础资产数量"
-              min={0}
-              step="1"
-            />
-          </Form.Item>
-        </Col>
-        <Col span={5}>
-          <Form.Item
-            {...restField}
-            name={[symbolName, 'quoteAssetQty']}
-            initialValue={0}
-            dependencies={[['symbols', symbolName, 'baseAssetQty']]}
-            rules={[
-              {
-                validator: (_, value) => {
-                  if (!symbolValue) {
-                    return Promise.resolve();
-                  }
-                  if (value === undefined || value === null || value === '') {
-                    return Promise.reject(new Error('计价资产数量必填'));
-                  }
-                  const numValue = parseFloat(value);
-                  if (isNaN(numValue)) {
-                    return Promise.reject(new Error('计价资产数量必须是有效数字'));
-                  }
-                  if (isSpot) {
-                    // SPOT: 必须 >= 0，且与基础资产数量之和 >= 0
-                    if (numValue < 0) {
-                      return Promise.reject(new Error('计价资产数量必须 >= 0'));
-                    }
-                    const baseValue = form.getFieldValue(['symbols', symbolName, 'baseAssetQty']);
-                    if (baseValue !== undefined && baseValue !== null && baseValue !== '') {
-                      const baseNum = parseFloat(baseValue);
-                      if (!isNaN(baseNum) && numValue + baseNum <= 0) {
-                        return Promise.reject(new Error('基础资产数量与计价资产数量之和必须 > 0'));
-                      }
-                    }
-                  } else if (isFuture) {
-                    if (numValue <= 0) {
-                      return Promise.reject(new Error('计价资产数量必须 > 0'));
-                    }
-                  }
-                  return Promise.resolve();
-                },
-              },
-            ]}
-          >
-            <Input
-              type="number"
-              placeholder="计价资产数量"
-              disabled={!symbolValue}
-              min={isFuture ? 1000 : 0}
-              step="1"
-            />
-          </Form.Item>
-        </Col>
-        <Col span={2}>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => onRemove(symbolName)}>
-            删除
-          </Button>
-        </Col>
-      </Row>
-    </div>
-  );
-};
-
 const BacktestForm: React.FC<BacktestFormProps> = (props) => {
   const { strategy, runType = 0 } = props;
   const [form] = Form.useForm();
@@ -440,6 +276,12 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
   const [backtestLoading, setBacktestLoading] = useState(false);
   // 用于取消回测请求的 AbortController
   const abortControllerRef = useRef<AbortController | null>(null);
+  const exchangeValue = Form.useWatch('exchange', form);
+  const prevExchangeRef = useRef<string | undefined>(exchangeValue);
+  const walletTypeOptions = getAllowedWalletTypes(exchangeValue).map((value) => ({
+    value,
+    label: getWalletTypeLabel(value),
+  }));
 
   useEffect(() => {
     // Load datasources
@@ -503,14 +345,9 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
 
     form.setFieldsValue({
       dateRange: [dayjs().subtract(1, 'day').startOf('day'), dayjs().startOf('day')],
-      symbols: [
-        {
-          exchange: 'binance',
-          symbol: 'ETH/USDT:SPOT',
-          baseAssetQty: 0,
-          quoteAssetQty: 1000,
-        },
-      ],
+      exchange: Exchange.Binance,
+      symbols: ['ETH/USDT:SPOT'],
+      initialAssets: defaultBacktestInitialAssets(Exchange.Binance),
       signals: initialSignals,
       params: params,
     });
@@ -530,10 +367,25 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
     };
   }, []);
 
-  // 监听 symbols 变化，更新信号绑定结构
-  const symbolsValue = Form.useWatch('symbols', form);
   useEffect(() => {
-    if (!symbolsValue || symbolsValue.length === 0) {
+    if (!exchangeValue) {
+      return;
+    }
+    loadSymbolsForExchange(exchangeValue);
+    if (prevExchangeRef.current && prevExchangeRef.current !== exchangeValue) {
+      form.setFieldsValue({
+        symbols: [],
+        initialAssets: defaultBacktestInitialAssets(exchangeValue),
+      });
+    }
+    prevExchangeRef.current = exchangeValue;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exchangeValue]);
+
+  // 监听 symbols 变化，更新信号绑定结构
+  const symbolsValue = Form.useWatch('symbols', form) as string[] | undefined;
+  useEffect(() => {
+    if (!symbolsValue || symbolsValue.length === 0 || !exchangeValue) {
       return;
     }
 
@@ -543,16 +395,15 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
       const existingSignal = currentSignals.find((s: any) => s.signalId === signal.id);
 
       if (scope === SignalScope.Symbol) {
-        // Symbol 级别：为每个 symbol 创建绑定项
-        const bindings = (symbolsValue as any[])
-          .filter((symbol: any) => symbol && symbol.exchange && symbol.symbol)
-          .map((symbol: any) => {
+        const bindings = (symbolsValue as string[])
+          .filter((symbol) => symbol)
+          .map((symbol) => {
             const existingBinding = existingSignal?.bindings?.find(
-              (b: any) => b.exchange === symbol.exchange && b.symbol === symbol.symbol,
+              (b: any) => b.exchange === exchangeValue && b.symbol === symbol,
             );
             return {
-              exchange: symbol.exchange,
-              symbol: symbol.symbol,
+              exchange: exchangeValue,
+              symbol,
               datasourceId:
                 existingBinding?.datasourceId !== undefined ? existingBinding.datasourceId : 0,
             };
@@ -573,25 +424,17 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
           }
         );
       } else if (scope === SignalScope.Exchange) {
-        // Exchange 级别：为每个交易所创建绑定项
-        const uniqueExchanges = [
-          ...new Set(
-            (symbolsValue as any[])
-              .filter((s: any) => s && s.exchange && s.symbol)
-              .map((s: any) => s.exchange),
-          ),
-        ];
-        const bindings = uniqueExchanges.map((exchange: any) => {
-          const existingBinding = existingSignal?.bindings?.find(
-            (b: any) => b.exchange === exchange,
-          );
-          return {
-            exchange: exchange,
+        const existingBinding = existingSignal?.bindings?.find(
+          (b: any) => b.exchange === exchangeValue,
+        );
+        const bindings = [
+          {
+            exchange: exchangeValue,
             symbol: existingBinding?.symbol !== undefined ? existingBinding.symbol : undefined,
             datasourceId:
               existingBinding?.datasourceId !== undefined ? existingBinding.datasourceId : 0,
-          };
-        });
+          },
+        ];
         return {
           signalId: signal.id,
           scope: scope,
@@ -611,7 +454,7 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
 
     form.setFieldsValue({ signals: updatedSignals });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbolsValue, strategy?.signals]);
+  }, [symbolsValue, strategy?.signals, exchangeValue]);
 
   const loadDatasources = async () => {
     setLoadingDatasources(true);
@@ -776,6 +619,18 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
       });
     }
 
+    const initialAssets = (values.initialAssets || []).map((row: BacktestInitialAssetRow) => ({
+      asset: String(row.asset || '').trim(),
+      walletType: row.walletType as string,
+      total: String(row.total ?? ''),
+      frozen: row.frozen !== undefined && row.frozen !== null ? String(row.frozen) : '0',
+    }));
+
+    if (!validateInitialAssetsAgainstSymbols(values.exchange, values.symbols || [], initialAssets)) {
+      message.error('初始资产和交易对不匹配，缺失相关资产，请检查');
+      return false;
+    }
+
     const input: RunBacktestInput = {
       strategy: runType === 0 ? strategy : undefined,
       strategyId: runType === 1 ? strategy?.id : undefined,
@@ -783,7 +638,9 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
       runType: runType,
       startTime: dayjs(startTime).unix(),
       endTime: dayjs(endTime).unix(),
-      symbols: values.symbols?.filter((sym: any) => sym.exchange && sym.symbol) || [],
+      exchange: values.exchange,
+      symbols: (values.symbols || []).filter((sym: string) => sym),
+      initialAssets,
       params: paramsJson,
       signals: backtestSignals,
     };
@@ -802,7 +659,9 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
           runType: input.runType,
           startTime: input.startTime,
           endTime: input.endTime,
+          exchange: input.exchange,
           symbols: input.symbols,
+          initialAssets: input.initialAssets,
           params: input.params,
           signals: input.signals,
         },
@@ -1006,42 +865,145 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
             ]}
           />
 
-          <ProForm.Item label="交易对配置" required>
+          <Form.Item
+            label="交易所"
+            name="exchange"
+            rules={[{ required: true, message: '请选择交易所' }]}
+          >
+            <Select style={{ width: 220 }} placeholder="选择交易所">
+              <Select.Option value="binance">
+                <img
+                  alt={Exchange.Binance}
+                  style={{ display: 'inline', marginLeft: 4 }}
+                  width={16}
+                  src={getExchangeLogo(Exchange.Binance)}
+                />{' '}
+                Binance
+              </Select.Option>
+              <Select.Option value="binance_test">
+                <img
+                  alt={Exchange.BinanceTest}
+                  style={{ display: 'inline', marginLeft: 4 }}
+                  width={16}
+                  src={getExchangeLogo(Exchange.BinanceTest)}
+                />{' '}
+                Binance Test
+              </Select.Option>
+              <Select.Option value="okx">
+                <img
+                  alt={Exchange.OKX}
+                  style={{ display: 'inline', marginLeft: 4 }}
+                  width={16}
+                  src={getExchangeLogo(Exchange.OKX)}
+                />{' '}
+                OKX
+              </Select.Option>
+              <Select.Option value="okx_test">
+                <img
+                  alt={Exchange.OKXTest}
+                  style={{ display: 'inline', marginLeft: 4 }}
+                  width={16}
+                  src={getExchangeLogo(Exchange.OKXTest)}
+                />{' '}
+                OKX Test
+              </Select.Option>
+            </Select>
+          </Form.Item>
+
+          <ProForm.Item
+            label="交易对配置"
+            required
+            name="symbols"
+            dependencies={['exchange']}
+            rules={[
+              {
+                validator: (_: any, value: string[]) => {
+                  if (!exchangeValue) {
+                    return Promise.reject(new Error('请先选择交易所'));
+                  }
+                  if (!value || value.length === 0) {
+                    return Promise.reject(new Error('请选择交易对'));
+                  }
+                  if (value.length > 10) {
+                    return Promise.reject(new Error('最多选择10个交易对'));
+                  }
+                  const seen = new Set<string>();
+                  for (const item of value) {
+                    const sym = String(item || '').trim();
+                    if (!sym) continue;
+                    if (seen.has(sym)) {
+                      return Promise.reject(new Error('不允许添加重复的交易对'));
+                    }
+                    seen.add(sym);
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Select
+              mode="multiple"
+              style={{ width: '100%' }}
+              placeholder={exchangeValue ? '选择交易对' : '请先选择交易所'}
+              loading={loadingSymbols[exchangeValue || ''] || false}
+              disabled={!exchangeValue}
+              showSearch
+              filterOption={(input, option) =>
+                ((option?.label as string) ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={exchangeSymbols[exchangeValue || ''] || []}
+              onChange={(values) => {
+                if (values.length <= 10) {
+                  return;
+                }
+                message.warning('最多选择10个交易对');
+                form.setFieldValue('symbols', values.slice(0, 10));
+              }}
+            />
+          </ProForm.Item>
+
+          <ProForm.Item label="初始资产配置" required>
             <Card>
               <Row gutter={16}>
-                <Col span={5}>交易所：</Col>
-                <Col span={6}>交易对：</Col>
-                <Col span={5}>基础资产：</Col>
-                <Col span={5}>计价资产：</Col>
-                <Col span={4}></Col>
+                <Col span={6}>资产</Col>
+                <Col span={6}>钱包类型</Col>
+                <Col span={6}>总量</Col>
+                <Col span={2} />
               </Row>
               <Form.List
-                name="symbols"
+                name="initialAssets"
                 rules={[
                   {
                     validator: (_, value) => {
-                      if (value === undefined || value === null || value.length === 0) {
-                        return Promise.reject(new Error('请添加交易对'));
+                      if (!value || value.length === 0) {
+                        return Promise.reject(new Error('请添加初始资产'));
                       }
-                      // 禁止重复的 exchange/symbol 组合（仅对填写完整的行生效）
-                      const list = (value || []) as any[];
+                      const symbols = (form.getFieldValue('symbols') || []) as string[];
+                      if (
+                        !validateInitialAssetsAgainstSymbols(
+                          form.getFieldValue('exchange'),
+                          symbols,
+                          value,
+                        )
+                      ) {
+                        return Promise.reject(
+                          new Error('初始资产和交易对不匹配，缺失相关资产，请检查'),
+                        );
+                      }
                       const seen = new Set<string>();
-                      const exchanges = new Set<string>();
-                      for (const item of list) {
-                        const ex = String(item?.exchange || '').trim();
-                        const sym = String(item?.symbol || '').trim();
-                        if (ex) {
-                          exchanges.add(ex);
+                      for (const item of value as BacktestInitialAssetRow[]) {
+                        const asset = String(item?.asset || '')
+                          .trim()
+                          .toUpperCase();
+                        const walletType = String(item?.walletType || '').trim();
+                        if (!asset || !walletType) {
+                          continue;
                         }
-                        if (!ex || !sym) continue;
-                        const key = `${ex}__${sym}`;
+                        const key = `${asset}|${walletType}`;
                         if (seen.has(key)) {
-                          return Promise.reject(new Error('存在重复的交易对配置，请删除重复项'));
+                          return Promise.reject(new Error('资产与钱包类型组合需唯一'));
                         }
                         seen.add(key);
-                      }
-                      if (exchanges.size > 1) {
-                        return Promise.reject(new Error('回测只能选择一个交易所，请统一交易对的交易所'));
                       }
                       return Promise.resolve();
                     },
@@ -1051,21 +1013,68 @@ const BacktestForm: React.FC<BacktestFormProps> = (props) => {
                 {(fields, { add, remove }, { errors }) => (
                   <>
                     {fields.map(({ key, name, ...restField }) => (
-                      <SymbolItem
-                        key={key}
-                        symbolName={name}
-                        restField={restField}
-                        form={form}
-                        exchangeSymbols={exchangeSymbols}
-                        loadingSymbols={loadingSymbols}
-                        onLoadSymbols={loadSymbolsForExchange}
-                        onRemove={remove}
-                      />
+                      <Row key={key} gutter={16} style={{ marginBottom: 8 }}>
+                        <Col span={6}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'asset']}
+                            rules={[{ required: true, message: '请输入资产' }]}
+                          >
+                            <Input placeholder="USDT" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'walletType']}
+                            dependencies={['exchange']}
+                            rules={[
+                              { required: true, message: '请选择钱包类型' },
+                              {
+                                validator: (_, value) => {
+                                  if (!value || !exchangeValue) {
+                                    return Promise.resolve();
+                                  }
+                                  const allowed = getAllowedWalletTypes(exchangeValue);
+                                  if (!allowed.includes(value)) {
+                                    return Promise.reject(new Error('该交易所不支持此钱包类型'));
+                                  }
+                                  return Promise.resolve();
+                                },
+                              },
+                            ]}
+                          >
+                            <Select options={walletTypeOptions} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'total']}
+                            rules={[{ required: true, message: '请输入总量' }]}
+                          >
+                            <Input type="number" min={0} step="0.0001" placeholder="1000" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={2}>
+                          <Button
+                            type="link"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => remove(name)}
+                          />
+                        </Col>
+                      </Row>
                     ))}
-                    <Button type="dashed" block icon={<PlusOutlined />} onClick={() => add()}>
-                      添加交易对
+                    <Button
+                      type="dashed"
+                      block
+                      icon={<PlusOutlined />}
+                      onClick={() => add({ ...EMPTY_INITIAL_ASSET_ROW })}
+                    >
+                      添加资产
                     </Button>
-                    <Form.ErrorList errors={errors?.slice(0, 1)} />
+                    <Form.ErrorList errors={errors} />
                   </>
                 )}
               </Form.List>

@@ -1,6 +1,6 @@
-import { MarketType } from '@/global.types';
-import { Order, OrderCondition, OrderSource as OrderSourceEnum, OrderStatus as OrderStatusEnum, OrderType, OrderType as OrderTypeEnum, PositionSide } from '@/services/gateway/account';
+import { Order, OrderCondition, OrderSource as OrderSourceEnum, OrderStatus as OrderStatusEnum, OrderType, OrderType as OrderTypeEnum } from '@/services/gateway/account';
 import utils from '@/utils';
+import { getTradeSideColor, getTradeSideLabel } from '@/utils/orderSide';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import type { ParamsType, ProColumns, ProTableProps } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
@@ -66,31 +66,6 @@ const renderTime = (text: any) => {
       {value}
     </Typography.Text>
   );
-};
-
-const getOrderSideLabel = (record: Order) => {
-  const formtedSymbol = utils.market.parseSymbol(record.symbol);
-  if (formtedSymbol.type === MarketType.Future) {
-    if (record.side === PositionSide.Long) {
-      return record.isBuy ? '开多' : '平多';
-    }
-    if (record.side === PositionSide.Short) {
-      return record.isBuy ? '平空' : '开空';
-    }
-  } else {
-    return record.isBuy ? '买入' : '卖出';
-  }
-  return '-';
-};
-
-const getOrderSideColor = (record: Order) => {
-  if (record.side === PositionSide.Long) {
-    return record.isBuy ? 'green' : 'orange';
-  }
-  if (record.side === PositionSide.Short) {
-    return record.isBuy ? 'orange' : 'red';
-  }
-  return 'default';
 };
 
 const orderTypeLabelMap: Record<string, string> = {
@@ -303,8 +278,8 @@ export const OrdersTable: React.FC<OrdersTableProps> = ({
         width: 80,
         fixed: 'left',
         render: (_: any, record: Order) => {
-          const label = getOrderSideLabel(record);
-          const color = getOrderSideColor(record);
+          const label = getTradeSideLabel(record);
+          const color = getTradeSideColor(record);
           return <Tag color={color}>{label}</Tag>;
         },
       },

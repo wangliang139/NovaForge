@@ -16,6 +16,7 @@ type Collectors struct {
 	Trade  *TradeCollector
 	Order  *OrderCollector
 	Log    *LogCollector
+	Ledger *LedgerCollector
 }
 
 func NewCollectors(consoleLogger *store.BufferStorage, eventBus mb.Bus, orderEngine strategy.OrderEngine) *Collectors {
@@ -24,6 +25,7 @@ func NewCollectors(consoleLogger *store.BufferStorage, eventBus mb.Bus, orderEng
 		Trade:  NewTradeCollector(),
 		Order:  NewOrderCollector(orderEngine),
 		Log:    NewLogCollector(consoleLogger),
+		Ledger: NewLedgerCollector(),
 	}
 
 	// Collectors 在最后阶段处理事件（仅用于记录，不影响业务逻辑）
@@ -46,6 +48,25 @@ func NewCollectors(consoleLogger *store.BufferStorage, eventBus mb.Bus, orderEng
 			}
 			c.Trade.OnFill(fillEvent, matchedOrder)
 		}
+		return nil
+	}, int(mb.StageCollectors), mb.NewTypeFilter(stypes.SignalTypeFill))
+
+	eventBus.Subscribe(func(ctx context.Context, event stypes.Signal) error {
+		switch e := event.(type) {
+		case *stypes.BalanceDeltaSignal:
+			c.Ledger.OnBalanceDelta(e)
+		case *stypes.BalanceSignal:
+			c.Ledger.OnBalanceSnapshot(e)
+		}
+		_ = ctx
+		return nil
+	}, int(mb.StageCollectors), mb.NewTypeFilter(stypes.SignalTypeBalance))
+
+	eventBus.Subscribe(func(ctx context.Context, event stypes.Signal) error {
+		if fe, ok := event.(*stypes.FillSignal); ok {
+			c.Ledger.OnFill(fe)
+		}
+		_ = ctx
 		return nil
 	}, int(mb.StageCollectors), mb.NewTypeFilter(stypes.SignalTypeFill))
 

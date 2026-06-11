@@ -160,19 +160,31 @@ func WalletTypeGql2Types(walletType *model.WalletType) *ctypes.WalletType {
 	if walletType == nil {
 		return nil
 	}
-	switch *walletType {
-	case model.WalletTypeFund:
-		return lo.ToPtr(ctypes.WalletTypeFund)
-	case model.WalletTypeTrade:
-		return lo.ToPtr(ctypes.WalletTypeTrade)
-	case model.WalletTypeSpot:
-		return lo.ToPtr(ctypes.WalletTypeSpot)
-	case model.WalletTypeFuture:
-		return lo.ToPtr(ctypes.WalletTypeFuture)
-	case model.WalletTypeMargin:
-		return lo.ToPtr(ctypes.WalletTypeMargin)
-	default:
+	wt, ok := walletTypeGql2TypesValue(*walletType)
+	if !ok {
 		return nil
+	}
+	return lo.ToPtr(wt)
+}
+
+func WalletTypeGql2TypesRequired(walletType model.WalletType) (ctypes.WalletType, bool) {
+	return walletTypeGql2TypesValue(walletType)
+}
+
+func walletTypeGql2TypesValue(walletType model.WalletType) (ctypes.WalletType, bool) {
+	switch walletType {
+	case model.WalletTypeFund:
+		return ctypes.WalletTypeFund, true
+	case model.WalletTypeTrade:
+		return ctypes.WalletTypeTrade, true
+	case model.WalletTypeSpot:
+		return ctypes.WalletTypeSpot, true
+	case model.WalletTypeFuture:
+		return ctypes.WalletTypeFuture, true
+	case model.WalletTypeMargin:
+		return ctypes.WalletTypeMargin, true
+	default:
+		return "", false
 	}
 }
 

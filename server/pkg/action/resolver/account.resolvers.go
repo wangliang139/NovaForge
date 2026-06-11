@@ -787,8 +787,6 @@ func (r *Resolver) Mutation() action.MutationResolver { return &mutationResolver
 // Query returns action.QueryResolver implementation.
 func (r *Resolver) Query() action.QueryResolver { return &queryResolver{r} }
 
-type (
-	accountResolver  struct{ *Resolver }
-	mutationResolver struct{ *Resolver }
-	queryResolver    struct{ *Resolver }
-)
+type accountResolver struct{ *Resolver }
+type mutationResolver struct{ *Resolver }
+type queryResolver struct{ *Resolver }

@@ -198,18 +198,39 @@ type BacktestAssetInput struct {
 	Amount string `json:"amount"`
 }
 
+type BacktestAssetSeriesPoint struct {
+	Asset    string `json:"asset"`
+	NetValue string `json:"netValue"`
+	Qty      string `json:"qty"`
+}
+
+type BacktestEquityPoint struct {
+	Ts           int                          `json:"ts"`
+	NetValue     string                       `json:"netValue"`
+	AssetPoints  []*BacktestAssetSeriesPoint  `json:"assetPoints"`
+	SymbolPoints []*BacktestSymbolSeriesPoint `json:"symbolPoints"`
+}
+
 type BacktestExchangeInput struct {
 	Exchange types.Exchange         `json:"exchange"`
 	Symbols  []*BacktestSymbolInput `json:"symbols"`
 	Assets   []*BacktestAssetInput  `json:"assets,omitempty"`
 }
 
+type BacktestInitialAssetInput struct {
+	Asset      string     `json:"asset"`
+	WalletType WalletType `json:"walletType"`
+	Total      string     `json:"total"`
+	Frozen     *string    `json:"frozen,omitempty"`
+}
+
 type BacktestResultData struct {
-	Symbols  []*SymbolSummary `json:"symbols"`
-	Equity   []*Equity        `json:"equity"`
-	Orders   []*Order         `json:"orders,omitempty"`
-	Fills    []*Fill          `json:"fills,omitempty"`
-	MetaJSON *string          `json:"metaJson,omitempty"`
+	Symbols  []*SymbolSummary       `json:"symbols"`
+	Equity   []*BacktestEquityPoint `json:"equity"`
+	Ledgers  []*Ledger              `json:"ledgers"`
+	Orders   []*Order               `json:"orders,omitempty"`
+	Fills    []*Fill                `json:"fills,omitempty"`
+	MetaJSON *string                `json:"metaJson,omitempty"`
 }
 
 type BacktestSignalInput struct {
@@ -224,6 +245,14 @@ type BacktestSymbolInput struct {
 	Symbol        string         `json:"symbol"`
 	BaseAssetQty  *string        `json:"baseAssetQty,omitempty"`
 	QuoteAssetQty *string        `json:"quoteAssetQty,omitempty"`
+}
+
+type BacktestSymbolSeriesPoint struct {
+	Exchange types.Exchange `json:"exchange"`
+	Symbol   string         `json:"symbol"`
+	BaseQty  string         `json:"baseQty"`
+	PosQty   string         `json:"posQty"`
+	AvgPx    string         `json:"avgPx"`
 }
 
 type Balance struct {
@@ -1548,15 +1577,17 @@ type RiskEvent struct {
 }
 
 type RunBacktestInput struct {
-	Strategy   *StrategyInput         `json:"strategy,omitempty"`
-	StrategyID *string                `json:"strategyId,omitempty"`
-	Version    *string                `json:"version,omitempty"`
-	RunType    int                    `json:"runType"`
-	StartTime  int                    `json:"startTime"`
-	EndTime    int                    `json:"endTime"`
-	Symbols    []*BacktestSymbolInput `json:"symbols"`
-	Params     *string                `json:"params,omitempty"`
-	Signals    []*BacktestSignalInput `json:"signals,omitempty"`
+	Strategy      *StrategyInput               `json:"strategy,omitempty"`
+	StrategyID    *string                      `json:"strategyId,omitempty"`
+	Version       *string                      `json:"version,omitempty"`
+	RunType       int                          `json:"runType"`
+	StartTime     int                          `json:"startTime"`
+	EndTime       int                          `json:"endTime"`
+	Exchange      types.Exchange               `json:"exchange"`
+	Symbols       []string                     `json:"symbols"`
+	InitialAssets []*BacktestInitialAssetInput `json:"initialAssets"`
+	Params        *string                      `json:"params,omitempty"`
+	Signals       []*BacktestSignalInput       `json:"signals,omitempty"`
 }
 
 type RunBacktestResponse struct {
@@ -1772,6 +1803,7 @@ type SymbolSummary struct {
 	ShortNetPnl        string         `json:"shortNetPnl"`
 	LongTrades         int            `json:"longTrades"`
 	ShortTrades        int            `json:"shortTrades"`
+	FeesInBase         string         `json:"feesInBase"`
 }
 
 type TestExtractInput struct {
